@@ -6,7 +6,7 @@
 #
 # --mac makes HaloPad.app for Apple silicon Macs instead (the same app, zipped; it runs
 # as built, with no Apple account), with its own game package in <zip>.data/.
-# --xbox adds the Xbox edition: your Mac fetches the pinned halo-ce-universal engine and
+# --xbox adds the Xbox edition: your Mac fetches the pinned OpenCE engine and
 # ANGLE renderer from their own repositories and builds them into the same app (none of
 # it is part of HaloPad). You add your Xbox disc image in the app.
 #
@@ -133,7 +133,7 @@ else
 fi
 
 if [ $XBOX = 1 ]; then
-	step "fetching and building the Xbox engine (halo-ce-universal) for this app"
+	step "fetching and building the Xbox engine (OpenCE) for this app"
 	export HALOPAD_XBOX_RENDERER=angle-metal HALOPAD_XBOX_GUEST_ADAPTATION=render-camera-v1   # the tested iPad build
 	if [ $MAC = 1 ]; then scripts/xbox/build-ios.sh --mac; else scripts/xbox/build-ios.sh --device; fi
 	XBOX_SETTING=on

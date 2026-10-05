@@ -343,7 +343,7 @@ static BOOL xbox_backup_saves(NSError **error)
 	{
 		NSDictionary *build = xbox_build();
 		xg_log_sink = xbox_log_sink;
-		HP_LOG("Xbox: starting halo-ce-universal %s (%s), %s, renderer %s, graphics %s",
+		HP_LOG("Xbox: starting OpenCE %s (%s), %s, renderer %s, graphics %s",
 			xbox_release(build).UTF8String, [build[@"revision"] ?: @"?" UTF8String],
 			[build[@"guest_adaptation"][@"name"] ?: @"no adaptation" UTF8String],
 			[build[@"renderer"] ?: @"apple-gles" UTF8String], xbox_graphics_name().UTF8String);
@@ -394,7 +394,7 @@ static BOOL xbox_backup_saves(NSError **error)
 	CGSize screen = UIScreen.mainScreen.bounds.size;
 	uname(&machine);
 	for (GCController *controller in GCController.controllers) [pads addObject:controller.vendorName ?: @"controller"];
-	return [NSString stringWithFormat:@"HaloPad %@ (build %@), Xbox edition\nEngine: halo-ce-universal %@ (%@), %@, renderer %@, graphics %@\n"
+	return [NSString stringWithFormat:@"HaloPad %@ (build %@), Xbox edition\nEngine: OpenCE %@ (%@), %@, renderer %@, graphics %@\n"
 		@"Device: %s, %@ %@, %.0fx%.0f points\nFrames presented: %d\nControllers: %@\nTouch controls: %@\nSystem link addresses: %@",
 		[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?",
 		[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"?",
@@ -409,7 +409,7 @@ static BOOL xbox_backup_saves(NSError **error)
 - (NSString *)overlayAbout:(HPOverlay *)overlay
 {
 	NSDictionary *build = xbox_build();
-	return [NSString stringWithFormat:@"HaloPad %@ (%@)\nHalo: Combat Evolved for the original Xbox, running on halo-ce-universal %@ (built %@).\n"
+	return [NSString stringWithFormat:@"HaloPad %@ (%@)\nHalo: Combat Evolved for the original Xbox, running on OpenCE %@ (built %@).\n"
 		@"Graphics: %@. Rendering: %@.\n\nGame files: Files app → HaloPad → Halo Xbox\nSaves are backed up whenever the engine changes.\n\n"
 		@"HaloPad needs your own copy of Halo. It includes no game data.",
 		[NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?",
@@ -598,6 +598,32 @@ static NSString *const HPProjectURL = @"https://github.com/chrissotraidis/projec
 	UIStackView *cards;
 	UIButton *pc_play, *xbox_play;
 	BOOL choosing;
+}
+
+/* Online, OpenCE players must share its network version (not its build). When OpenCE's latest
+   release needs a newer one than this app's engine, say so: only a rebuild can update the engine. */
+static void xbox_check_upstream(NSDictionary *build, void (^notice)(NSString *message))
+{
+	NSNumber *mine = build[@"network_version"];
+	if (![mine isKindOfClass:NSNumber.class]) return;
+	NSString *repo = @"OpenCommunityEdition/OpenCE";
+	NSURL *latest = [NSURL URLWithString:[NSString stringWithFormat:@"https://api.github.com/repos/%@/releases/latest", repo]];
+	[[NSURLSession.sharedSession dataTaskWithURL:latest completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+		NSDictionary *release = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+		NSString *tag = [release isKindOfClass:NSDictionary.class] ? release[@"tag_name"] : nil;
+		if (![tag isKindOfClass:NSString.class] || ![tag hasPrefix:@"build-"]) return;
+		NSURL *limits = [NSURL URLWithString:[NSString stringWithFormat:
+			@"https://raw.githubusercontent.com/%@/%@/port/linux/include/halo_port_limits.h", repo, tag]];
+		[[NSURLSession.sharedSession dataTaskWithURL:limits completionHandler:^(NSData *header, NSURLResponse *r2, NSError *e2) {
+			NSString *text = header ? [[NSString alloc] initWithData:header encoding:NSUTF8StringEncoding] : nil;
+			NSRange at = text ? [text rangeOfString:@"#define HALO_PORT_NETWORK_VERSION "] : NSMakeRange(NSNotFound, 0);
+			if (at.location == NSNotFound || [text substringFromIndex:NSMaxRange(at)].intValue <= mine.intValue) return;
+			NSString *message = [NSString stringWithFormat:@"OpenCE %@ is out, and online Xbox games now need it. Build HaloPad again with "
+				@"PadMint to keep playing online with everyone; your saves and settings stay.",
+				[tag stringByReplacingOccurrencesOfString:@"build-" withString:@"build "]];
+			dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
+		}] resume];
+	}] resume];
 }
 
 static UILabel *chooser_label(NSString *text, UIFontTextStyle style, UIFontWeight weight, UIColor *color)
@@ -794,7 +820,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 		last:[last isEqual:@"pc"] extra:nil button:&pc_play];
 	xbox = [self cardTitle:@"Halo: Combat Evolved" platform:[build[@"candidate"] boolValue] ? @"XBOX · PREVIEW" : @"XBOX · EXPERIMENTAL"
 		symbol:@"gamecontroller" accent:green
-		version:[NSString stringWithFormat:@"halo-ce-universal %@ · Metal", xbox_release(build)]
+		version:[NSString stringWithFormat:@"OpenCE %@ · Metal", xbox_release(build)]
 		about:@"The original Xbox campaign and system link, from your own disc."
 		ready:xbox_ready status:xbox_ready ? @"Ready to play" : @"Add your Xbox disc image first"
 		play:xbox_ready ? @"Play Xbox" : @"Add Your Xbox Disc" identifier:@"engine.xbox" action:@selector(chooseXbox)
@@ -817,7 +843,11 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	footer.alignment = UIStackViewAlignmentCenter;
 	((UILabel *)footer.arrangedSubviews.lastObject).textAlignment = NSTextAlignmentRight;
 
-	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, footer ]];
+	UILabel *update = chooser_label(@"", UIFontTextStyleFootnote, UIFontWeightSemibold, [UIColor colorWithRed:1 green:0.72 blue:0.3 alpha:1]);
+	update.hidden = YES;
+	__weak UILabel *weak_update = update;
+	xbox_check_upstream(build, ^(NSString *message) { weak_update.text = message; weak_update.hidden = NO; });
+	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, update, footer ]];
 	stack.axis = UILayoutConstraintAxisVertical;
 	stack.spacing = 24;
 	stack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -882,7 +912,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	NSDictionary *build = xbox_build();
 	NSString *revision = build[@"revision"] ?: @"unknown";
 	NSString *message = [NSString stringWithFormat:@"Windows: Halo Custom Edition 1.10, translated to run natively on Apple silicon with Metal.\n\n"
-		@"Xbox: Halo: Combat Evolved on halo-ce-universal %@ (%@, built %@), drawn through Metal.%@ The Xbox edition is experimental; full campaign progression and every system link setup are not yet verified on iPad.\n\n"
+		@"Xbox: Halo: Combat Evolved on OpenCE %@ (%@, built %@), drawn through Metal.%@ The Xbox edition is experimental; full campaign progression and every system link setup are not yet verified on iPad.\n\n"
 		@"The two editions cannot play together. Each keeps its own saves; Xbox saves are backed up whenever its engine changes.\n\nProject Reach: %@",
 		xbox_release(build), [revision substringToIndex:MIN((NSUInteger)8, revision.length)], build[@"built"] ?: @"locally",
 		[build[@"candidate"] boolValue] ? @" This is a preview build." : @"", HPProjectURL];

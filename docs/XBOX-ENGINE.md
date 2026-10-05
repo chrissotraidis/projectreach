@@ -2,7 +2,9 @@
 
 Status, 2026-10-03: **HaloPad offers Windows Custom Edition or Xbox Combat Evolved at launch.**
 The accepted **experimental development pin** in `config/xbox-engine.lock.json`
-is upstream **build 85, `c3adcfe5`** (accepted 2026-10-04; build 74 `80d30410` before). Newer releases are tested separately before
+is upstream OpenCE (formerly halo-ce-universal) **build 119, `a38ede07`**, network version 13
+(accepted 2026-10-05 with `scripts/xbox/update-pin.sh`: Mac and Simulator menu/a10/match pass;
+build 85 `c3adcfe5` and build 74 `80d30410` before). Newer releases are tested separately before
 promotion. Build 64 expanded the high-resolution HUD/scopes and fixed meter
 alpha and flat menu fills; the following paragraphs retain that earlier evidence.
 Save-backed candidate and acceptance Mac/ANGLE iPad Simulator menu/a10/scripted-match

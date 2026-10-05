@@ -34,6 +34,10 @@ REVIEWED_RENDERERS = {
     # every insertion anchor is unchanged and still unique (reviewed 2026-10-04).
     'c3adcfe5bf917922d732f2551341b1ad00977867':
         'ff150104be97062027b6a65939218bff1b10e202f1b65e4a5a7504c12b5dd99d',
+    # Build119 (OpenCE, network version 13) changes only the stage binding in
+    # bind_textures; border_sampling.LATER_ANCHORS covers it (reviewed 2026-10-05).
+    'a38ede078ae9fa934bb1c2447ea701a42c6b718a':
+        'af1cec45a1919ccf4b6129ac61c3f28132fd9f97da85cf092a0d3a45cd51aaeb',
 }
 ENGINE_LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
 ANCHOR = b'\tscale[0] = scale[1] = 1.0f;\n#else\n'
@@ -122,6 +126,8 @@ CAMERA_SOURCE = pathlib.Path('port/linux/game/render_interpolation.c')
 REVIEWED_CAMERA = {
     'c3adcfe5bf917922d732f2551341b1ad00977867':
         'fac7667e391ace1ea83d114797dfdcd749646c42a88963462418deacb7e121de',
+    'a38ede078ae9fa934bb1c2447ea701a42c6b718a':
+        'fac7667e391ace1ea83d114797dfdcd749646c42a88963462418deacb7e121de',
 }
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
 CAMERA_REPLACE = (b'#if 0 /* HaloPad: the view turns the frame the finger moves (display.direct_camera) */\n'
@@ -158,7 +164,7 @@ def identity(name=None, revision=None):
     result = {'name': name, 'upstream_renderer_sha256': REVIEWED_RENDERERS.get(revision, SOURCE_SHA256)}
     if name == 'render-camera-v1':
         if revision not in REVIEWED_CAMERA:
-            raise ValueError('Direct camera is reviewed only for build 85; review render_interpolation.c first')
+            raise ValueError('Direct camera is reviewed only for builds 85 and 119; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = REVIEWED_CAMERA[revision]
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()

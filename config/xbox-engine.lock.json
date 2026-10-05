@@ -1,9 +1,9 @@
 {
   "schema": 1,
-  "name": "halo-ce-universal",
-  "url": "https://github.com/cybersecurity/halo-ce-universal.git",
-  "revision": "c3adcfe5bf917922d732f2551341b1ad00977867",
-  "release": "build-85",
-  "pinned": "2026-10-04",
+  "name": "OpenCE",
+  "url": "https://github.com/OpenCommunityEdition/OpenCE.git",
+  "revision": "a38ede078ae9fa934bb1c2447ea701a42c6b718a",
+  "release": "build-119",
+  "pinned": "2026-10-05",
   "note": "Fetched and built on the player's own Mac only. Never commit its sources, its image or the translation, and never publish a build. See docs/XBOX-ENGINE.md."
 }

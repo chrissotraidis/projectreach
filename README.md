@@ -38,6 +38,10 @@
 
 ## What's new
 
+- **0.3.3: online with current OpenCE players.** The Xbox edition moves to OpenCE build 119
+  (network version 13, with online co-op), so HaloPad joins the same games as everyone else again.
+  HaloPad now tells you on the edition picker when OpenCE ships a build that can no longer play with
+  yours; rebuild with PadMint and install over your app to catch up. Saves stay.
 - **0.3.2: both editions from PadMint.** PadMint (and `build.sh --xbox`) now builds the Xbox edition
   into HaloPad too, on iPhone, iPad and Mac, by fetching the engine from upstream on your Mac. Mac
   players get **⋯ › Controls › Mouse Speed**.
@@ -58,7 +62,7 @@ When your build includes both, it asks which one to open at launch.
 
 | | Halo Custom Edition (PC) | Halo: Combat Evolved (Xbox) |
 | --- | --- | --- |
-| How it runs | Your own `haloce.exe` 1.10, translated from x86 to native ARM64 ahead of time | [halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal), the port of the Xbox decompilation, built on your Mac |
+| How it runs | Your own `haloce.exe` 1.10, translated from x86 to native ARM64 ahead of time | [OpenCE](https://github.com/OpenCommunityEdition/OpenCE), the port of the Xbox decompilation, built on your Mac |
 | Your files | Your Custom Edition installer and product key | Your own Xbox disc image, imported in the app |
 | Online | Community-run Custom Edition servers and LAN, alongside PC players | Internet and system link games of up to 128 players with PC, Linux and Android players on the same build |
 | Campaign | No | The original Xbox campaign |
@@ -123,7 +127,7 @@ To update, install over the existing app. Deleting HaloPad deletes your profiles
 ### Adding the Xbox edition
 
 PadMint and the `--xbox` builder option add the Xbox edition to the same app, so HaloPad opens to the
-edition picker. Your Mac downloads the pinned [halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal)
+edition picker. Your Mac downloads the pinned [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
 engine and the ANGLE renderer from their own repositories and builds them; none of that code is part of
 HaloPad. You add your own Xbox disc image in the app (**Add Your Xbox Disc** on the picker).
 
@@ -171,7 +175,7 @@ own in a few clicks with [PadMint](https://github.com/chrissotraidis/padmint), o
 <summary><strong>Can I play online with people on PC?</strong></summary>
 
 Yes. Custom Edition joins the community-run PC servers in Halo's own lobby. The Xbox edition plays with
-other halo-ce-universal players on PC, Linux and Android, up to 128 per match. The two editions cannot
+other OpenCE players on PC, Linux and Android, up to 128 per match. The two editions cannot
 play each other.
 
 </details>
@@ -179,9 +183,11 @@ play each other.
 <details>
 <summary><strong>Why can't I join someone's Xbox game?</strong></summary>
 
-Everyone in a match needs the same upstream build. HaloPad shows yours on the Xbox card and in
-**⋯ › About** (for example *build 85*). When HaloPad moves to a newer build, rebuild to match. The game
-browser finds games through public relay servers, as upstream does; there is no HaloPad server.
+Everyone in a match needs the same OpenCE network version. HaloPad shows its build on the Xbox card and
+in **⋯ › About** (for example *build 119*), and the picker tells you when OpenCE has moved past it.
+When that happens, rebuild HaloPad with PadMint (it always uses the latest HaloPad release) and install
+over your app; saves stay. The game browser finds games through public relay servers, as upstream does;
+there is no HaloPad server.
 
 </details>
 
@@ -266,7 +272,7 @@ Yes, when you install over the existing app with the same signing. Never delete 
 HaloPad stands on a lot of other people's work. Thank you to:
 
 - [SR](https://github.com/M-HT/SR) by M-HT, the static x86 recompiler at the heart of the translation pipeline
-- [halo-ce-universal](https://github.com/cybersecurity/halo-ce-universal) by cybersecurity and its
+- [OpenCE](https://github.com/OpenCommunityEdition/OpenCE) (formerly halo-ce-universal) by cybersecurity and its
   contributors, the Xbox engine port, built on the decompilations [bnunu/halo-1](https://github.com/bnunu/halo-1)
   and [punpckhdq/halo](https://github.com/punpckhdq/halo)
 - [ANGLE](https://chromium.googlesource.com/angle/angle), whose Metal backend draws the Xbox edition

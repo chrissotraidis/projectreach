@@ -149,6 +149,10 @@ manifest = {
     'renderer': sys.argv[4],
     'sdk': sdk.split('-')[0],
     'runtime_sources': sources(),
+    # players online must share this (upstream's HALO_PORT_NETWORK_VERSION), not the build
+    'network_version': next((int(line.split()[2]) for line in
+        (pathlib.Path(engine) / 'port/linux/include/halo_port_limits.h').read_text().splitlines()
+        if line.startswith('#define HALO_PORT_NETWORK_VERSION ')), None),
 }
 if sys.argv[4] == 'angle-metal':
     manifest['angle_source'] = json.loads(pathlib.Path(sys.argv[5]).read_text())

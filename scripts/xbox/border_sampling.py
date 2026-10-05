@@ -86,7 +86,25 @@ SHADER_EDITS = (
 def recipe():
     return SHADER_SHA256.encode() + b''.join(a + b for a, b in (*RENDERER_EDITS, *SHADER_EDITS))
 
+# Reviewed later forms of an anchor (the renderer's own hash still gates each revision).
+# Build 119 resolves every stage's texture before binding (two declarations above
+# 'int stage'); the border state is set up the same way after them.
+_BIND_OLD = b'static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale[4][4])\n{\n\tint stage;\n'
+_BIND_NEW = (b'static void bind_textures(struct nv2a_pixel_shader_key *key, float texture_scale[4][4])\n{\n'
+             b'\t/* Bind only after resolving every stage, since texture uploads can\n'
+             b'\toverwrite the active unit\'s binding. */\n'
+             b'\tGLenum gl_targets[D3DTSS_MAXSTAGES];\n\tGLuint gl_textures[D3DTSS_MAXSTAGES];\n\tint stage;\n')
+LATER_ANCHORS = {_BIND_OLD: _BIND_NEW}
+
+def _later(anchor, replacement, original):
+    """The anchor and replacement for this source: the original, or its reviewed later form."""
+    later = LATER_ANCHORS.get(anchor)
+    if later and original.count(anchor) == 0 and original.count(later) == 1:
+        return later, replacement.replace(anchor, later)
+    return anchor, replacement
+
 def apply_edits(original, edits):
+    edits = [_later(anchor, replacement, original) for anchor, replacement in edits]
     for anchor, _ in edits:
         if original.count(anchor) != 1:
             raise ValueError('Border sampling input changed; review upstream first')

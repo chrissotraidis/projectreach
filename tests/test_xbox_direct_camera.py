@@ -26,7 +26,7 @@ class DirectCameraTests(unittest.TestCase):
         self.assertNotIn('upstream_camera_sha256', present)
 
     def test_unreviewed_revision_rejected(self):
-        with self.assertRaisesRegex(ValueError, 'reviewed only for build 85'):
+        with self.assertRaisesRegex(ValueError, 'reviewed only for builds 85 and 119'):
             guest.identity('render-camera-v1', '80d30410c8db28f4008b92f4e012a1b046ece14e')
 
     def test_only_the_android_guard_changes(self):
