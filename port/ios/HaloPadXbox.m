@@ -332,6 +332,18 @@ static BOOL xbox_backup_saves(NSError **error)
 	}
 	[NSFileManager.defaultManager createDirectoryAtPath:xbox_saves() withIntermediateDirectories:YES attributes:nil error:nil];
 	{
+		/* online play's MQTT brokers (network.brokers_file, beside config.toml): written at each
+		   start, as upstream's Android app and desktop updates do. Without it the server browser
+		   finds no games and invites cannot connect. */
+		NSString *source = [NSBundle.mainBundle.resourcePath stringByAppendingPathComponent:@"data/xbox/brokers.txt"];
+		NSData *brokers = [NSData dataWithContentsOfFile:source];
+		NSString *target = [xbox_data() stringByAppendingPathComponent:@"brokers.txt"];
+		if (brokers && [brokers writeToFile:target atomically:YES])
+			HP_LOG("Xbox: online brokers written to brokers.txt (%lu bytes)", (unsigned long)brokers.length);
+		else
+			HP_LOG("Xbox: could not write brokers.txt; the server browser will find no games");
+	}
+	{
 		NSString *addresses = [NSUserDefaults.standardUserDefaults stringForKey:link_key];
 		if (addresses.length)
 			setenv("HALO_NET_BROADCAST", addresses.UTF8String, 0);

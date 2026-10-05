@@ -162,6 +162,9 @@ if manifest['guest_adaptation']['name'] in guest_adaptation.COUNTED_ADAPTATIONS:
     manifest['visibility_backend'] = json.loads((out / counted / 'counted-visibility-v1/identity.json').read_text())
 (out / sdk / 'build.json').write_text(json.dumps(manifest, indent=2) + '\n')
 PY
+# internet play's public MQTT brokers (network.brokers_file): without this list the server
+# browser finds no games and invites cannot connect. The app writes it beside config.toml.
+cp "$ENGINE/port/assets/network/brokers.txt" "$OUT/brokers.txt"
 if [ "$SDK" = maccatalyst ]; then                 # the Mac has no standalone test app: HaloPad links the library
 	echo "built $LIB"
 	exit 0

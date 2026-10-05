@@ -217,6 +217,10 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
     if xbox_parts(target) and guest.exists():
         (data / 'xbox').mkdir()
         shutil.copy2(guest, data / 'xbox' / 'halo_guest.elf')      # upstream's image: this Mac's personal build only
+        brokers = XBOX_OUT / 'brokers.txt'                          # online play's brokers (scripts/xbox/build-ios.sh)
+        if not brokers.is_file():
+            raise ValueError('Xbox brokers.txt missing (online play would find no games); run scripts/xbox/build-ios.sh')
+        shutil.copy2(brokers, data / 'xbox' / 'brokers.txt')
         build = json.loads((xbox_build_folder(target) / 'build.json').read_text())
         pin = json.loads((ROOT / 'config/xbox-engine.lock.json').read_text())['revision']
         build['candidate'] = (build['revision'] != pin or build.get('renderer') == 'angle-metal'

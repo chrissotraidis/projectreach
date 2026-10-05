@@ -38,6 +38,9 @@
 
 ## What's new
 
+- **0.3.4: the server browser finds games.** The Xbox edition now ships OpenCE's list of public
+  matchmaking servers (`brokers.txt`), which it was missing, so **Multiplayer › Server Browser**
+  lists everyone's public games and joining them works. Rebuild with PadMint and install over your app.
 - **0.3.3: online with current OpenCE players.** The Xbox edition moves to OpenCE build 119
   (network version 13, with online co-op), so HaloPad joins the same games as everyone else again.
   HaloPad now tells you on the edition picker when OpenCE ships a build that can no longer play with
