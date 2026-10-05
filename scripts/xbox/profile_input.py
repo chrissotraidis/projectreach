@@ -1,5 +1,6 @@
 """Guarded, read-only input-context bridge for the private paired guest/host."""
 import hashlib
+import os
 import pathlib
 
 INPUT = pathlib.Path('source/input/input_xbox.c')
@@ -44,7 +45,8 @@ def recipe():
 
 def adapt(path, original):
     digest = hashlib.sha256(original).hexdigest()
-    if digest != HASHES[path] and digest not in REVIEWED.get(path, ()):
+    latest = os.environ.get('HALOPAD_XBOX_LATEST') == '1'   # OpenCE's newest release: anchors decide
+    if digest != HASHES[path] and digest not in REVIEWED.get(path, ()) and not latest:
         raise ValueError('Input bridge source changed; review upstream first')
     if path == IMPORTS:
         return original + IMPORT

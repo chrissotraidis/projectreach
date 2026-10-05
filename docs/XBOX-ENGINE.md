@@ -2,10 +2,11 @@
 
 Status, 2026-10-03: **HaloPad offers Windows Custom Edition or Xbox Combat Evolved at launch.**
 The accepted **experimental development pin** in `config/xbox-engine.lock.json`
-is upstream OpenCE (formerly halo-ce-universal) **build 119, `a38ede07`**, network version 13
+is upstream OpenCE (formerly halo-ce-universal) **build 125, `13c14df9`**, network version 16
 (accepted 2026-10-05 with `scripts/xbox/update-pin.sh`: Mac and Simulator menu/a10/match pass;
-build 85 `c3adcfe5` and build 74 `80d30410` before). Newer releases are tested separately before
-promotion. Build 64 expanded the high-resolution HUD/scopes and fixed meter
+build 119 `a38ede07`, build 85 `c3adcfe5` and build 74 `80d30410` before). The pin is now the
+**fallback**: `scripts/builder/build.sh` (PadMint) first tries OpenCE's newest release with
+`HALOPAD_XBOX_LATEST=1` (see "Updating the engine"). Build 64 expanded the high-resolution HUD/scopes and fixed meter
 alpha and flat menu fills; the following paragraphs retain that earlier evidence.
 Save-backed candidate and acceptance Mac/ANGLE iPad Simulator menu/a10/scripted-match
 gates pass. A copied build-61 a30 checkpoint loads through normal menus; actual
@@ -476,6 +477,14 @@ upstream digest without reviewing the copy/draw ordering and border policy, then
 rerunning the water/shadow comparisons. Evidence is linked above.
 
 ## Updating the engine
+
+**Players' builds track OpenCE by themselves.** OpenCE moves its network version (which online
+players must share) several times a day, faster than a reviewed pin can follow. `scripts/builder/build.sh`
+therefore resolves OpenCE's latest release and builds it with `XBOX_REV=<its commit>` and
+`HALOPAD_XBOX_LATEST=1`: HaloPad's edits must still find every anchor exactly once (only the
+reviewed file hashes are waived, and the identity records `"reviewed": false`). If that guest or
+library does not build, the builder falls back to the pin below. `HALOPAD_XBOX_PINNED=1` skips the
+attempt. The pin is still moved with the reviewed workflow below, so the fallback stays recent.
 
 Check upstream releases on a regular maintenance pass (weekly is the proposed cadence), then
 freeze an exact commit for validation. Do not chase changing HEAD during a pass. This is a

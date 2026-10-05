@@ -38,8 +38,27 @@ REVIEWED_RENDERERS = {
     # bind_textures; border_sampling.LATER_ANCHORS covers it (reviewed 2026-10-05).
     'a38ede078ae9fa934bb1c2447ea701a42c6b718a':
         'af1cec45a1919ccf4b6129ac61c3f28132fd9f97da85cf092a0d3a45cd51aaeb',
+    # Build125 (network version 16): co-op and netcode only; this file is unchanged.
+    '13c14df95c63156429e96a9694bb9cecd0379228':
+        'af1cec45a1919ccf4b6129ac61c3f28132fd9f97da85cf092a0d3a45cd51aaeb',
 }
 ENGINE_LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
+ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/vol/engine'
+
+
+def latest_mode():
+    """HALOPAD_XBOX_LATEST=1: the builder's attempt at OpenCE's newest release, which HaloPad has
+    not reviewed. Every edit's anchor must still be present exactly once (the checks below), and
+    scripts/builder/build.sh falls back to the tested pin when anything does not apply or build."""
+    return os.environ.get('HALOPAD_XBOX_LATEST') == '1'
+
+
+def _latest_hash(revision, path):
+    """The file's hash at an unreviewed revision, only in latest mode."""
+    if not latest_mode():
+        return None
+    shown = subprocess.run(['git', '-C', str(ENGINE_CHECKOUT), 'show', f'{revision}:{path}'], capture_output=True)
+    return hashlib.sha256(shown.stdout).hexdigest() if shown.returncode == 0 else None
 ANCHOR = b'\tscale[0] = scale[1] = 1.0f;\n#else\n'
 INSERT = b'''\t/* HaloPad private experiment: retain logical layout, scale only targets. */
 \t{
@@ -128,6 +147,8 @@ REVIEWED_CAMERA = {
         'fac7667e391ace1ea83d114797dfdcd749646c42a88963462418deacb7e121de',
     'a38ede078ae9fa934bb1c2447ea701a42c6b718a':
         'fac7667e391ace1ea83d114797dfdcd749646c42a88963462418deacb7e121de',
+    '13c14df95c63156429e96a9694bb9cecd0379228':
+        'fac7667e391ace1ea83d114797dfdcd749646c42a88963462418deacb7e121de',
 }
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
 CAMERA_REPLACE = (b'#if 0 /* HaloPad: the view turns the frame the finger moves (display.direct_camera) */\n'
@@ -161,12 +182,16 @@ def identity(name=None, revision=None):
         recipe += profile_input.recipe()
     if name in PRESENT_ADAPTATIONS:
         recipe += PRESENT_ANCHOR + PRESENT_REPLACE
-    result = {'name': name, 'upstream_renderer_sha256': REVIEWED_RENDERERS.get(revision, SOURCE_SHA256)}
+    renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
+    result = {'name': name, 'upstream_renderer_sha256': renderer}
     if name == 'render-camera-v1':
-        if revision not in REVIEWED_CAMERA:
-            raise ValueError('Direct camera is reviewed only for builds 85 and 119; review render_interpolation.c first')
+        camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
+        if not camera:
+            raise ValueError('Direct camera is reviewed only for builds 85, 119 and 125; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
-        result['upstream_camera_sha256'] = REVIEWED_CAMERA[revision]
+        result['upstream_camera_sha256'] = camera
+    if revision not in REVIEWED_RENDERERS and latest_mode():
+        result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
     return result
 

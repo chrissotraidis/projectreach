@@ -135,7 +135,26 @@ fi
 if [ $XBOX = 1 ]; then
 	step "fetching and building the Xbox engine (OpenCE) for this app"
 	export HALOPAD_XBOX_RENDERER=angle-metal HALOPAD_XBOX_GUEST_ADAPTATION=render-camera-v1   # the tested iPad build
-	if [ $MAC = 1 ]; then scripts/xbox/build-ios.sh --mac; else scripts/xbox/build-ios.sh --device; fi
+	XSDK_FLAG=--device; [ $MAC = 0 ] || XSDK_FLAG=--mac
+	# Online play needs the same network version as everyone else, and OpenCE moves it often:
+	# try its newest release first, and fall back to HaloPad's tested pin if that does not apply
+	# or build. HALOPAD_XBOX_PINNED=1 skips the attempt.
+	PIN_REV=$($PY -c "import json;print(json.load(open('config/xbox-engine.lock.json'))['revision'])")
+	LATEST_TAG=$(curl -fsSL --max-time 20 https://api.github.com/repos/OpenCommunityEdition/OpenCE/releases/latest 2>/dev/null |
+		$PY -c "import json,sys;print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
+	LATEST_REV=""
+	[ -z "$LATEST_TAG" ] || LATEST_REV=$(git ls-remote https://github.com/OpenCommunityEdition/OpenCE.git "refs/tags/$LATEST_TAG^{}" "refs/tags/$LATEST_TAG" 2>/dev/null | head -n 1 | cut -f1)
+	if [ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] && [ -n "$LATEST_REV" ] && [ "$LATEST_REV" != "$PIN_REV" ]; then
+		echo "trying OpenCE's newest release, $LATEST_TAG ($LATEST_REV); HaloPad's tested pin is the fallback"
+		if XBOX_REV=$LATEST_REV HALOPAD_XBOX_LATEST=1 scripts/xbox/build-ios.sh $XSDK_FLAG; then
+			export XBOX_REV=$LATEST_REV HALOPAD_XBOX_LATEST=1
+		else
+			echo "warning: OpenCE $LATEST_TAG did not build with HaloPad's changes; using the tested pin" >&2
+			scripts/xbox/build-ios.sh $XSDK_FLAG
+		fi
+	else
+		scripts/xbox/build-ios.sh $XSDK_FLAG
+	fi
 	XBOX_SETTING=on
 else
 	XBOX_SETTING=off                                  # the Windows edition alone

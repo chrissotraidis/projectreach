@@ -38,6 +38,10 @@
 
 ## What's new
 
+- **0.3.5: keeps up with OpenCE by itself.** OpenCE changes its online version several times a day.
+  PadMint now builds the Xbox edition from OpenCE's **newest release** and falls back to HaloPad's
+  tested build (now OpenCE build 125) only if the newest one does not build. When the picker says
+  OpenCE has moved on, rebuild with PadMint and install over your app.
 - **0.3.4: the server browser finds games.** The Xbox edition now ships OpenCE's list of public
   matchmaking servers (`brokers.txt`), which it was missing, so **Multiplayer › Server Browser**
   lists everyone's public games and joining them works. Rebuild with PadMint and install over your app.
@@ -186,11 +190,13 @@ play each other.
 <details>
 <summary><strong>Why can't I join someone's Xbox game?</strong></summary>
 
-Everyone in a match needs the same OpenCE network version. HaloPad shows its build on the Xbox card and
-in **⋯ › About** (for example *build 119*), and the picker tells you when OpenCE has moved past it.
-When that happens, rebuild HaloPad with PadMint (it always uses the latest HaloPad release) and install
-over your app; saves stay. The game browser finds games through public relay servers, as upstream does;
-there is no HaloPad server.
+Everyone in a match needs the same OpenCE network version, and OpenCE changes it often. HaloPad shows
+its build on the Xbox card and in **⋯ › About** (for example *build 125*), and the picker tells you when
+OpenCE has moved past it. Rebuild with PadMint and install over your app: the build uses OpenCE's
+newest release (falling back to HaloPad's tested one if it does not build). Your profiles and settings
+stay; a campaign checkpoint from before the rebuild may not load (OpenCE's checkpoints are memory
+snapshots tied to one engine build), so use **New Game** or the level select. The server browser finds
+games through public brokers, as upstream does; there is no HaloPad server.
 
 </details>
 

@@ -4,6 +4,7 @@ Keep upstream code out of this module except the small unique insertion anchors.
 The shader retains native sampling for every path outside the supported policy.
 """
 import hashlib
+import os
 import json
 import pathlib
 
@@ -114,6 +115,8 @@ def apply_edits(original, edits):
     return result
 
 def adapt_shader(original):
-    if hashlib.sha256(original).hexdigest() != SHADER_SHA256:
+    # OpenCE's newest, unreviewed release (scripts/builder/build.sh): the anchors alone decide
+    latest = os.environ.get('HALOPAD_XBOX_LATEST') == '1'
+    if hashlib.sha256(original).hexdigest() != SHADER_SHA256 and not latest:
         raise ValueError('Border shader input changed; review upstream first')
     return apply_edits(original, SHADER_EDITS)

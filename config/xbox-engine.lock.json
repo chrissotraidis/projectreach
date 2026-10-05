@@ -2,8 +2,8 @@
   "schema": 1,
   "name": "OpenCE",
   "url": "https://github.com/OpenCommunityEdition/OpenCE.git",
-  "revision": "a38ede078ae9fa934bb1c2447ea701a42c6b718a",
-  "release": "build-119",
+  "revision": "13c14df95c63156429e96a9694bb9cecd0379228",
+  "release": "build-125",
   "pinned": "2026-10-05",
   "note": "Fetched and built on the player's own Mac only. Never commit its sources, its image or the translation, and never publish a build. See docs/XBOX-ENGINE.md."
 }
