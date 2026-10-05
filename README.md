@@ -38,6 +38,8 @@
 
 ## What's new
 
+- **0.3.6: corrected Wine setup.** Homebrew disabled its Wine cask; follow the
+  [Wine installation guide](docs/INSTALL-WINE.md). PadMint 0.4.9 shows the corrected setup step.
 - **0.3.5: keeps up with OpenCE by itself.** OpenCE changes its online version several times a day.
   PadMint now builds the Xbox edition from OpenCE's **newest release** and falls back to HaloPad's
   tested build (now OpenCE build 125) only if the newest one does not build. When the picker says
@@ -104,6 +106,7 @@ Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 You need:
 
 - a Mac with Apple silicon and Xcode
+- [Wine installed for HaloPad](docs/INSTALL-WINE.md) (Homebrew's `wine-stable` cask is disabled)
 - your own Halo: Custom Edition installer (`HaloCESetup.exe`) and its product key
 - for iPhone or iPad: iOS/iPadOS 17 or later with Developer Mode on, and an Apple development profile
   that allows **Extended Virtual Addressing** and **Increased Memory Limit** (the Mac app needs neither)
@@ -116,7 +119,7 @@ Put `HaloCESetup.exe` and a `product-key.txt` holding your Halo PC key in one fo
 - **Terminal:** install the tools once, then run the builder:
 
   ```sh
-  brew install sevenzip winetricks llvm lld && brew install --cask wine-stable
+  brew install sevenzip winetricks llvm lld
   scripts/builder/build.sh /path/to/that/folder --ipa HaloPad.ipa        # iPhone and iPad
   scripts/builder/build.sh /path/to/that/folder --mac --zip HaloPad.zip  # Mac
   ```

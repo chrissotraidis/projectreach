@@ -33,7 +33,7 @@
       {"name": "python3", "version_args": ["--version"]},
       {"name": "xcodebuild", "version_args": ["-version"]},
       {"name": "7zz", "version_args": [], "player": true, "note": "brew install sevenzip"},
-      {"name": "wine", "version_args": ["--version"], "player": true, "note": "brew install --cask wine-stable (your product ID)"},
+      {"name": "wine", "version_args": ["--version"], "player": true, "note": "Install Wine using https://github.com/chrissotraidis/projectreach/blob/main/docs/INSTALL-WINE.md (Homebrew's Wine cask is disabled). Then restart PadMint."},
       {"name": "winetricks", "version_args": ["--version"], "player": true, "note": "brew install winetricks (your product ID)"},
       {"name": "/opt/homebrew/opt/llvm/bin/clang", "version_args": ["--version"], "player": true, "note": "brew install llvm (your product ID)"},
       {"name": "lld-link", "version_args": ["--version"], "player": true, "note": "brew install lld (your product ID)"}

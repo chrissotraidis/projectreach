@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Reproduce the Halo Custom Edition 1.10 client files from the supplied CE 1.00
 # installer and Bungie's official CE 1.10 update, using a fresh throwaway Wine
-# prefix (Homebrew wine-stable). Nothing is installed and no product key is involved.
+# prefix (docs/INSTALL-WINE.md). Nothing is installed and no product key is involved.
 #
 # Usage: scripts/prepare-patched-client.sh [--keep-bottle]
 # Prints the run directory (generated/patchwork/run-*) and writes evidence to
@@ -22,7 +22,7 @@ KEEP_BOTTLE=0
 die() { echo "FAIL: $*" >&2; exit 1; }
 sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
-command -v wine >/dev/null || die "wine is required (brew install --cask wine-stable)"
+command -v wine >/dev/null || die "wine is required; see docs/INSTALL-WINE.md"
 command -v 7zz >/dev/null || die "7zz (7-Zip) is required"
 [[ -f "$INSTALLER" ]] || die "missing $INSTALLER"
 [[ -f "$PATCH" ]] || die "missing $PATCH"

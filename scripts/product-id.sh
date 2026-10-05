@@ -9,7 +9,7 @@
 # disk. The output holds only the two registry values Halo's installer writes;
 # it stays in generated/ (ignored) and goes into your own app with
 # build-ios-app.py --product-id. Never share it or an app built with it.
-# Needs Homebrew wine, winetricks (for Microsoft's MFC42 runtime), sevenzip (7zz) and llvm.
+# Needs Wine (docs/INSTALL-WINE.md), winetricks (for Microsoft's MFC42 runtime), sevenzip (7zz) and llvm.
 set -eu
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 INSTALLER=""
@@ -26,7 +26,7 @@ done
 LLVM=/opt/homebrew/opt/llvm/bin
 LLD=$(command -v lld-link || echo "$LLVM/lld-link")
 for tool in wine winetricks 7zz "$LLVM/clang" "$LLD" "$LLVM/llvm-dlltool"; do
-	command -v "$tool" >/dev/null || { echo "missing $tool (brew install wine-stable winetricks sevenzip llvm lld)" >&2; exit 2; }
+	command -v "$tool" >/dev/null || { echo "missing $tool (brew install winetricks sevenzip llvm lld; for Wine see docs/INSTALL-WINE.md)" >&2; exit 2; }
 done
 WORK=$(mktemp -d "$ROOT/generated/product-id-work.XXXXXX")
 # winedbg disabled: a crash fails at once instead of waiting in Wine's debugger
