@@ -143,7 +143,7 @@ if [ $XBOX = 1 ]; then
 	LATEST_TAG=$(curl -fsSL --max-time 20 https://api.github.com/repos/OpenCommunityEdition/OpenCE/releases/latest 2>/dev/null |
 		$PY -c "import json,sys;print(json.load(sys.stdin).get('tag_name',''))" 2>/dev/null || true)
 	LATEST_REV=""
-	[ -z "$LATEST_TAG" ] || LATEST_REV=$(git ls-remote https://github.com/OpenCommunityEdition/OpenCE.git "refs/tags/$LATEST_TAG^{}" "refs/tags/$LATEST_TAG" 2>/dev/null | head -n 1 | cut -f1)
+	[ -z "$LATEST_TAG" ] || LATEST_REV=$(git ls-remote https://github.com/OpenCommunityEdition/OpenCE.git "refs/tags/$LATEST_TAG^{}" "refs/tags/$LATEST_TAG" 2>/dev/null | head -n 1 | cut -f1 || true)
 	if [ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] && [ -n "$LATEST_REV" ] && [ "$LATEST_REV" != "$PIN_REV" ]; then
 		echo "trying OpenCE's newest release, $LATEST_TAG ($LATEST_REV); HaloPad's tested pin is the fallback"
 		if XBOX_REV=$LATEST_REV HALOPAD_XBOX_LATEST=1 scripts/xbox/build-ios.sh $XSDK_FLAG; then
