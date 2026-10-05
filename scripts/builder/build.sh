@@ -54,7 +54,7 @@ sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 step "checking tools"
 for tool in xcodebuild 7zz wine winetricks lld-link /opt/homebrew/opt/llvm/bin/clang; do
-	command -v "$tool" >/dev/null || { echo "missing $tool: install Xcode, then brew install sevenzip winetricks llvm lld && brew install --cask wine-stable" >&2; exit 2; }
+	command -v "$tool" >/dev/null || { echo "missing $tool: install Xcode, then brew install sevenzip winetricks llvm lld; for Wine see docs/INSTALL-WINE.md" >&2; exit 2; }
 done
 if [ $XBOX = 1 ]; then
 	for tool in cmake ninja ld.lld git curl; do
