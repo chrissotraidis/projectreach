@@ -22,6 +22,7 @@
 #import "HaloPadOverlay.h"
 #import "HaloPadXboxSaveIdentity.h"
 #import "HaloPadXboxQuality.h"
+#import "HaloPadXboxUpdate.h"
 #include "xg_overlay_input.h"
 #include "../runtime/halopad_log.h"
 
@@ -612,27 +613,26 @@ static NSString *const HPProjectURL = @"https://github.com/chrissotraidis/projec
 	BOOL choosing;
 }
 
-/* Online, OpenCE players must share its network version (not its build). When OpenCE's latest
-   release needs a newer one than this app's engine, say so: only a rebuild can update the engine. */
+/* Online players must share OpenCE's network version, not necessarily its build.
+   Report optional releases separately from incompatible multiplayer versions. */
 static void xbox_check_upstream(NSDictionary *build, void (^notice)(NSString *message))
 {
-	NSNumber *mine = build[@"network_version"];
-	if (![mine isKindOfClass:NSNumber.class]) return;
 	NSString *repo = @"OpenCommunityEdition/OpenCE";
 	NSURL *latest = [NSURL URLWithString:[NSString stringWithFormat:@"https://api.github.com/repos/%@/releases/latest", repo]];
-	[[NSURLSession.sharedSession dataTaskWithURL:latest completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+	NSURLRequest *request = [NSURLRequest requestWithURL:latest cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
+	[[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+		if (e || ![r isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)r).statusCode != 200) return;
 		NSDictionary *release = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
 		NSString *tag = [release isKindOfClass:NSDictionary.class] ? release[@"tag_name"] : nil;
-		if (![tag isKindOfClass:NSString.class] || ![tag hasPrefix:@"build-"]) return;
+		if (!HPXboxReleaseTag(tag)) return;
 		NSURL *limits = [NSURL URLWithString:[NSString stringWithFormat:
 			@"https://raw.githubusercontent.com/%@/%@/port/linux/include/halo_port_limits.h", repo, tag]];
-		[[NSURLSession.sharedSession dataTaskWithURL:limits completionHandler:^(NSData *header, NSURLResponse *r2, NSError *e2) {
-			NSString *text = header ? [[NSString alloc] initWithData:header encoding:NSUTF8StringEncoding] : nil;
-			NSRange at = text ? [text rangeOfString:@"#define HALO_PORT_NETWORK_VERSION "] : NSMakeRange(NSNotFound, 0);
-			if (at.location == NSNotFound || [text substringFromIndex:NSMaxRange(at)].intValue <= mine.intValue) return;
-			NSString *message = [NSString stringWithFormat:@"OpenCE %@ is out, and online Xbox games now need it. Build HaloPad again with "
-				@"PadMint to keep playing online with everyone; your saves and settings stay.",
-				[tag stringByReplacingOccurrencesOfString:@"build-" withString:@"build "]];
+		NSURLRequest *headerRequest = [NSURLRequest requestWithURL:limits cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
+		[[NSURLSession.sharedSession dataTaskWithRequest:headerRequest completionHandler:^(NSData *header, NSURLResponse *r2, NSError *e2) {
+			BOOL ok = !e2 && [r2 isKindOfClass:NSHTTPURLResponse.class] && ((NSHTTPURLResponse *)r2).statusCode == 200;
+			NSString *text = ok && header ? [[NSString alloc] initWithData:header encoding:NSUTF8StringEncoding] : nil;
+			NSString *message = HPXboxUpdateNotice(build, tag, HPXboxNetworkVersion(text));
+			if (!message) return;
 			dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
 		}] resume];
 	}] resume];
@@ -846,6 +846,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	heading.axis = UILayoutConstraintAxisVertical;
 	heading.spacing = 6;
 	footer = [[UIStackView alloc] initWithArrangedSubviews:@[
+		[self footerButton:@"Update Xbox…" symbol:@"arrow.triangle.2.circlepath" identifier:@"engine.update" action:@selector(showUpdate)],
 		[self footerButton:@"About These Builds" symbol:@"info.circle" identifier:@"engine.builds" action:@selector(showBuilds)],
 		[self footerButton:@"Project Reach on GitHub" symbol:@"arrow.up.right.square" identifier:@"engine.github" action:@selector(openProject)],
 		[UIView new],
@@ -917,6 +918,17 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 - (void)openProject
 {
 	[UIApplication.sharedApplication openURL:[NSURL URLWithString:HPProjectURL] options:@{} completionHandler:nil];
+}
+
+- (void)showUpdate
+{
+	NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\nOn your Mac, open PadMint, select HaloPad and the same platform, then build using your original installer and product-key.txt. Repeat builds reuse verified Custom Edition work and build the latest Xbox release.\n\nInstall over the existing app with the same signing identity. Keep your imported files and profiles; do not delete HaloPad. Xbox checkpoints may need a level restart after an engine update.\n\nIf the update fails, keep playing your installed build and report the build log.", xbox_release(xbox_build())];
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Update Xbox with PadMint" message:message preferredStyle:UIAlertControllerStyleAlert];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Update Guide" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+		[UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"#updating-halopad"]] options:@{} completionHandler:nil];
+	}]];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)showBuilds

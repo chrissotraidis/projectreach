@@ -40,10 +40,9 @@
 
 - **0.3.6: corrected Wine setup.** Homebrew disabled its Wine cask; follow the
   [Wine installation guide](docs/INSTALL-WINE.md). PadMint 0.4.9 shows the corrected setup step.
-- **0.3.5: keeps up with OpenCE by itself.** OpenCE changes its online version several times a day.
-  PadMint now builds the Xbox edition from OpenCE's **newest release** and falls back to HaloPad's
-  tested build (now OpenCE build 125) only if the newest one does not build. When the picker says
-  OpenCE has moved on, rebuild with PadMint and install over your app.
+- **0.3.5: builds from OpenCE's newest release.** OpenCE changes its online version frequently.
+  When the picker says OpenCE has moved on, rebuild with PadMint and install over your app.
+  See [Updating HaloPad](#updating-halopad) for the current source's update workflow.
 - **0.3.4: the server browser finds games.** The Xbox edition now ships OpenCE's list of public
   matchmaking servers (`brokers.txt`), which it was missing, so **Multiplayer › Server Browser**
   lists everyone's public games and joining them works. Rebuild with PadMint and install over your app.
@@ -134,11 +133,36 @@ pick the zip. Your game files, key and translated code never leave your Mac.
 
 To update, install over the existing app. Deleting HaloPad deletes your profiles and imported files.
 
+### Updating HaloPad
+
+HaloPad opens to the edition picker on every fresh launch. **Update Xbox…** explains how to update;
+the Xbox card identifies the installed OpenCE build. A newer release with the same multiplayer
+version is optional; a different multiplayer version needs a matching build to join those players.
+The check needs an internet connection, but opening the picker and playing offline do not.
+
+On your Mac, open PadMint, select **HaloPad** and the same platform, and build again using the
+original installer with `product-key.txt` beside it. Install over the existing app; on iPhone/iPad,
+use the same signing identity. Imported files, profiles and settings stay. Xbox checkpoints may
+need a level restart after an engine update, even though their files are retained and backed up.
+
+The current builder resolves one exact OpenCE release before building. Repeat builds in the same
+PadMint source checkout reuse Custom Edition's translation and compiled objects after checking
+their inputs and outputs by hash. The existing ANGLE build is incremental. A first build, changed
+PC sources/toolchain, or missing/damaged cache requires rebuilding the PC translation. Updating to
+a new HaloPad release may use a new checkout and therefore need a full build once.
+
+If the newest OpenCE release cannot be fetched or built, the update stops; keep your installed app
+and report the build log. It does **not** silently package an older engine as a successful update.
+For an explicit offline/tested build from the command line, prefix the existing builder command with
+`HALOPAD_XBOX_PINNED=1`; that version may not join current OpenCE games. Updating the Xbox engine
+still rebuilds and repackages the app on your Mac. The update button opens instructions, not an
+automatic background installer.
+
 ### Adding the Xbox edition
 
 PadMint and the `--xbox` builder option add the Xbox edition to the same app, so HaloPad opens to the
-edition picker. Your Mac downloads the pinned [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
-engine and the ANGLE renderer from their own repositories and builds them; none of that code is part of
+edition picker. Your Mac downloads the latest released [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
+engine and the pinned ANGLE renderer from their own repositories and builds them; none of that code is part of
 HaloPad. You add your own Xbox disc image in the app (**Add Your Xbox Disc** on the picker).
 
 ```sh
@@ -196,7 +220,7 @@ play each other.
 Everyone in a match needs the same OpenCE network version, and OpenCE changes it often. HaloPad shows
 its build on the Xbox card and in **⋯ › About** (for example *build 125*), and the picker tells you when
 OpenCE has moved past it. Rebuild with PadMint and install over your app: the build uses OpenCE's
-newest release (falling back to HaloPad's tested one if it does not build). Your profiles and settings
+newest release and stops if that release cannot be built. Your profiles and settings
 stay; a campaign checkpoint from before the rebuild may not load (OpenCE's checkpoints are memory
 snapshots tied to one engine build), so use **New Game** or the level select. The server browser finds
 games through public brokers, as upstream does; there is no HaloPad server.

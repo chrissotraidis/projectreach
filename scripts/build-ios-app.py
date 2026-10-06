@@ -27,6 +27,7 @@ import json
 import os
 import pathlib
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -66,6 +67,9 @@ XBOX_OUT = ROOT / 'ref' / 'xbox-build' / 'out'
 def xbox_release_tag(revision):
     """Upstream's release tag (build-85) for the picker and About; None when untagged or unavailable.
     Upstream deletes old release tags, so the pin records the name it had (config/xbox-engine.lock.json)."""
+    requested = os.environ.get('HALOPAD_XBOX_RELEASE', '')
+    if os.environ.get('XBOX_REV') == revision and re.fullmatch(r'build-[0-9]+', requested):
+        return requested  # retain the resolved release even if upstream deletes its tag during the build
     lock = json.loads((ROOT / 'config' / 'xbox-engine.lock.json').read_text())
     if lock.get('revision') == revision and str(lock.get('release', '')).startswith('build-'):
         return lock['release']
@@ -96,6 +100,8 @@ def xbox_parts(target):
     adaptation = xbox_runtime_manifest.guest_adaptation.identity()
     lib = xbox_build_folder(target) / 'libhalopad-xbox.a'
     if not lib.exists():
+        if os.environ.get('HALOPAD_XBOX') == 'on':
+            raise ValueError('Xbox edition was requested but its library is missing; refusing a PC-only app')
         if adaptation['name'] != 'none':
             raise ValueError('Adapted Xbox library is missing; build it before packaging')
         if os.environ.get('HALOPAD_XBOX_RENDERER') == 'angle-metal':

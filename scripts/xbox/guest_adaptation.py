@@ -49,7 +49,7 @@ ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/
 def latest_mode():
     """HALOPAD_XBOX_LATEST=1: the builder's attempt at OpenCE's newest release, which HaloPad has
     not reviewed. Every edit's anchor must still be present exactly once (the checks below), and
-    scripts/builder/build.sh falls back to the tested pin when anything does not apply or build."""
+    scripts/builder/build.sh stops the update when anything does not apply or build."""
     return os.environ.get('HALOPAD_XBOX_LATEST') == '1'
 
 

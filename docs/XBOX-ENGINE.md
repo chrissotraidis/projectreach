@@ -4,8 +4,8 @@ Status, 2026-10-03: **HaloPad offers Windows Custom Edition or Xbox Combat Evolv
 The accepted **experimental development pin** in `config/xbox-engine.lock.json`
 is upstream OpenCE (formerly halo-ce-universal) **build 125, `13c14df9`**, network version 16
 (accepted 2026-10-05 with `scripts/xbox/update-pin.sh`: Mac and Simulator menu/a10/match pass;
-build 119 `a38ede07`, build 85 `c3adcfe5` and build 74 `80d30410` before). The pin is now the
-**fallback**: `scripts/builder/build.sh` (PadMint) first tries OpenCE's newest release with
+build 119 `a38ede07`, build 85 `c3adcfe5` and build 74 `80d30410` before). The pin is an
+**explicit tested option** (`HALOPAD_XBOX_PINNED=1`): `scripts/builder/build.sh` (PadMint) normally builds OpenCE's newest release with
 `HALOPAD_XBOX_LATEST=1` (see "Updating the engine"). Build 64 expanded the high-resolution HUD/scopes and fixed meter
 alpha and flat menu fills; the following paragraphs retain that earlier evidence.
 Save-backed candidate and acceptance Mac/ANGLE iPad Simulator menu/a10/scripted-match
@@ -478,13 +478,28 @@ rerunning the water/shadow comparisons. Evidence is linked above.
 
 ## Updating the engine
 
-**Players' builds track OpenCE by themselves.** OpenCE moves its network version (which online
-players must share) several times a day, faster than a reviewed pin can follow. `scripts/builder/build.sh`
-therefore resolves OpenCE's latest release and builds it with `XBOX_REV=<its commit>` and
+**Players' rebuilds track OpenCE without a HaloPad release per upstream build.** OpenCE frequently
+changes its network version (which online players must share). `scripts/builder/build.sh`
+resolves OpenCE's latest release once, before expensive build steps, and builds it with `XBOX_REV=<its commit>` and
 `HALOPAD_XBOX_LATEST=1`: HaloPad's edits must still find every anchor exactly once (only the
 reviewed file hashes are waived, and the identity records `"reviewed": false`). If that guest or
-library does not build, the builder falls back to the pin below. `HALOPAD_XBOX_PINNED=1` skips the
-attempt. The pin is still moved with the reviewed workflow below, so the fallback stays recent.
+library does not build, or release lookup fails, the builder stops without an automatic downgrade.
+`HALOPAD_XBOX_PINNED=1` explicitly chooses the tested pin without contacting the release API. This
+is not necessarily compatible with current online players. The pin is still moved with the reviewed
+workflow below. `scripts/xbox/release.py` handles lightweight and annotated Git tags and records the
+selected release/commit in the builder's `xbox-release.json`; the app retains that release label even
+if upstream later deletes the tag.
+
+`scripts/builder/pc_cache.py` records the completed PC translation under ignored `generated/builder/`.
+Repeat builds verify PC source/configuration, accepted input hashes, toolchain, generated IR/images
+and any compiled objects before reuse. Xbox-only changes leave that cache valid. A damaged or stale
+cache triggers normal translation. The receipt stays with the checkout; it is not a portable cache
+or an executable updater. Packages are staged before replacing prior output archives. The installed
+app and player containers are never modified by the builder.
+
+The ordinary picker remains the default regardless of the last-played edition. Its **Update Xbox…**
+action opens the PadMint update instructions, and its notice distinguishes a newer compatible build
+from a different network version. Unknown/offline metadata is never presented as proof of compatibility.
 
 Check upstream releases on a regular maintenance pass (weekly is the proposed cadence), then
 freeze an exact commit for validation. Do not chase changing HEAD during a pass. This is a

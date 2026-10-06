@@ -19,6 +19,23 @@ PIN = json.loads((ROOT / 'config/xbox-engine.lock.json').read_text())['revision'
 
 
 class XboxManifestTests(unittest.TestCase):
+    def test_requested_xbox_cannot_silently_make_a_pc_only_app(self):
+        with tempfile.TemporaryDirectory() as folder, \
+                patch.dict(os.environ, {'HALOPAD_XBOX': 'on', 'HALOPAD_XBOX_GUEST_ADAPTATION': 'none'}), \
+                patch.object(builder, 'xbox_build_folder', return_value=pathlib.Path(folder)), \
+                self.assertRaisesRegex(ValueError, 'refusing a PC-only app'):
+            builder.xbox_parts(builder.MAC_TARGET)
+
+    def test_resolved_release_survives_deleted_upstream_tag(self):
+        with patch.dict(os.environ, {'XBOX_REV': '2' * 40, 'HALOPAD_XBOX_RELEASE': 'build-129'}), \
+                patch.object(builder.subprocess, 'run', side_effect=AssertionError('must not re-resolve')):
+            self.assertEqual(builder.xbox_release_tag('2' * 40), 'build-129')
+
+    def test_resolved_release_cannot_relabel_a_different_revision(self):
+        with patch.dict(os.environ, {'XBOX_REV': '2' * 40, 'HALOPAD_XBOX_RELEASE': 'build-129'}):
+            expected = json.loads((ROOT / 'config/xbox-engine.lock.json').read_text())['release']
+            self.assertEqual(builder.xbox_release_tag(PIN), expected)
+
     def test_presentation_requires_matching_backend_and_simulator(self):
         self.test_counted_candidate_requires_matching_guest_backend_and_simulator('render-present-v1')
 
