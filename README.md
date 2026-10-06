@@ -24,14 +24,16 @@
 [Playing](#playing) · [FAQ](#frequently-asked-questions) · [Discord](https://discord.gg/xwHfUD2bxW)**
 
 > [!IMPORTANT]
-> **Bring your own game.** You need your own Halo: Custom Edition 1.10 for PC and, for the Xbox
-> edition, your own Halo: Combat Evolved Xbox disc image. This repository contains no Halo files,
-> product key, engine source or translated game code.
+> **Choose your edition.** Xbox Halo uses your own Xbox disc image. Custom Edition uses your
+> PC installer and product key. They have separate setup requirements and multiplayer servers.
+> This repository contains no Halo files, product key, engine source or translated game code.
 >
 > **Built on your Mac.** There is no prebuilt download. You build HaloPad from your own game with
 > [PadMint](https://github.com/chrissotraidis/padmint) or one command: a Mac app you open right away,
 > or an IPA you sign with your own Apple profile. It is a preview: playable on real hardware, with
 > frame pacing and some Xbox graphics still being tuned.
+> The released installer still builds both editions and needs the PC inputs. **Xbox-only setup
+> is in the current source, not yet in the release.** See [Build and install](#build-and-install).
 >
 > **AI disclosure:** HaloPad is developed with substantial AI assistance. The
 > [status log](docs/STATUS.md) records what has actually been checked, and on which device.
@@ -75,7 +77,7 @@ When your build includes both, it asks which one to open at launch.
 | Online | Community-run Custom Edition servers and LAN, alongside PC players | Internet and system link games of up to 128 players with PC, Linux and Android players on the same build |
 | Campaign | No | The original Xbox campaign |
 | Runs on | iPhone, iPad and Mac | iPhone, iPad and Mac |
-| Build with | PadMint or one command | A few extra commands ([below](#adding-the-xbox-edition)) |
+| Build with | PadMint or one command | Included in released PadMint builds; Xbox-only builds available in current source ([below](#build-and-install)) |
 
 For Custom Edition, HaloPad supplies the Windows services the game expects: Direct3D 9 rendered through
 Metal, DirectInput mapped to touch and controllers, audio, files, the registry and Winsock networking.
@@ -102,16 +104,24 @@ Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 
 ## Build and install
 
-The current source adds an **Xbox-only build**. The released HaloPad 0.3.7 / PadMint 0.4.9
-flow still requires the PC installer; the new PadMint input and tool checks must ship together
-with the updated HaloPad recipe.
+**Available today:** [HaloPad 0.3.7](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.7)
+provides source and a PadMint recipe, not an app or IPA download. With released PadMint 0.4.9,
+select the original `HaloCESetup.exe` and keep `product-key.txt` beside it. This builds both
+editions; add your Xbox disc inside HaloPad after installation. PadMint handles the build;
+you do not run the source-build commands below afterward.
+
+**Xbox only:** the current source removes the PC installer, product key and Wine requirements.
+This is being prepared in [HaloPad #20](https://github.com/chrissotraidis/projectreach/pull/20)
+and [PadMint #133](https://github.com/chrissotraidis/padmint/pull/133). Use the source command
+below to try it now; the PadMint flow described next requires both updated projects.
 
 For either edition, you need an Apple silicon Mac with Xcode. Xbox builds need macOS 14.4+
 to play on a Mac, or iOS/iPadOS 17.4+ on an iPhone/iPad. iPhone/iPad installation also needs
 Developer Mode and your own Apple development profile with **Extended Virtual Addressing**
 and **Increased Memory Limit** ([install guide](docs/INSTALL-IPHONE.md)).
 
-In PadMint, select **HaloPad**, choose your platform, then choose your game file:
+With the updated PadMint and HaloPad recipe, select **HaloPad**, choose your platform,
+then choose your game file:
 
 | Select | What PadMint builds | What you need |
 | --- | --- | --- |
@@ -214,9 +224,15 @@ Create a Halo profile, then use the game's own **Multiplayer** menus to host or 
 <details>
 <summary><strong>Can I download an IPA?</strong></summary>
 
-No, and that is deliberate. A working HaloPad contains code translated from your copy of Halo, and the
-Xbox edition contains an engine built from a decompilation, so neither can be handed out. You build your
-own in a few clicks with [PadMint](https://github.com/chrissotraidis/padmint), or with one command.
+There is no public HaloPad IPA today. PadMint builds a personal IPA on your Mac; you then sign
+and install it on your iPhone or iPad. An IPA is the app, not your Xbox disc image. The Xbox-only
+build imports the disc's maps after installation and does not bundle the ISO/XISO.
+
+**Download → sign and install → import your disc → play** is the simpler installation flow we
+are evaluating. The Xbox-only app can already be packaged separately from the disc. It still
+contains a compiled, game-derived engine, so leaving out maps alone does not resolve the
+distribution review. A public download also needs a verified signing and device-installation
+route. Track those remaining steps in [installation delivery](docs/STATUS.md#installation-delivery).
 
 </details>
 
@@ -341,5 +357,5 @@ HaloPad is an independent fan project. It is not affiliated with or endorsed by 
 Halo Studios. Halo and Halo: Custom Edition are trademarks of their respective owners. HaloPad grants
 no rights to Halo content: you need your own legitimate copy and are responsible for the laws that apply
 to it. Upstream notes that parts of the Xbox decompilation were reconstructed with help from leaked
-Bungie material, which is why the Xbox edition is only ever a personal build. No project-wide license
+Bungie material; the Xbox edition currently remains a personal build. No project-wide license
 has been chosen yet; see [rights status](docs/RIGHTS-STATUS.md).

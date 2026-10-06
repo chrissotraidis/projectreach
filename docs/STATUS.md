@@ -1,5 +1,68 @@
 # HaloPad status
 
+## Installation delivery
+
+**2026-10-06: player reports identify a distribution problem as well as setup bugs.**
+Players want Xbox Halo on an iPhone/iPad, but encounter PC installer/key requirements,
+Mac/Xcode builds, unclear signing instructions and confusion over whether both Halo
+editions are required. Several stop before reaching the game. The Xbox-only builder
+removes the PC dependency; it does not remove local compilation or signing.
+
+The intended simpler flow is **download app → sign/install → import owned disc → play**,
+with the edition picker retained and Custom Edition optional. PadMint remains useful
+for personal builds and the PC translation. This is a delivery proposal, not a shipped
+download or a change to the current publication policy.
+
+Comparison checked against published artifacts and source:
+
+- [ChupathingyCE v0.6.7b](https://github.com/ChupathingyCE/chupathingyce/releases/tag/v0.6.7b)
+  has desktop/Android releases, including Mac, but no IPA in that release.
+- [NicholasDominici's iOS v0.1.2](https://github.com/NicholasDominici/halo-ce-ios/releases/tag/v0.1.2-ios)
+  does publish an unsigned IPA: 5,663,938 bytes, published SHA-256 verified as
+  `8340cc94f21429e398c668f5d4313f20917fdd6f8c202d51b934a7bfc7194530`.
+  ZIP inventory contains the app executable, icons, metadata and notices, with no disc
+  or map files. Its [release build script](https://github.com/NicholasDominici/halo-ce-ios/blob/ff9d86bf65730b780b65fb4b4d3a7d87044623ed/tools/ios_build.py)
+  embeds the compiled guest engine. The package was inspected, not run; its release
+  notes leave multiplayer and physical-iPad validation open.
+- [OpenCE PR #64](https://github.com/OpenCommunityEdition/OpenCE/pull/64) is a separate
+  Apple port with IPA workflow artifacts and a Mac test download. At reviewed head
+  `6702fb72efd8d97a780939d9b4bc04ab78d05aaf`, its
+  [distribution record](https://github.com/AttilaTheFun/halo-ce-universal/blob/6702fb72efd8d97a780939d9b4bc04ab78d05aaf/port/apple/DISTRIBUTION.md)
+  explicitly distinguishes excluded game assets from included reconstructed engine code.
+  These checks establish packaging differences, not comparative gameplay quality.
+
+HaloPad already produces an approximately 19.7 MB personal Xbox-only IPA and imports
+maps afterward. Publishing an empty launcher would not supply its required engine;
+publicly distributing the existing app still includes game-derived executable code.
+
+Next delivery steps, in order:
+
+1. Ship the paired HaloPad/PadMint input fixes after outstanding device acceptance.
+   The source now also signs and installs Xbox-only apps without a PC identity file
+   or prepared PC package. Regression checks retain device/profile validation and
+   ensure failed signing never installs. PC/combined package requirements remain.
+2. Validate the exact Xbox-only IPA on physical iPhone/iPad: signing capabilities,
+   first install, disc import, gameplay, matching-version multiplayer and in-place
+   upgrade with saved data. State which signing route and account type were tested.
+3. Resolve distribution treatment of the compiled Xbox engine separately from maps,
+   dependencies and PC inputs. The existing source-only release policy is not proof
+   that direct-download packaging is technically impossible; another fork's download
+   is not distribution clearance for HaloPad either.
+4. If public binary distribution is approved, publish an audited Xbox-only IPA/Mac
+   app with stable download links and a short platform-specific install guide. Show
+   the exact OpenCE build/network version and retain a tested prior release. Updates
+   should replace the app while preserving imports/saves; do not promise automatic
+   iOS updates or cross-fork network compatibility without verifying them.
+
+No public binary uploaded, signing-tool compatibility promised or physical-device
+acceptance added by this review. README and install instructions now distinguish the
+live 0.3.7/0.4.9 flow from the draft Xbox-only flow. Follow-up validation: 37 focused
+profile, signing, device-wrapper, Xbox-only package and builder regression tests pass;
+Bash syntax, documentation links and whitespace checks pass. Signing/profile calls and
+device operations are simulated in the new tests; they do not establish hardware acceptance.
+
+## Build validation
+
 **2026-10-06: Xbox-only installation flow (draft, not released).**
 Selecting an Xbox ISO/XISO in the updated HaloPad recipe builds without the PC installer,
 product key, Wine, PC translation or PC game package. Selecting HaloCESetup.exe retains

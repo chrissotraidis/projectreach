@@ -10,6 +10,7 @@
 #
 #   scripts/install-device.sh --identity "..." --profile X.mobileprovision \\
 #       --app HaloPad.app --package Halo-CE.halopad.zip
+# Xbox-only apps need only --app; import the Xbox disc in HaloPad after installation.
 #
 # Options: --device ID (default: the only connected device), --work RUN_DIR.
 # Development builds use the menu scene (tests/halo_app_scene.c, the scene the physical iPad and
@@ -35,7 +36,15 @@ die() { echo "error: $*" >&2; exit 1; }
 [[ -n "$IDENTITY" ]] || die "--identity is required (security find-identity -v -p codesigning)"
 [[ -f "$PROFILE" ]] || die "--profile must name a .mobileprovision for dev.halopad.HaloPad"
 if [[ -n "$PREBUILT" ]]; then
-  [[ -d "$PREBUILT" && -f "$PACKAGE" ]] || die "--app needs a HaloPad.app folder and --package its .halopad.zip"
+  [[ -d "$PREBUILT" ]] || die "--app needs a HaloPad.app folder"
+  if [[ -n "$PACKAGE" ]]; then
+    [[ -f "$PACKAGE" ]] || die "--package must name the matching .halopad.zip"
+  else
+    [[ ! -f "$PREBUILT/data/core-identity.json" &&
+       -f "$PREBUILT/data/xbox/build.json" &&
+       -f "$PREBUILT/data/xbox/halo_guest.elf" &&
+       -f "$PREBUILT/data/xbox/brokers.txt" ]] || die "PC and combined apps need --package with their matching .halopad.zip; only Xbox-only apps can omit it"
+  fi
 else
   [[ -d "$GAME" ]] || die "--game must name your Halo Custom Edition 1.10 folder"
 fi
@@ -85,7 +94,10 @@ fi
 
 echo "==> Installing on $DEVICE"
 xcrun devicectl device install app --device "$DEVICE" "$APP"
-xcrun devicectl device copy to --device "$DEVICE" --domain-type appDataContainer \
-  --domain-identifier dev.halopad.HaloPad --source "$PKG" --destination "Documents/$(basename "$PKG")"
-
-echo "Done. Open HaloPad, tap Choose Prepared Package, and pick $(basename "$PKG")."
+if [[ -n "$PKG" ]]; then
+  xcrun devicectl device copy to --device "$DEVICE" --domain-type appDataContainer \
+    --domain-identifier dev.halopad.HaloPad --source "$PKG" --destination "Documents/$(basename "$PKG")"
+  echo "Done. Open HaloPad, choose Custom Edition, tap Choose Prepared Package, and pick $(basename "$PKG")."
+else
+  echo "Done. Open HaloPad, choose Add Your Xbox Disc, and select your Xbox ISO/XISO in Files."
+fi

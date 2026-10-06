@@ -30,7 +30,10 @@ def main():
     ap.add_argument('--profile', type=pathlib.Path, required=True)
     a = ap.parse_args()
     app = a.app.resolve()
-    if not (app / 'Info.plist').is_file() or not (app / 'data' / 'core-identity.json').is_file():
+    pc = (app / 'data' / 'core-identity.json').is_file()
+    xbox = all((app / 'data' / 'xbox' / name).is_file()
+               for name in ('build.json', 'halo_guest.elf', 'brokers.txt'))
+    if not (app / 'Info.plist').is_file() or not (pc or xbox):
         sys.exit(f'{app} is not a HaloPad device build')
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     if info.get('CFBundleSupportedPlatforms') != ['iPhoneOS']:

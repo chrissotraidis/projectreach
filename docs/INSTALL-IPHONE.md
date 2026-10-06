@@ -1,15 +1,55 @@
 # Install HaloPad on iPhone or iPad
 
-HaloPad is a personal build for a player who owns Halo Custom Edition 1.10. The
-repository does not contain game data or the translated executable.
-`scripts/builder/build.sh` (also HaloPad's PadMint recipe) makes the app, the
-game package and your product ID from your own installer and key; see the
-README's **Build and install**. The steps below install that app on a device.
+HaloPad currently produces a personal IPA, not a public app download. Build it
+once with PadMint or the [source builder](../README.md#build-and-install), then
+sign and install it. Do not run the source builder again after PadMint finishes.
+
+The current source supports **Xbox only**, with no PC installer, product key or
+prepared PC package. Released HaloPad 0.3.7 / PadMint 0.4.9 still build both
+editions. Both routes require an Apple silicon Mac with Xcode to build; the
+device requires iOS/iPadOS 17.4+, Developer Mode and a development profile
+covering that device with **Extended Virtual Addressing** and **Increased
+Memory Limit**. A generated IPA still needs signing. Generic sideloading-tool
+instructions are not evidence that those capabilities will be granted.
+
+## Install your Xbox-only build (current source)
+
+The following uses the existing signing and device-installation scripts. Have
+your development identity and device-specific profile ready. If updating an
+installed app, back up its Documents and accessible Library first; retain the
+same app identity and do not uninstall it.
+
+1. Unzip your personal `HaloPad-Xbox.ipa` into a private folder. Its app is
+   `Payload/HaloPad.app`.
+2. Connect and trust your iPhone/iPad, then run:
+
+   ```sh
+   scripts/install-device.sh \
+     --identity <Apple-Development-certificate-SHA1> \
+     --profile /private/path/HaloPad.mobileprovision \
+     --device <actual-device-UDID> \
+     --app /private/path/unpacked/Payload/HaloPad.app
+   ```
+
+   The script validates your profile, signs a staged copy and installs it.
+   Xbox-only builds need no `--package`; PC and combined builds still need
+   their matching `.halopad.zip`.
+3. Put your own Xbox Halo ISO/XISO in Files. Open HaloPad, choose **Add Your
+   Xbox Disc**, and select it. Wait for import, then choose Xbox to play.
+
+The signing/installation handoff has regression coverage; physical-device
+acceptance of the new Xbox-only build is still pending. This is the current
+developer-profile route, not a verified one-click consumer signing flow.
+
+## PC and combined development installation
+
+The procedure below covers the original PC package route. For combined builds,
+include `--xbox` in the builder step and import your Xbox disc separately.
 
 ## Requirements
 
 - macOS with Xcode 27, this repository and its ignored, accepted `ref/inputs`.
-- iOS/iPadOS 17 or later, Developer Mode enabled, a trusted cable connection.
+- iOS/iPadOS 17.4 or later, Developer Mode enabled, a trusted cable connection.
 - An Apple Development identity and a development provisioning profile for
   `dev.halopad.HaloPad`, including the **specific device UDID**, Extended Virtual
   Addressing and Increased Memory Limit.

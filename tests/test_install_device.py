@@ -72,6 +72,79 @@ elif name != 'device_profile.py':
     def test_failed_build_does_not_install_reported_path(self):
         self.run_install('17.4', build_exit=1)
 
+    def run_prebuilt(self, edition, package=False, sign_exit=0):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'scripts').mkdir()
+            shutil.copy2(ROOT / 'scripts/install-device.sh', root / 'scripts/install-device.sh')
+            app = root / 'input with spaces/HaloPad.app'
+            (app / 'data').mkdir(parents=True)
+            if edition in ('pc', 'combined'):
+                (app / 'data/core-identity.json').write_text('fixture')
+            if edition in ('xbox', 'combined', 'incomplete'):
+                (app / 'data/xbox').mkdir()
+                for name in ('build.json', 'halo_guest.elf', 'brokers.txt'):
+                    if edition != 'incomplete' or name != 'halo_guest.elf':
+                        (app / 'data/xbox' / name).write_text('fixture')
+            (root / 'profile').touch()
+            py = root / '.venv/bin/python'
+            py.parent.mkdir(parents=True)
+            py.write_text(f'''#!{sys.executable}
+import os, sys
+from pathlib import Path
+name = Path(sys.argv[1]).name
+if name == 'sign-app.py':
+    Path(os.environ['TEST_SIGNED']).write_text(sys.argv[2])
+    sys.exit(int(os.environ['TEST_SIGN_EXIT']))
+if name != 'device_profile.py':
+    sys.exit('unexpected build or package step: ' + name)
+''')
+            py.chmod(0o755)
+            xcrun = py.parent / 'xcrun'
+            xcrun.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TEST_INSTALL"\n')
+            xcrun.chmod(0o755)
+            arguments = []
+            if package:
+                path = root / 'matching.halopad.zip'
+                path.write_text('fixture')
+                arguments = ['--package', str(path)]
+            env = dict(os.environ, PATH=f'{py.parent}:{os.environ["PATH"]}',
+                       TEST_SIGNED=str(root / 'signed'), TEST_SIGN_EXIT=str(sign_exit),
+                       TEST_INSTALL=str(root / 'installed'), TMPDIR=str(root))
+            result = subprocess.run(['/bin/bash', str(root / 'scripts/install-device.sh'),
+                                     '--identity', 'fixture', '--profile', str(root / 'profile'),
+                                     '--device', 'fixture', '--app', str(app), *arguments],
+                                    env=env, capture_output=True, text=True)
+            success = (edition == 'xbox' or package) and not sign_exit
+            if success:
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                staged = Path((root / 'signed').read_text())
+                self.assertNotEqual(staged, app)
+                installed = (root / 'installed').read_text()
+                self.assertIn('device install app --device fixture ' + str(staged), installed)
+                self.assertEqual('device copy to' in installed, package)
+                self.assertIn('Choose Prepared Package' if package else 'Add Your Xbox Disc', result.stdout)
+                self.assertEqual(sorted(p.relative_to(app) for p in app.rglob('*')),
+                                 sorted(p.relative_to(staged) for p in staged.rglob('*')))
+            else:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse((root / 'installed').exists())
+
+    def test_xbox_only_installs_without_pc_package(self):
+        self.run_prebuilt('xbox')
+
+    def test_pc_and_combined_still_need_matching_package(self):
+        for edition in ('pc', 'combined'):
+            with self.subTest(edition=edition):
+                self.run_prebuilt(edition)
+                self.run_prebuilt(edition, package=True)
+
+    def test_incomplete_xbox_app_cannot_skip_package(self):
+        self.run_prebuilt('incomplete')
+
+    def test_failed_xbox_signing_does_not_install(self):
+        self.run_prebuilt('xbox', sign_exit=1)
+
 
 if __name__ == '__main__':
     unittest.main()

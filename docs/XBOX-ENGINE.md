@@ -171,6 +171,12 @@ picker appears at every launch.
 
 ## Personal-build boundary (Chris's decision, 2026-09-30)
 
+Historical design record: current source can create a personal Xbox-only IPA
+with `scripts/builder/build.sh --xbox-only --ipa HaloPad-Xbox.ipa`; normal builds
+now resolve the latest upstream release. The older no-IPA/pinned-only statements
+below describe September 30, not today's builder. Public app distribution remains
+under review; see [installation delivery](STATUS.md#installation-delivery).
+
 - The upstream engine is **fetched and built on the player's own Mac** at the revision in
   [config/xbox-engine.lock.json](../config/xbox-engine.lock.json). Its sources, its guest image, the
   translation and the engine library live only under the ignored `ref/xbox-build/`.
