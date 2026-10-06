@@ -57,7 +57,13 @@ def outputs(root, work):
     required = [va / 'haloce.va.ll', va / 'dispatch.ll', analysis / 'image.bin']
     for name in profile['modules']:
         required += [va / name / f'{name}.va.ll', analysis / 'modules' / name / 'image.bin']
-    required += [va / (src.stem + '.ll') for src in (root / 'port/llasm-runtime').glob('*.llasm')]
+    for src in (root / 'port/llasm-runtime').glob('*.llasm'):
+        generated = va / (src.stem + '.ll')
+        # Match the app builder's freshness guard, including identical files
+        # touched by a checkout or restore after the last translation.
+        if generated.stat().st_mtime < src.stat().st_mtime:
+            raise ValueError(f'PC runtime translation is stale: {src.name}')
+        required.append(generated)
     # Also verify cached objects, if the prior build compiled a target already.
     return hashes(root, [*required, *va.rglob('*.ll'), *work.glob('slices-va-*/*.o')])
 

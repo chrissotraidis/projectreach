@@ -1,6 +1,7 @@
 """A repeat Xbox build may reuse PC work only when its inputs and outputs match."""
 import importlib.util
 import json
+import os
 import pathlib
 import tempfile
 import unittest
@@ -55,6 +56,17 @@ class PCCacheTests(unittest.TestCase):
 
     def test_changed_compiler_invalidates(self):
         self.assertIsNone(cache.lookup(self.root, {'compiler': 'fixture-v2'}))
+
+    def test_touched_runtime_source_invalidates_even_if_contents_match(self):
+        source = self.root / 'port/llasm-runtime/halopad-fixture.llasm'
+        generated = self.work / 'va/halopad-fixture.ll'
+        # The app builder rejects IR older than its runtime source, even when
+        # checkout/restore changed only timestamps. Do not return that cache.
+        newer = generated.stat().st_mtime + 10
+        os.utime(source, (newer, newer))
+        self.assertIsNone(cache.lookup(self.root, self.tools))
+        with self.assertRaisesRegex(ValueError, 'stale'):
+            cache.record(self.root, self.work, self.tools)
 
     def test_changed_original_is_rejected(self):
         self.write('ref/input/haloce.exe', 'changed game')
