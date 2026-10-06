@@ -10,15 +10,15 @@
 # shared (docs/XBOX-ENGINE.md).
 set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-TARGET=arm64-apple-ios17.0-simulator
+TARGET=arm64-apple-ios17.4-simulator
 SDK=iphonesimulator
 LAUNCH=""
 IDENTITY="-"
 PROFILE=""
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--device) TARGET=arm64-apple-ios17.0; SDK=iphoneos ;;
-	--mac) TARGET=arm64-apple-ios17.0-macabi; SDK=maccatalyst ;;
+	--device) TARGET=arm64-apple-ios17.4; SDK=iphoneos ;;
+	--mac) TARGET=arm64-apple-ios17.4-macabi; SDK=maccatalyst ;;
 	--launch) LAUNCH=$2; shift ;;
 	--identity) IDENTITY=$2; shift ;;
 	--profile) PROFILE=$2; shift ;;
@@ -106,7 +106,7 @@ if [ "$RENDERER" = angle-metal ]; then
             -DHALOPAD_ANGLE_COUNTED_VISIBILITY=$COUNTED \
             -DANGLE_SOURCE_DIR="$XBOX_ANGLE_SOURCE" -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release
     fi
     cmake --build "$ANGLE_BUILD" --parallel 12
     ANGLE_LIB="$ANGLE_BUILD/libhalopad-angle.a"
@@ -187,7 +187,7 @@ cat > "$APP/Info.plist" <<EOF
 <key>CFBundleShortVersionString</key><string>0.3</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
-<key>MinimumOSVersion</key><string>17.0</string>
+<key>MinimumOSVersion</key><string>17.4</string>
 <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
 <key>UIRequiresFullScreen</key><true/>
 <key>UILaunchScreen</key><dict/>

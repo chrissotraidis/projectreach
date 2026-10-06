@@ -12,7 +12,7 @@ and records stdout/stderr as evidence; it never taps anything in the app.
 Usage: .venv/bin/python scripts/build-ios-app.py [--work RUN_DIR] [--device UDID] [--launch] [--wait S]
        .venv/bin/python scripts/build-ios-app.py --iphoneos [--identity NAME --profile FILE.mobileprovision]
 
---iphoneos builds for a physical iPhone/iPad (arm64-apple-ios17.0). PC-only builds also write
+--iphoneos builds for a physical iPhone/iPad (iOS 17 for PC-only, 17.4 with Xbox). PC-only builds also write
 HaloPad.ipa; personal builds with the Xbox engine stop at the signed HaloPad.app. Halo's
 32-bit guest memory is one 4 GiB reservation (port/runtime/halopad_guest.c), so the build asks for
 Apple's extended-virtual-addressing and increased-memory-limit entitlements; the provisioning
@@ -145,14 +145,14 @@ def xbox_parts(target):
             *graphics, '-DGLES_SILENCE_DEPRECATION']
 
 
-def compile_icon(app, out, target):
+def compile_icon(app, out, target, minimum):
     partial = out / 'icon-info.plist'
     if 'macabi' in target:
-        platform = ['--platform', 'macosx', '--minimum-deployment-target', '14.0', '--target-device', 'mac',
+        platform = ['--platform', 'macosx', '--minimum-deployment-target', minimum, '--target-device', 'mac',
                     '--ui-framework-family', 'uikit']
     else:
         platform = ['--platform', 'iphonesimulator' if 'simulator' in target else 'iphoneos',
-                    '--minimum-deployment-target', '17.0', '--target-device', 'iphone', '--target-device', 'ipad']
+                    '--minimum-deployment-target', minimum, '--target-device', 'iphone', '--target-device', 'ipad']
     subprocess.run([
         'xcrun', 'actool', '--compile', str(app), *platform,
         '--app-icon', 'AppIcon', '--output-partial-info-plist', str(partial),
@@ -181,11 +181,14 @@ def checked_product_id(path):
 
 
 def package(exe, out, work, target=TARGET, identity=None, provisioning=None, product_id=None):
+    xbox = bool(xbox_parts(target))
     app = out / 'HaloPad.app'
     if app.exists():
         shutil.rmtree(app)
     app.mkdir(parents=True)
     mac = 'macabi' in target
+    # Xbox's futex bridge uses os_sync_* APIs introduced in iOS 17.4/macOS 14.4.
+    minimum = ('14.4' if xbox else '14.0') if mac else ('17.4' if xbox else '17.0')
     res = app / 'Contents' / 'Resources' if mac else app         # a Mac bundle: Contents/MacOS, Contents/Resources
     res.mkdir(parents=True, exist_ok=True)
     if mac:
@@ -195,7 +198,7 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
         'CFBundleIdentifier': BUNDLE_ID, 'CFBundleExecutable': 'HaloPad', 'CFBundleName': 'HaloPad',
         'CFBundleDisplayName': 'HaloPad', 'CFBundlePackageType': 'APPL', 'CFBundleVersion': '1',
         'CFBundleShortVersionString': '0.3', 'CFBundleSupportedPlatforms': ['iPhoneSimulator' if 'simulator' in target else 'iPhoneOS'],
-        'MinimumOSVersion': '17.0', 'UIDeviceFamily': [1, 2], 'UIRequiresFullScreen': True, 'UILaunchScreen': {},
+        'MinimumOSVersion': minimum, 'UIDeviceFamily': [1, 2], 'UIRequiresFullScreen': True, 'UILaunchScreen': {},
         'UIStatusBarHidden': True,
         'UISupportedInterfaceOrientations': ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
         'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
@@ -209,9 +212,9 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
         info['UIRequiredDeviceCapabilities'] = ['arm64', 'metal']
     if mac:
         del info['MinimumOSVersion'], info['UIRequiredDeviceCapabilities']
-        info.update({'CFBundleSupportedPlatforms': ['MacOSX'], 'LSMinimumSystemVersion': '14.0', 'UIDeviceFamily': [2],
+        info.update({'CFBundleSupportedPlatforms': ['MacOSX'], 'LSMinimumSystemVersion': minimum, 'UIDeviceFamily': [2],
                      'LSApplicationCategoryType': 'public.app-category.action-games'})
-    info.update(compile_icon(res, out, target))
+    info.update(compile_icon(res, out, target, minimum))
     with open((app / 'Contents' if mac else app) / 'Info.plist', 'wb') as f:
         plistlib.dump(info, f)
     # the app's own data: the translated image and modules, the reference machine's files, the
@@ -220,7 +223,7 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
     (data / 'modules').mkdir(parents=True)
     shutil.copy2(run_core.IMAGE, data / 'image.bin')
     guest = XBOX_OUT / 'halo_guest.elf'
-    if xbox_parts(target) and guest.exists():
+    if xbox and guest.exists():
         (data / 'xbox').mkdir()
         shutil.copy2(guest, data / 'xbox' / 'halo_guest.elf')      # upstream's image: this Mac's personal build only
         brokers = XBOX_OUT / 'brokers.txt'                          # online play's brokers (scripts/xbox/build-ios.sh)
@@ -272,7 +275,7 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
         plistlib.dump(entitlements, f)
     subprocess.run(['codesign', '--force', '--sign', identity or '-', '--entitlements', str(ent), '--timestamp=none', str(app)],
                    check=True, capture_output=True)
-    if xbox_parts(target):
+    if xbox:
         # the builder (scripts/builder/build.sh) packages its own IPA from this app
         print('personal Xbox build: signed app' + ('' if os.environ.get('HALOPAD_BUILDER') else ' only; no IPA created'))
         return app
@@ -325,7 +328,10 @@ def main():
     extra = [ROOT / 'port' / 'ios' / name for name in ('HaloPadOverlay.m', 'HaloPadImport.m', 'HaloPadPackage.m', 'HaloPadDataIdentity.m')] + ([a.scene.resolve()] if a.scene else [])
     # the launch picker is a weak reference: builds without the Xbox engine leave it undefined
     target = MAC_TARGET if a.mac else DEVICE_TARGET if a.iphoneos else TARGET
-    extra += ['-Wl,-U,_HPEngineChooserMake', *xbox_parts(target)]
+    xbox = xbox_parts(target)
+    if xbox:
+        target = target.replace('ios17.0', 'ios17.4')
+    extra += ['-Wl,-U,_HPEngineChooserMake', *xbox]
     exe, _ = run_core.build(work, target, ROOT / 'port' / 'ios' / 'HaloPadApp.m', extra=extra)
     app = package(exe, work / f'ios-app-{target}', work, target, a.identity, a.profile, a.product_id)
     print('built', app.relative_to(ROOT))

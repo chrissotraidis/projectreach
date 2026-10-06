@@ -247,7 +247,10 @@ HALOPAD_XBOX_RENDERER=angle-metal .venv/bin/python scripts/build-ios-app.py --ip
 This produces an ad-hoc signed personal `.app`, no Xbox IPA. It is not installed
 or device-installable merely because signature verification passes: proper
 provisioning with both memory entitlements and a coordinated device window are
-still required. The standalone host and combined app now target iOS 17.0.
+still required. The standalone host and combined apps containing Xbox require iOS/iPadOS 17.4
+or macOS 14.4. The futex bridge uses Apple’s `os_sync_*` APIs, introduced in those
+versions; compile targets and package minimums match. Custom Edition-only builds
+retain iOS 17/macOS 14 support.
 `--launch` remains Simulator-only. Simulator depth/replay diagnostics are not
 enabled on hardware. No physical graphics/audio/controller claim follows from
 compilation; the reported shading/focus issue is still open.
@@ -255,7 +258,7 @@ compilation; the reported shading/focus issue is still open.
 Run the asset-free probe before accepting this backend on another Simulator:
 
 ```sh
-xcrun --sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator \
+xcrun --sdk iphonesimulator clang -target arm64-apple-ios17.4-simulator \
   -fobjc-arc -I"$XBOX_ANGLE_SOURCE/include" tests/xbox_angle_probe.m \
   ref/xbox-build/out/angle-simulator/libhalopad-angle.a -lc++ -lz \
   -framework Foundation -framework CoreGraphics -framework IOSurface \

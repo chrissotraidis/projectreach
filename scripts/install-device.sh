@@ -60,9 +60,23 @@ else
   echo "==> Building for the device"
   WORKARG=()
   [[ -n "$WORK" ]] && WORKARG=(--work "$WORK")
+  BUILD_LOG=$(mktemp)
+  trap 'rm -f "$BUILD_LOG"' EXIT
   "$PY" "$ROOT/scripts/build-ios-app.py" --iphoneos --identity "$IDENTITY" --profile "$PROFILE" \
-    --scene "$ROOT/tests/halo_app_scene.c" ${WORKARG[@]+"${WORKARG[@]}"}
-  APP=$(ls -td "$ROOT"/generated/srw/*/run-*/ios-app-arm64-apple-ios17.0/HaloPad.app | head -1)
+    --scene "$ROOT/tests/halo_app_scene.c" ${WORKARG[@]+"${WORKARG[@]}"} | tee "$BUILD_LOG"
+  APP=$("$PY" - "$ROOT" "$BUILD_LOG" <<'PY'
+import pathlib, plistlib, sys
+paths = [line[6:] for line in pathlib.Path(sys.argv[2]).read_text().splitlines()
+         if line.startswith('built ')]
+if not paths:
+    sys.exit('error: build did not report a HaloPad app')
+app = pathlib.Path(sys.argv[1]) / paths[-1]
+info = app / 'Info.plist'
+if not info.is_file() or plistlib.loads(info.read_bytes()).get('CFBundleSupportedPlatforms') != ['iPhoneOS']:
+    sys.exit(f'error: {app} is not a device build')
+print(app)
+PY
+  )
 
   echo "==> Preparing your game package for this build"
   PKG="$ROOT/generated/prepared/device-$(date +%Y%m%d-%H%M%S).halopad.zip"

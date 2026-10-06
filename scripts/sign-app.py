@@ -34,7 +34,7 @@ def main():
         sys.exit(f'{app} is not a HaloPad device build')
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     if info.get('CFBundleSupportedPlatforms') != ['iPhoneOS']:
-        sys.exit(f'{app} is a Simulator build; use the ios-app-arm64-apple-ios17.0 one')
+        sys.exit(f'{app} is not a device build; use the app built with --iphoneos')
     bundle = info['CFBundleIdentifier']
     try:
         granted = check(a.profile, bundle, a.identity)

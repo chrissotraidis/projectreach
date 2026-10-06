@@ -8,8 +8,8 @@
 
 <p align="center">
   <img alt="Version 0.3" src="https://img.shields.io/badge/version-0.3-8E8E93">
-  <img alt="iOS and iPadOS 17 or later" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-17%2B-0A84FF?logo=apple">
-  <img alt="macOS 14 or later on Apple silicon" src="https://img.shields.io/badge/macOS-14%2B%20Apple%20silicon-0A84FF?logo=apple">
+  <img alt="iOS and iPadOS 17.4 or later" src="https://img.shields.io/badge/iOS%20%2F%20iPadOS-17.4%2B-0A84FF?logo=apple">
+  <img alt="macOS 14.4 or later on Apple silicon" src="https://img.shields.io/badge/macOS-14.4%2B%20Apple%20silicon-0A84FF?logo=apple">
   <img alt="Online matches of up to 128 players" src="https://img.shields.io/badge/online-up%20to%20128%20players-30D158">
   <img alt="Game data not included" src="https://img.shields.io/badge/game%20data-not%20included-FF453A">
   <img alt="Status: preview" src="https://img.shields.io/badge/status-preview-FFD60A">
@@ -88,7 +88,7 @@ Both editions share the touch controls and the ⋯ menu, and keep their own save
 | --- | --- |
 | **iPad** | iPad Pro 12.9" (6th gen) plays both editions, local and online |
 | **iPhone** | iPhone 14 plays local matches, including 1280 × 720 widescreen; slower in loading and busy scenes. Online play not fully tested |
-| **Mac** | Both editions run on Apple silicon Macs (macOS 14+) with keyboard and mouse: Custom Edition lists public servers; the Xbox edition imports your disc and plays the campaign |
+| **Mac** | Both editions run on Apple silicon Macs (macOS 14.4+) with keyboard and mouse: Custom Edition lists public servers; the Xbox edition imports your disc and plays the campaign |
 | **Online** | Custom Edition joins public PC servers; the Xbox edition joins internet games through the decompilation's game browser |
 | **Controls** | Movable, resizable touch overlay, look-speed settings, iOS keyboard for chat and names, Xbox-style controllers, trackpad and mouse in menus |
 | **Custom maps** | `.map` files import from the ⋯ menu. DLL mods (Chimera, OpenSauce, HAC2) do not load |
@@ -107,7 +107,7 @@ You need:
 - a Mac with Apple silicon and Xcode
 - [Wine installed for HaloPad](docs/INSTALL-WINE.md) (Homebrew's `wine-stable` cask is disabled)
 - your own Halo: Custom Edition installer (`HaloCESetup.exe`) and its product key
-- for iPhone or iPad: iOS/iPadOS 17 or later with Developer Mode on, and an Apple development profile
+- for iPhone or iPad: iOS/iPadOS 17.4 or later with Developer Mode on, and an Apple development profile
   that allows **Extended Virtual Addressing** and **Increased Memory Limit** (the Mac app needs neither)
 
 Put `HaloCESetup.exe` and a `product-key.txt` holding your Halo PC key in one folder. Then either:
@@ -247,9 +247,9 @@ busy scenes are slower than on iPad for now.
 <details>
 <summary><strong>Does it run on Mac?</strong></summary>
 
-Yes, on Apple silicon Macs with macOS 14 or later. It is the same app as on iPad, built for the Mac, with
+Yes, on Apple silicon Macs with macOS 14.4 or later. It is the same app as on iPad, built for the Mac, with
 the same edition picker and ⋯ menu, and it needs no Apple account. PadMint builds it with both
-editions.
+editions. Custom Edition-only builds retain macOS 14/iOS 17 support.
 
 </details>
 
