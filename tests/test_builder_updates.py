@@ -80,7 +80,7 @@ pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_text('new game pack
         environment.update(env)
         return subprocess.run(['/bin/bash', str(self.root / 'scripts/builder/build.sh'),
                                str(selected or self.root / 'input'), '--xbox', *(['--mac'] if mac else []),
-                               '--zip', str(self.root / 'result.zip')], cwd=self.root,
+                               '--zip', str(self.root / getattr(self, 'output', 'result.zip'))], cwd=self.root,
                               env=environment, text=True, capture_output=True, timeout=30)
 
     def assert_old_outputs(self):
@@ -95,6 +95,60 @@ pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_text('new game pack
         self.assertIn('reusing verified Custom Edition', result.stdout)
         self.assertIn('Xbox engine packaged: build-129', result.stdout)
         self.assertEqual((self.root / 'result.zip').read_text(), 'new archive')
+
+    def xbox_only_input(self):
+        self.output = 'xbox.zip'
+        disc = self.root / 'input/Halo.XISO'
+        disc.write_bytes(b'inert disc fixture; actual map validation happens in the app')
+        # Fail loudly if either the Python dependency probe or any PC step runs.
+        self.write('.venv/bin/python', '#!/bin/sh\nexit 91\n')
+        for tool in ('7zz', 'wine', 'winetricks', 'lld-link', 'clang'):
+            (self.root / 'bin' / tool).unlink()
+        for name in ('scripts/extract-reference-components.py', 'scripts/builder/pc_cache.py',
+                     'scripts/prepare-game-data.py'):
+            self.write(name, 'raise RuntimeError("PC step used for Xbox")\n')
+        self.write('scripts/build-ios-app.py', '''import pathlib, sys
+assert '--xbox-only' in sys.argv
+assert '--product-id' not in sys.argv
+p = pathlib.Path(sys.argv[sys.argv.index('--work') + 1]) / 'HaloPad.app'
+p.mkdir(parents=True)
+(p / 'fixture').write_text('new Xbox app')
+print('built', p)
+''')
+        return disc
+
+    def test_xbox_disc_needs_no_pc_inputs_or_tools(self):
+        disc = self.xbox_only_input()
+        (self.root / 'input/HaloCESetup.exe').unlink()
+        (self.root / 'input/product-key.txt').unlink()
+        result = self.run_builder(selected=disc)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('No PC game package is needed', result.stdout)
+        self.assertEqual((self.root / 'xbox.zip').read_text(), 'new archive')
+        self.assertFalse((self.root / 'xbox.zip.data').exists())
+        self.assert_old_outputs()
+
+    def test_xbox_only_refuses_to_export_a_previous_pc_sidecar(self):
+        disc = self.xbox_only_input()
+        self.write('xbox.zip.data/Halo-CE.halopad.zip', 'retained PC package')
+        result = self.run_builder(selected=disc)
+        self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+        self.assertIn('different Xbox-only output filename', result.stderr)
+        self.assertFalse((self.root / 'calls').exists())
+        self.assertEqual((self.root / 'xbox.zip.data/Halo-CE.halopad.zip').read_text(), 'retained PC package')
+
+    def test_xbox_only_failed_engine_keeps_previous_outputs(self):
+        result = self.run_builder(selected=self.xbox_only_input(), FAIL_ENGINE='1')
+        self.assertEqual(result.returncode, 19, result.stdout + result.stderr)
+        self.assert_old_outputs()
+
+    def test_xbox_only_failed_archive_keeps_previous_outputs(self):
+        disc = self.xbox_only_input()
+        self.write('bin/ditto', '#!/bin/sh\nexit 28\n')
+        result = self.run_builder(selected=disc)
+        self.assertEqual(result.returncode, 28, result.stdout + result.stderr)
+        self.assert_old_outputs()
+        self.assertFalse(list(self.root.glob('.halopad-xbox.*')))
 
     def test_resolution_failure_stops_before_engine_or_output_changes(self):
         result = self.run_builder(FAIL_RESOLVE='1')

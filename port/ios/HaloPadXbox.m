@@ -809,7 +809,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	NSDictionary *build = xbox_build();
 	NSString *last = [NSUserDefaults.standardUserDefaults stringForKey:@"HaloPadLastEngine"];
 	NSString *app = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?";
-	BOOL pc_ready = pc_has_files(), xbox_ready = xbox_has_maps();
+	BOOL pc_ready = self.makePC && pc_has_files(), xbox_ready = xbox_has_maps();
 	UIColor *blue = [UIColor colorWithRed:0.42 green:0.7 blue:1 alpha:1], *green = [UIColor colorWithRed:0.42 green:0.8 blue:0.36 alpha:1];
 	UILabel *brand = chooser_label(@"HALOPAD  ·  PROJECT REACH", UIFontTextStyleFootnote, UIFontWeightBold, [UIColor colorWithRed:0.55 green:0.77 blue:0.94 alpha:1]);
 	UILabel *title = chooser_label(@"Choose your edition", UIFontTextStyleLargeTitle, UIFontWeightBold, UIColor.whiteColor);
@@ -827,9 +827,10 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	pc = [self cardTitle:@"Halo Custom Edition" platform:@"WINDOWS" symbol:@"desktopcomputer" accent:blue
 		version:@"Version 1.10 · runs natively on Apple silicon"
 		about:@"Online multiplayer on community servers, custom maps and the PC game's own menus."
-		ready:pc_ready status:pc_ready ? @"Ready to play" : @"Add your game files first"
-		play:pc_ready ? @"Play Custom Edition" : @"Set Up Custom Edition" identifier:@"engine.pc" action:@selector(choosePC)
-		last:[last isEqual:@"pc"] extra:nil button:&pc_play];
+		ready:pc_ready status:!self.makePC ? @"Not included in this build" : pc_ready ? @"Ready to play" : @"Add your game files first"
+		play:!self.makePC ? @"Add Custom Edition…" : pc_ready ? @"Play Custom Edition" : @"Set Up Custom Edition" identifier:@"engine.pc" action:@selector(choosePC)
+		last:self.makePC && [last isEqual:@"pc"] extra:nil button:&pc_play];
+	if (!self.makePC) pc_play.accessibilityHint = @"Explains how to add Custom Edition with PadMint";
 	xbox = [self cardTitle:@"Halo: Combat Evolved" platform:[build[@"candidate"] boolValue] ? @"XBOX · PREVIEW" : @"XBOX · EXPERIMENTAL"
 		symbol:@"gamecontroller" accent:green
 		version:[NSString stringWithFormat:@"OpenCE %@ · Metal", xbox_release(build)]
@@ -922,7 +923,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 
 - (void)showUpdate
 {
-	NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\nOn your Mac, open PadMint, select HaloPad and the same platform, then build using your original installer and product-key.txt. Repeat builds reuse verified Custom Edition work and build the latest Xbox release.\n\nInstall over the existing app with the same signing identity. Keep your imported files and profiles; do not delete HaloPad. Xbox checkpoints may need a level restart after an engine update.\n\nIf the update fails, keep playing your installed build and report the build log.", xbox_release(xbox_build())];
+	NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\nOn your Mac, open PadMint, select HaloPad and the same platform, then select %@. PadMint builds the latest Xbox release. Combined builds reuse verified Custom Edition work.\n\nInstall over the existing app with the same signing identity. Keep your imported files and profiles; do not delete HaloPad. Xbox checkpoints may need a level restart after an engine update.\n\nIf the update fails, keep playing your installed build and report the build log.", xbox_release(xbox_build()), self.makePC ? @"your original PC installer with product-key.txt beside it" : @"your Xbox ISO or XISO (no PC installer or product key needed)"];
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Update Xbox with PadMint" message:message preferredStyle:UIAlertControllerStyleAlert];
 	[alert addAction:[UIAlertAction actionWithTitle:@"Update Guide" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
 		[UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"#updating-halopad"]] options:@{} completionHandler:nil];
@@ -935,9 +936,10 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 {
 	NSDictionary *build = xbox_build();
 	NSString *revision = build[@"revision"] ?: @"unknown";
-	NSString *message = [NSString stringWithFormat:@"Windows: Halo Custom Edition 1.10, translated to run natively on Apple silicon with Metal.\n\n"
+	NSString *message = [NSString stringWithFormat:@"Windows: %@\n\n"
 		@"Xbox: Halo: Combat Evolved on OpenCE %@ (%@, built %@), drawn through Metal.%@ The Xbox edition is experimental; full campaign progression and every system link setup are not yet verified on iPad.\n\n"
 		@"The two editions cannot play together. Each keeps its own saves; Xbox saves are backed up whenever its engine changes.\n\nProject Reach: %@",
+		self.makePC ? @"Halo Custom Edition 1.10, translated to run natively on Apple silicon with Metal." : @"Not included. Build with your PC installer in PadMint to add Custom Edition; your Xbox files stay in place.",
 		xbox_release(build), [revision substringToIndex:MIN((NSUInteger)8, revision.length)], build[@"built"] ?: @"locally",
 		[build[@"candidate"] boolValue] ? @" This is a preview build." : @"", HPProjectURL];
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"About These Builds" message:message preferredStyle:UIAlertControllerStyleAlert];
@@ -956,7 +958,16 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	window.rootViewController = controller;
 }
 
-- (void)choosePC { [self show:self.makePC()]; }
+- (void)choosePC
+{
+	if (self.makePC) { [self show:self.makePC()]; return; }
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add Custom Edition"
+		message:@"In PadMint on your Mac, select HaloPad and your original HaloCESetup.exe, with product-key.txt beside it. This builds both editions. Install over this app with the same signing identity to keep your Xbox maps, saves and settings. Do not delete HaloPad."
+		preferredStyle:UIAlertControllerStyleAlert];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Build Guide" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { [self openProject]; }]];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Done" style:UIAlertActionStyleCancel handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
+}
 - (void)chooseXbox
 {
 	HPXboxViewController *controller = [HPXboxViewController new];
@@ -976,7 +987,7 @@ UIViewController *HPEngineChooserMake(UIViewController *(^makePC)(void))
 {
 	const char *engine = getenv("HALOPAD_ENGINE");
 	HPEngineChooser *chooser;
-	if (engine && !strcmp(engine, "pc"))
+	if (makePC && engine && !strcmp(engine, "pc"))
 		return makePC();
 	if (engine && !strcmp(engine, "xbox"))
 		return [HPXboxViewController new];

@@ -2,16 +2,22 @@
   "schema_version": 1,
   "id": "projectreach",
   "name": "HaloPad",
-  "game": "Halo: Custom Edition 1.10 (PC)",
+  "game": "Halo: Combat Evolved (Xbox) / Custom Edition 1.10 (PC)",
   "kind": "disc-translation",
   "status": "experimental",
   "inputs": [
+    {
+      "type": "xbox-disc",
+      "formats": ["iso", "xiso"],
+      "when": "build",
+      "description": "Xbox edition only: select your Halo Xbox ISO or XISO. No PC installer, product key or Wine is needed. After installing HaloPad, choose Xbox and import the same disc image."
+    },
     {
       "type": "pc-game-installer",
       "formats": ["exe"],
       "accepted_sha256": ["150e430dc54ffb265cbe96605ef8909c9ba0065fa11bdbf170bfd88391cf98ba"],
       "when": "build",
-      "description": "Select the original Halo Custom Edition 1.00 installer (HaloCESetup.exe), not the 1.10 update patch. Keep product-key.txt holding your Halo PC product key beside the installer. Bungie's free 1.10 update is downloaded and checked by hash (or put haloce-patch-1.0.10.exe in the same folder)."
+      "description": "Both editions: Select the original Halo Custom Edition 1.00 installer (HaloCESetup.exe), not the 1.10 update patch. Keep product-key.txt holding your Halo PC product key beside the installer. Bungie's free 1.10 update is downloaded and checked by hash (or put haloce-patch-1.0.10.exe in the same folder)."
     }
   ],
   "targets": {
@@ -32,19 +38,20 @@
     "disk_gb": 35,
     "tools": [
       {"name": "python3", "version_args": ["--version"]},
-      {"name": "xcodebuild", "version_args": ["-version"]},
-      {"name": "7zz", "version_args": [], "player": true, "note": "brew install sevenzip"},
-      {"name": "wine", "version_args": ["--version"], "player": true, "note": "Install Wine using https://github.com/chrissotraidis/projectreach/blob/main/docs/INSTALL-WINE.md (Homebrew's Wine cask is disabled). Then restart PadMint."},
-      {"name": "winetricks", "version_args": ["--version"], "player": true, "note": "brew install winetricks (your product ID)"},
-      {"name": "/opt/homebrew/opt/llvm/bin/clang", "version_args": ["--version"], "player": true, "note": "brew install llvm (your product ID)"},
-      {"name": "lld-link", "version_args": ["--version"], "player": true, "note": "brew install lld (your product ID)"}
+      {"name": "xcodebuild", "version_args": ["-version"], "player": true, "note": "Install Xcode from the Mac App Store and open it once to finish setup."},
+      {"name": "7zz", "version_args": [], "player": true, "input_formats": ["exe"], "note": "brew install sevenzip"},
+      {"name": "wine", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "Install Wine using https://github.com/chrissotraidis/projectreach/blob/main/docs/INSTALL-WINE.md (Homebrew's Wine cask is disabled). Then restart PadMint."},
+      {"name": "winetricks", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "brew install winetricks (your product ID)"},
+      {"name": "/opt/homebrew/opt/llvm/bin/clang", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "brew install llvm (your product ID)"},
+      {"name": "lld-link", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "brew install lld (your product ID)"}
       ,
+      {"name": "ld.lld", "version_args": ["--version"], "player": true, "note": "brew install lld (the Xbox edition)"},
       {"name": "cmake", "version_args": ["--version"], "player": true, "note": "brew install cmake (the Xbox edition)"},
       {"name": "ninja", "version_args": ["--version"], "player": true, "note": "brew install ninja (the Xbox edition)"}
     ]
   },
   "publication": {
     "public_binaries": false,
-    "reason": "Personal builds contain translated game code, the player's game files and their product ID."
+    "reason": "Personal builds contain translated game code. Combined PC/Xbox builds also contain the player's PC files and product ID."
   }
 }

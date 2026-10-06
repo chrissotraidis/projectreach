@@ -6,6 +6,7 @@
 #
 # --mac makes HaloPad.app for Apple silicon Macs instead (the same app, zipped; it runs
 # as built, with no Apple account), with its own game package in <zip>.data/.
+# --xbox-only (or an ISO/XISO input) builds Xbox without any PC inputs or tools.
 # --xbox adds the Xbox edition: your Mac fetches the latest OpenCE release and
 # ANGLE renderer from their own repositories and builds them into the same app (none of
 # it is part of HaloPad). You add your Xbox disc image in the app.
@@ -28,13 +29,14 @@ ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 cd "$ROOT"
 PY=.venv/bin/python
 export HALOPAD_BUILDER=1                              # steps leave tracked repository files unchanged
-INPUT=""; OUT="$ROOT/generated/builder"; IPA=""; KEY_FILE=""; MAC=0; XBOX=0
+INPUT=""; OUT="$ROOT/generated/builder"; IPA=""; KEY_FILE=""; MAC=0; XBOX=0; PC=1
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--out) OUT=$2; shift ;;
 	--ipa|--zip) IPA=$2; shift ;;                     # the output: an IPA, or the Mac app's zip
 	--mac) MAC=1 ;;
 	--xbox) XBOX=1 ;;
+	--xbox-only) XBOX=1; PC=0 ;;
 	--product-key-file) KEY_FILE=$2; shift ;;
 	--jobs) shift ;;                                  # accepted for PadMint; the steps size themselves
 	-*) echo "unknown option $1" >&2; exit 2 ;;
@@ -42,32 +44,53 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
-[ -f "$INPUT" ] && INPUT=$(dirname "$INPUT")          # PadMint passes the installer itself
-[ -d "$INPUT" ] || { echo "usage: scripts/builder/build.sh <HaloCESetup.exe, beside haloce-patch-1.0.10.exe> --ipa FILE" >&2; exit 2; }
+# The selected file chooses the edition without a second installer workflow.
+case "$INPUT" in *.[iI][sS][oO]|*.[xX][iI][sS][oO])
+	[ -f "$INPUT" ] || { echo "Xbox disc image not found: $INPUT" >&2; exit 2; }
+	XBOX=1; PC=0 ;;
+esac
+if [ $PC = 0 ] && [ -n "$KEY_FILE" ]; then
+	echo "An Xbox-only build does not use --product-key-file; omit it or choose the PC installer." >&2; exit 2
+fi
+if [ $PC = 1 ]; then
+	[ -f "$INPUT" ] && INPUT=$(dirname "$INPUT")
+	[ -d "$INPUT" ] || { echo "Select HaloCESetup.exe for PC, an Xbox ISO/XISO for Xbox, or use --xbox-only." >&2; exit 2; }
+fi
 [ -n "$IPA" ] || { [ $MAC = 1 ] && IPA="$OUT/HaloPad-mac.zip" || IPA="$OUT/HaloPad.ipa"; }
 mkdir -p "$OUT"
 mkdir -p "$(dirname "$IPA")"
 IPA="$(cd "$(dirname "$IPA")" && pwd)/$(basename "$IPA")"
 OUT="$(cd "$OUT" && pwd)"
+# PadMint exports this sidecar automatically. Never hand over an old PC package
+# beside a new Xbox-only app; retain it and ask for a separate output name.
+if [ $PC = 0 ] && { [ -e "$IPA.data" ] || [ -L "$IPA.data" ]; }; then
+	echo "Existing game data at $IPA.data is preserved. Choose a different Xbox-only output filename." >&2; exit 2
+fi
 step() { printf '\n==> %s\n' "$*"; }
 sha() { shasum -a 256 "$1" | cut -d' ' -f1; }
 
 step "checking tools"
-for tool in xcodebuild 7zz wine winetricks lld-link /opt/homebrew/opt/llvm/bin/clang; do
+command -v xcodebuild >/dev/null || { echo "Install Xcode before building HaloPad." >&2; exit 2; }
+if [ $PC = 1 ]; then
+for tool in 7zz wine winetricks lld-link /opt/homebrew/opt/llvm/bin/clang; do
 	command -v "$tool" >/dev/null || { echo "missing $tool: install Xcode, then brew install sevenzip winetricks llvm lld; for Wine see docs/INSTALL-WINE.md" >&2; exit 2; }
 done
+fi
 if [ $XBOX = 1 ]; then
 	for tool in cmake ninja ld.lld git curl; do
 		command -v "$tool" >/dev/null || { echo "missing $tool for the Xbox edition: brew install cmake ninja lld" >&2; exit 2; }
 	done
 fi
-if ! "$PY" -c 'import pefile, capstone, SCons' 2>/dev/null; then   # a fresh checkout (PadMint's)
+if [ $PC = 0 ]; then
+	PY=python3
+elif ! "$PY" -c 'import pefile, capstone, SCons' 2>/dev/null; then   # a fresh checkout (PadMint's)
 	step "setting up HaloPad's Python tools (.venv)"
 	[ -x "$PY" ] || python3 -m venv .venv
 	$PY -m pip install -q -r scripts/requirements-builder.txt
 fi
 
 
+if [ $PC = 1 ]; then
 step "finding your installer and the 1.10 update by hash"
 INSTALLER_SHA=150e430dc54ffb265cbe96605ef8909c9ba0065fa11bdbf170bfd88391cf98ba
 PATCH_SHA=33818f3f56b7dddc8c61d654af6567c9c5b9220ca75d6ac23a52611038257508
@@ -87,6 +110,7 @@ done < <(find "$INPUT" -maxdepth 2 -iname '*.exe' -print0)
 # Halo refuses to start without the product ID, so ask for the key before the long steps
 [ -n "$KEY_FILE" ] || [ ! -f "$INPUT/product-key.txt" ] || KEY_FILE="$INPUT/product-key.txt"
 [ -n "$KEY_FILE" ] || [ -t 0 ] || { echo "put product-key.txt (your Halo PC product key) beside HaloCESetup.exe; Halo will not start without it" >&2; exit 3; }
+fi
 # Resolve once, before the expensive work. An update must never silently become
 # an older build because GitHub is unavailable or the newest engine fails.
 if [ $XBOX = 1 ]; then
@@ -106,6 +130,9 @@ if [ $XBOX = 1 ]; then
 	fi
 fi
 
+PRODUCT_ID=()
+APP_OPTIONS=()
+if [ $PC = 1 ]; then
 # 1.10 files assembled by an earlier build are reused; the update is needed only the first time
 ACCEPTED=$($PY -c "import json;print(json.load(open('config/profiles/custom-en-1.0.10.0621.json'))['accepted_sha256'])")
 ASSEMBLED=0
@@ -164,6 +191,12 @@ else
 	echo "warning: no product key given; Halo will stop with 'Your product key is invalid' until you add one" >&2
 fi
 
+else
+	WORK="$OUT/xbox-only"
+	APP_OPTIONS=(--xbox-only)
+	echo "Xbox-only build: no PC installer, product key or Wine needed. Add your Xbox disc in HaloPad after installing."
+fi
+
 if [ $XBOX = 1 ]; then
 	step "fetching and building the Xbox engine (OpenCE) for this app"
 	export HALOPAD_XBOX_RENDERER=angle-metal HALOPAD_XBOX_GUEST_ADAPTATION=render-camera-v1   # the tested iPad build
@@ -176,10 +209,30 @@ else
 fi
 if [ $MAC = 1 ]; then step "building HaloPad for your Mac"; TARGET=(--mac); else step "building HaloPad for iPhone and iPad"; TARGET=(--iphoneos); fi
 APP_LOG="$OUT/build-app.log"
-HALOPAD_XBOX=$XBOX_SETTING $PY scripts/build-ios-app.py "${TARGET[@]}" --work "$WORK" ${PRODUCT_ID[@]+"${PRODUCT_ID[@]}"} | tee "$APP_LOG"
+HALOPAD_XBOX=$XBOX_SETTING $PY scripts/build-ios-app.py "${TARGET[@]}" --work "$WORK" ${APP_OPTIONS[@]+"${APP_OPTIONS[@]}"} ${PRODUCT_ID[@]+"${PRODUCT_ID[@]}"} | tee "$APP_LOG"
 [ $XBOX = 0 ] || hdiutil detach "$ROOT/ref/xbox-build/vol" -quiet 2>/dev/null || true   # the engine's volume (after its release tag is read)
 APP=$(sed -n 's/^built //p' "$APP_LOG" | tail -n 1)
 [ -d "$APP" ] || { echo "app build failed" >&2; exit 5; }
+
+if [ $PC = 0 ]; then
+	step "packaging your Xbox-only app"
+	if [ -L "$IPA" ] || { [ -e "$IPA" ] && [ ! -f "$IPA" ]; }; then
+		echo "output must be a regular file: $IPA" >&2; exit 5
+	fi
+	STAGE=$(mktemp -d "$(dirname "$IPA")/.halopad-xbox.XXXXXX")
+	trap 'rm -rf "$STAGE"' EXIT
+	if [ $MAC = 1 ]; then
+		ditto -c -k --keepParent "$APP" "$STAGE/app.zip"
+	else
+		mkdir "$STAGE/Payload"
+		cp -R "$APP" "$STAGE/Payload/"
+		(cd "$STAGE" && zip -qry app.zip Payload)
+	fi
+	mv -f "$STAGE/app.zip" "$IPA"
+	printf '%s\n' "$XBOX_RELEASE" > "$OUT/xbox-release.json"
+	printf '\nDone.\n  App: %s\nInstall HaloPad, choose Xbox and add your ISO or XISO. No PC game package is needed.\nThis personal build is yours alone; never share it.\n' "$IPA"
+	exit 0
+fi
 
 step "packaging your game files and the app"
 PACKAGE="$IPA.data/Halo-CE.halopad.zip"               # PadMint copies <IPA>.data/ out to the player

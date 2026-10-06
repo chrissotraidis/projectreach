@@ -180,8 +180,10 @@ def checked_product_id(path):
     return '\n'.join(lines) + '\n'
 
 
-def package(exe, out, work, target=TARGET, identity=None, provisioning=None, product_id=None):
+def package(exe, out, work, target=TARGET, identity=None, provisioning=None, product_id=None, *, pc=True):
     xbox = bool(xbox_parts(target))
+    if not pc and (not xbox or product_id):
+        raise ValueError('Xbox-only packaging requires the Xbox engine and no PC product ID')
     app = out / 'HaloPad.app'
     if app.exists():
         shutil.rmtree(app)
@@ -220,8 +222,10 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
     # the app's own data: the translated image and modules, the reference machine's files, the
     # registry seed and the input profile (the game files are the player's, imported on the device)
     data = res / 'data'
-    (data / 'modules').mkdir(parents=True)
-    shutil.copy2(run_core.IMAGE, data / 'image.bin')
+    data.mkdir(parents=True)
+    if pc:
+        (data / 'modules').mkdir()
+        shutil.copy2(run_core.IMAGE, data / 'image.bin')
     guest = XBOX_OUT / 'halo_guest.elf'
     if xbox and guest.exists():
         (data / 'xbox').mkdir()
@@ -236,25 +240,26 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
                               or build['guest_adaptation']['name'] != 'none')
         build['release'] = xbox_release_tag(build['revision'])
         (data / 'xbox' / 'build.json').write_text(json.dumps(build, indent=2) + '\n')
-    for m in sorted((run_core.IMAGE.parent / 'modules').iterdir()):
-        if (m / 'image.bin').is_file():
-            (data / 'modules' / m.name).mkdir()
-            shutil.copy2(m / 'image.bin', data / 'modules' / m.name / 'image.bin')
-    shutil.copytree(ROOT / 'ref' / 'inputs' / 'reference-machine', data / 'reference')
-    (data / 'config' / 'runtime').mkdir(parents=True)
-    shutil.copy2(ROOT / 'config' / 'runtime' / 'registry-machine.txt', data / 'config' / 'runtime' / 'registry-machine.txt')
-    if product_id:
-        # this player's own product ID, added where missing at launch (halopad_registry.c)
-        (data / 'config' / 'runtime' / 'product-id.txt').write_text(checked_product_id(product_id))
-    shutil.copy2(ROOT / 'config' / 'profiles' / 'custom-en-1.0.10.0621.json', data / 'profile.json')
-    profile = json.loads((data / 'profile.json').read_text())
-    stock = json.loads((ROOT / profile['original_root'] / 'MANIFEST.json').read_text())
-    objects = work / f'slices-va-{target}'
-    inputs = {f'{name}.va.o': objects / f'{name}.va.o' for name in ['haloce', *profile['modules']]}
-    inputs['dispatch.ll'] = work / 'va' / 'dispatch.ll'
-    inputs.update({p.name: p for p in (work / 'va').glob('halopad-*.ll')})
-    core = create_identity(profile, target, inputs, data, stock)
-    (data / 'core-identity.json').write_text(json.dumps(core, sort_keys=True, indent=2) + '\n')
+    if pc:
+        for m in sorted((run_core.IMAGE.parent / 'modules').iterdir()):
+            if (m / 'image.bin').is_file():
+                (data / 'modules' / m.name).mkdir()
+                shutil.copy2(m / 'image.bin', data / 'modules' / m.name / 'image.bin')
+        shutil.copytree(ROOT / 'ref' / 'inputs' / 'reference-machine', data / 'reference')
+        (data / 'config' / 'runtime').mkdir(parents=True)
+        shutil.copy2(ROOT / 'config' / 'runtime' / 'registry-machine.txt', data / 'config' / 'runtime' / 'registry-machine.txt')
+        if product_id:
+            # this player's own product ID, added where missing at launch (halopad_registry.c)
+            (data / 'config' / 'runtime' / 'product-id.txt').write_text(checked_product_id(product_id))
+        shutil.copy2(ROOT / 'config' / 'profiles' / 'custom-en-1.0.10.0621.json', data / 'profile.json')
+        profile = json.loads((data / 'profile.json').read_text())
+        stock = json.loads((ROOT / profile['original_root'] / 'MANIFEST.json').read_text())
+        objects = work / f'slices-va-{target}'
+        inputs = {f'{name}.va.o': objects / f'{name}.va.o' for name in ['haloce', *profile['modules']]}
+        inputs['dispatch.ll'] = work / 'va' / 'dispatch.ll'
+        inputs.update({p.name: p for p in (work / 'va').glob('halopad-*.ll')})
+        core = create_identity(profile, target, inputs, data, stock)
+        (data / 'core-identity.json').write_text(json.dumps(core, sort_keys=True, indent=2) + '\n')
     if 'simulator' in target:
         subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(app)], check=True, capture_output=True)
         return app
@@ -293,9 +298,33 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
     return app
 
 
+def build_xbox_only(work, target):
+    parts = xbox_parts(target)
+    if not parts:
+        raise ValueError('Xbox-only build requires a built Xbox engine')
+    sdk = run_core.sdk_path(target)
+    catalyst = ['-iframework', f'{sdk}/System/iOSSupport/System/Library/Frameworks',
+                '-isystem', f'{sdk}/System/iOSSupport/usr/include', '-L', f'{sdk}/System/iOSSupport/usr/lib'] if 'macabi' in target else []
+    exe = work / f'HaloPad-Xbox-{target}'
+    sources = [ROOT / 'port/ios' / name for name in ('HaloPadXboxApp.m', 'HaloPadOverlay.m')]
+    sources.append(ROOT / 'port/runtime/halopad_log.c')
+    command = ['xcrun', 'clang', '-target', target, '-isysroot', sdk, *catalyst,
+               '-O2', '-fno-fast-math', '-ffp-contract=off', '-fobjc-arc',
+               *map(str, sources), *map(str, parts)]
+    for framework in ('CoreGraphics', 'UIKit', 'AVFoundation', 'GameController', 'QuartzCore', 'AudioToolbox', 'UniformTypeIdentifiers'):
+        command += ['-framework', framework]
+    command += ['-o', str(exe)]
+    result = subprocess.run(command, capture_output=True, text=True)
+    (work / 'link.log').write_text(result.stdout + result.stderr)
+    if result.returncode:
+        raise RuntimeError('Xbox-only link failed:\n' + result.stderr[-4000:])
+    return exe
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--work', type=pathlib.Path)
+    ap.add_argument('--xbox-only', action='store_true', help='build without the PC installer, translation or product ID')
     ap.add_argument('--device', default='E129A00F-D338-4FDC-8AE8-BB243E9BA61B', help='Simulator UDID ("HaloPad iPad Pro 13")')
     ap.add_argument('--launch', action='store_true')
     ap.add_argument('--wait', type=int, default=20, help='seconds to let the app run before the screenshot')
@@ -317,23 +346,32 @@ def main():
     if a.mac:                                               # every compile step uses the macOS SDK
         os.environ['SDKROOT'] = subprocess.run(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], check=True,
                                                capture_output=True, text=True).stdout.strip()
-    work = (a.work or max(run_core.PROFILE.glob('run-*/va/haloce.va.ll'), key=lambda p: p.stat().st_mtime).parent.parent).resolve()
-    # The Apple link consumes generated VA runtime IR, not the llasm source directly.
-    # A stale VA run can silently link an old missing-import trap into a new app.
-    stale = [src.name for src in (ROOT / 'port' / 'llasm-runtime').glob('*.llasm')
-             if not (work / 'va' / f'{src.stem}.ll').exists()
-             or (work / 'va' / f'{src.stem}.ll').stat().st_mtime < src.stat().st_mtime]
-    if stale:
-        ap.error(f'VA runtime is stale ({", ".join(sorted(stale))}); rerun scripts/va-model.py --work {work} --llasm <built-llasm> before building')
-    extra = [ROOT / 'port' / 'ios' / name for name in ('HaloPadOverlay.m', 'HaloPadImport.m', 'HaloPadPackage.m', 'HaloPadDataIdentity.m')] + ([a.scene.resolve()] if a.scene else [])
-    # the launch picker is a weak reference: builds without the Xbox engine leave it undefined
     target = MAC_TARGET if a.mac else DEVICE_TARGET if a.iphoneos else TARGET
-    xbox = xbox_parts(target)
-    if xbox:
+    if a.xbox_only:
+        if a.product_id or a.scene or a.launch:
+            ap.error('--xbox-only does not accept --product-id, --scene or --launch')
+        work = (a.work or ROOT / 'generated' / 'xbox-only').resolve()
+        work.mkdir(parents=True, exist_ok=True)
         target = target.replace('ios17.0', 'ios17.4')
-    extra += ['-Wl,-U,_HPEngineChooserMake', *xbox]
-    exe, _ = run_core.build(work, target, ROOT / 'port' / 'ios' / 'HaloPadApp.m', extra=extra)
-    app = package(exe, work / f'ios-app-{target}', work, target, a.identity, a.profile, a.product_id)
+        exe = build_xbox_only(work, target)
+    else:
+        work = (a.work or max(run_core.PROFILE.glob('run-*/va/haloce.va.ll'), key=lambda p: p.stat().st_mtime).parent.parent).resolve()
+        # The Apple link consumes generated VA runtime IR, not the llasm source directly.
+        # A stale VA run can silently link an old missing-import trap into a new app.
+        stale = [src.name for src in (ROOT / 'port' / 'llasm-runtime').glob('*.llasm')
+                 if not (work / 'va' / f'{src.stem}.ll').exists()
+                 or (work / 'va' / f'{src.stem}.ll').stat().st_mtime < src.stat().st_mtime]
+        if stale:
+            ap.error(f'VA runtime is stale ({", ".join(sorted(stale))}); rerun scripts/va-model.py --work {work} --llasm <built-llasm> before building')
+        extra = [ROOT / 'port' / 'ios' / name for name in ('HaloPadOverlay.m', 'HaloPadImport.m', 'HaloPadPackage.m', 'HaloPadDataIdentity.m')] + ([a.scene.resolve()] if a.scene else [])
+        # the launch picker is a weak reference: builds without the Xbox engine leave it undefined
+        target = MAC_TARGET if a.mac else DEVICE_TARGET if a.iphoneos else TARGET
+        xbox = xbox_parts(target)
+        if xbox:
+            target = target.replace('ios17.0', 'ios17.4')
+        extra += ['-Wl,-U,_HPEngineChooserMake', *xbox]
+        exe, _ = run_core.build(work, target, ROOT / 'port' / 'ios' / 'HaloPadApp.m', extra=extra)
+    app = package(exe, work / f'ios-app-{target}', work, target, a.identity, a.profile, a.product_id, pc=not a.xbox_only)
     print('built', app.relative_to(ROOT))
     if a.iphoneos or a.mac:
         return 0

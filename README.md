@@ -102,36 +102,50 @@ Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 
 ## Build and install
 
-You need:
+The current source adds an **Xbox-only build**. The released HaloPad 0.3.7 / PadMint 0.4.9
+flow still requires the PC installer; the new PadMint input and tool checks must ship together
+with the updated HaloPad recipe.
 
-- a Mac with Apple silicon and Xcode
-- [Wine installed for HaloPad](docs/INSTALL-WINE.md) (Homebrew's `wine-stable` cask is disabled)
-- your own Halo: Custom Edition installer (`HaloCESetup.exe`) and its product key
-- for iPhone or iPad: iOS/iPadOS 17.4 or later with Developer Mode on, and an Apple development profile
-  that allows **Extended Virtual Addressing** and **Increased Memory Limit** (the Mac app needs neither)
+For either edition, you need an Apple silicon Mac with Xcode. Xbox builds need macOS 14.4+
+to play on a Mac, or iOS/iPadOS 17.4+ on an iPhone/iPad. iPhone/iPad installation also needs
+Developer Mode and your own Apple development profile with **Extended Virtual Addressing**
+and **Increased Memory Limit** ([install guide](docs/INSTALL-IPHONE.md)).
 
-Put `HaloCESetup.exe` and a `product-key.txt` holding your Halo PC key in one folder. Then either:
+In PadMint, select **HaloPad**, choose your platform, then choose your game file:
 
-- **PadMint (easiest):** download [PadMint](https://github.com/chrissotraidis/padmint#quick-start) 0.4.8
-  or later, choose **HaloPad**, then **iPhone / iPad** or **This Mac**, then your installer. It lists the tools
-  to install, builds HaloPad with both editions and gives you the app plus a **HaloPad game data** folder.
-- **Terminal:** install the tools once, then run the builder:
+| Select | What PadMint builds | What you need |
+| --- | --- | --- |
+| Your Xbox Halo `.iso` or `.xiso` | Xbox edition only | Your disc image; no PC installer, product key or Wine |
+| Original `HaloCESetup.exe` | Both editions | `product-key.txt` beside the installer, plus [Wine](docs/INSTALL-WINE.md) |
 
-  ```sh
-  brew install sevenzip winetricks llvm lld
-  scripts/builder/build.sh /path/to/that/folder --ipa HaloPad.ipa        # iPhone and iPad
-  scripts/builder/build.sh /path/to/that/folder --mac --zip HaloPad.zip  # Mac
-  ```
+The Xbox-only app opens to the same edition picker. Choose **Add Your Xbox Disc** and select
+your ISO/XISO again to import its maps. For iPhone/iPad, transfer the disc image to Files first.
+Custom Edition is marked **Not included in this build**; **Add Custom Edition…** explains how
+to build both editions later. Install the combined app over the existing one with the same
+signing identity to retain your Xbox files and saves.
 
-Both download Bungie's free 1.10 update, check every file by hash, translate Halo and make your product
-ID on your Mac, then write the app and `Halo-CE.halopad.zip`. On a Mac, unzip HaloPad, move it to
-Applications and open it. On iPhone or iPad, install the IPA with your own signing
-([install guide](docs/INSTALL-IPHONE.md)). Then open HaloPad, choose **Choose Prepared Package…** and
-pick the zip. Your game files, key and translated code never leave your Mac.
+For a combined build, PadMint also creates a **HaloPad game data** folder. Transfer its
+`Halo-CE.halopad.zip` to your device, choose Custom Edition in the picker, then
+**Choose Prepared Package…**. The builder downloads Bungie's free 1.10 update, verifies the
+PC inputs by hash, translates the game and creates your product ID locally.
 
-**An app you build contains code translated from your game: it is yours alone. Never share or upload it.**
+From a source checkout, the equivalent commands are:
 
-To update, install over the existing app. Deleting HaloPad deletes your profiles and imported files.
+```sh
+# Xbox only: add your disc in HaloPad after installing.
+brew install cmake ninja lld
+scripts/builder/build.sh --xbox-only --mac --zip HaloPad-Xbox.zip
+scripts/builder/build.sh --xbox-only --ipa HaloPad-Xbox.ipa
+
+# Both editions: install Wine using the guide above, and the PC tools.
+brew install sevenzip winetricks llvm lld cmake ninja
+scripts/builder/build.sh /path/to/HaloCESetup.exe --xbox --mac --zip HaloPad.zip
+scripts/builder/build.sh /path/to/HaloCESetup.exe --xbox --ipa HaloPad.ipa
+```
+
+On Mac, unzip the app and open it. On iPhone/iPad, sign and install the personal IPA.
+**These builds contain translated game code and are yours alone. Never share or upload them.**
+To update, install over the existing app. Deleting HaloPad deletes its profiles and imported files.
 
 ### Updating HaloPad
 
@@ -141,7 +155,8 @@ version is optional; a different multiplayer version needs a matching build to j
 The check needs an internet connection, but opening the picker and playing offline do not.
 
 On your Mac, open PadMint, select **HaloPad** and the same platform, and build again using the
-original installer with `product-key.txt` beside it. Install over the existing app; on iPhone/iPad,
+same kind of input: your Xbox ISO/XISO for Xbox-only, or the original PC installer with
+`product-key.txt` beside it for both editions. Install over the existing app; on iPhone/iPad,
 use the same signing identity. Imported files, profiles and settings stay. Xbox checkpoints may
 need a level restart after an engine update, even though their files are retained and backed up.
 

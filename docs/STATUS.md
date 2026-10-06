@@ -1,6 +1,29 @@
 # HaloPad status
 
-**PAUSED by Chris on 2026-10-03.** No further goal execution in this chat.
+**2026-10-06: Xbox-only installation flow (draft, not released).**
+Selecting an Xbox ISO/XISO in the updated HaloPad recipe builds without the PC installer,
+product key, Wine, PC translation or PC game package. Selecting HaloCESetup.exe retains
+both editions. PadMint's companion draft checks tools for the selected input and refreshes
+them when switching files; release both changes together. The same picker/importer/controls
+are used by the Xbox-only app. Custom Edition is clearly marked as absent, with instructions
+for adding it through a combined build.
+
+Validation: full personal Mac ZIP and iOS IPA builds completed against OpenCE build 138
+(`76addf661f02e2fd090d7b00f9dd12c29e562a9b`, network 20). Signatures, entitlements, OS minimums
+and package contents checked; Xbox-only outputs contain no PC image, modules, product ID
+or PC package. A clean source export with no PC inputs or third-party Python packages also
+built the Mac app. An isolated Mac installation imported an owned Xbox disc, reached Halo's
+main menu, then relaunched into the picker with its maps retained. The combined build opened
+PC setup using the same test identity; all Xbox files retained identical hashes. Actual app
+and player data were not replaced. Full PadMint suite: 318 passing; Xbox suite: 234 passing.
+Builder failure/rollback tests and PC-cache tests pass separately. Private build records and
+logs are retained under `generated/xbox-only-check-20261006/`.
+
+No physical iOS install, new gameplay/performance acceptance or real multiplayer-match
+acceptance was performed. Personal binaries are not public release assets.
+
+**Earlier graphics investigation paused by Chris on 2026-10-03.**
+The resumed installation work above does not establish resolution of that investigation.
 Replacement-bot instructions and bounded priorities:
 [focused handoff](HaloPad-NEXT-BOT-HANDOFF-2026-10-03.md).
 The chronology below is evidence, not permission to resume or repeat old passes.
