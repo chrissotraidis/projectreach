@@ -2,6 +2,7 @@
 import hashlib
 import os
 import pathlib
+import signal
 import shlex
 import subprocess
 import sys
@@ -113,6 +114,72 @@ pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_text('new game pack
         result = self.run_builder(FAIL_PACKAGE='1')
         self.assertEqual(result.returncode, 23, result.stdout + result.stderr)
         self.assert_old_outputs()
+        self.assertFalse(list(self.root.glob('.halopad-package.*')))
+
+    def test_app_publish_failure_restores_previous_game_package(self):
+        self.write('bin/mv', '''#!/bin/sh
+case "$*" in *app.zip*) exit 29 ;; esac
+exec /bin/mv "$@"
+''')
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('Done.', result.stdout)
+        self.assert_old_outputs()
+        self.assertFalse(list(self.root.glob('.halopad-package.*')))
+
+    def test_output_directory_is_rejected_without_publishing(self):
+        (self.root / 'result.zip').unlink()
+        (self.root / 'result.zip').mkdir()
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(list((self.root / 'result.zip').iterdir()), [])
+        self.assertEqual((self.root / 'result.zip.data/Halo-CE.halopad.zip').read_text(), 'old game package')
+
+    def test_first_app_publish_failure_leaves_no_partial_game_package(self):
+        (self.root / 'result.zip').unlink()
+        (self.root / 'result.zip.data/Halo-CE.halopad.zip').unlink()
+        self.write('bin/mv', '''#!/bin/sh
+case "$*" in *app.zip*) exit 29 ;; esac
+exec /bin/mv "$@"
+''')
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertFalse((self.root / 'result.zip').exists())
+        self.assertFalse((self.root / 'result.zip.data/Halo-CE.halopad.zip').exists())
+
+    def test_failed_restore_preserves_backup_and_reports_its_location(self):
+        self.write('bin/mv', '''#!/bin/sh
+case "$*" in *app.zip*|'-f '*previous-game.zip*) exit 29 ;; esac
+exec /bin/mv "$@"
+''')
+        result = self.run_builder()
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('Could not restore the previous game package', result.stderr)
+        backups = list(self.root.glob('.halopad-package.*/previous-game.zip'))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(backups[0].read_text(), 'old game package')
+        self.assertIn(str(backups[0].parent), result.stderr)
+        self.assertEqual((self.root / 'result.zip').read_text(), 'old archive')
+
+    def test_interruption_after_backup_move_restores_previous_outputs(self):
+        self.write('bin/mv', '''#!/bin/sh
+/bin/mv "$@" || exit $?
+case "$*" in *previous-game.zip) kill -TERM "$PPID" ;; esac
+''')
+        result = self.run_builder()
+        self.assertIn(result.returncode, (-signal.SIGTERM, 128 + signal.SIGTERM))
+        self.assert_old_outputs()
+        self.assertFalse(list(self.root.glob('.halopad-package.*')))
+
+    def test_interruption_after_app_move_keeps_both_completed_outputs(self):
+        self.write('bin/mv', '''#!/bin/sh
+/bin/mv "$@" || exit $?
+case "$*" in *app.zip*) kill -TERM "$PPID" ;; esac
+''')
+        result = self.run_builder()
+        self.assertIn(result.returncode, (-signal.SIGTERM, 128 + signal.SIGTERM))
+        self.assertEqual((self.root / 'result.zip').read_text(), 'new archive')
+        self.assertEqual((self.root / 'result.zip.data/Halo-CE.halopad.zip').read_text(), 'new game package')
         self.assertFalse(list(self.root.glob('.halopad-package.*')))
 
     def test_explicit_pin_overrides_inherited_latest_revision(self):

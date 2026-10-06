@@ -183,8 +183,30 @@ APP=$(sed -n 's/^built //p' "$APP_LOG" | tail -n 1)
 
 step "packaging your game files and the app"
 PACKAGE="$IPA.data/Halo-CE.halopad.zip"               # PadMint copies <IPA>.data/ out to the player
+for output in "$IPA" "$PACKAGE"; do
+	if [ -L "$output" ] || { [ -e "$output" ] && [ ! -f "$output" ]; }; then
+		echo "output must be a regular file: $output" >&2; exit 5
+	fi
+done
 STAGE=$(mktemp -d "$(dirname "$IPA")/.halopad-package.XXXXXX")
-trap 'rm -rf "$STAGE"' EXIT
+finish_package() {
+	status=$?
+	# Renames record the state themselves, including interruption between commands.
+	# Once app.zip has moved, both new outputs are committed.
+	if [ -f "$STAGE/app.zip" ]; then
+		if [ -f "$STAGE/previous-game.zip" ]; then
+			mv -f "$STAGE/previous-game.zip" "$PACKAGE" || {
+				echo "Could not restore the previous game package; it is preserved in $STAGE" >&2
+				return "$status"
+			}
+		elif [ ! -f "$STAGE/game.zip" ]; then
+			rm -f "$PACKAGE"
+		fi
+	fi
+	rm -rf "$STAGE"
+	return "$status"
+}
+trap finish_package EXIT
 mkdir -p "$IPA.data"
 if [ $MAC = 1 ]; then
 	$PY scripts/prepare-game-data.py --app-data "$APP/Contents/Resources/data" --game ref/inputs/custom-original --output "$STAGE/game.zip"
@@ -196,6 +218,8 @@ else
 	(cd "$STAGE" && zip -qry app.zip Payload)
 fi
 # Publish outputs only after both packages have been created successfully.
+# Retain the previous game package until the app replacement succeeds as well.
+[ ! -f "$PACKAGE" ] || mv "$PACKAGE" "$STAGE/previous-game.zip"
 mv -f "$STAGE/game.zip" "$PACKAGE"
 mv -f "$STAGE/app.zip" "$IPA"
 # keep this build's finished translation (adding the Xbox edition reuses it) and drop its
