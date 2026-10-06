@@ -126,6 +126,7 @@ uint32_t halopad_module_mapped(uint32_t handle)
 }
 
 uint32_t VirtualProtect_c(uint32_t address, uint32_t size, uint32_t prot, uint32_t old);
+int halopad_host_path(const char *guest, char *out, size_t size);
 
 /* Lay out a PE file's headers and sections at its preferred base, as the Windows loader
    does, then make the whole image read-only. No relocation is needed at the preferred
@@ -136,7 +137,8 @@ static void map_datafile(module *m)
     if (!root) hp_unsupported("LoadLibraryA", "no %s for \"%s\"", m->dir ? "HALOPAD_REFERENCE_ROOT" : "HALOPAD_GAME_ROOT", m->name);
     char path[1024];
     if (m->dir) snprintf(path, sizeof path, "%s/%s/%s", root, m->dir, m->name);
-    else snprintf(path, sizeof path, "%s/%s", root, m->name);
+    else if (!halopad_host_path(m->name, path, sizeof path))
+        hp_unsupported("LoadLibraryA", "cannot resolve %s in %s", m->name, root);
     FILE *f = fopen(path, "rb");
     if (!f) hp_unsupported("LoadLibraryA", "cannot open %s", path);
     fseek(f, 0, SEEK_END);
