@@ -608,7 +608,8 @@ static NSString *const HPProjectURL = @"https://github.com/chrissotraidis/projec
 
 @implementation HPEngineChooser
 {
-	UIStackView *cards;
+	UIStackView *cards, *footer;
+	BOOL appeared;
 	UIButton *pc_play, *xbox_play;
 	BOOL choosing;
 }
@@ -683,10 +684,10 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	UIColor *statusColor = ready ? [UIColor colorWithRed:0.38 green:0.85 blue:0.45 alpha:1] : [UIColor colorWithRed:1 green:0.74 blue:0.28 alpha:1];
 	UIButtonConfiguration *configuration = [UIButtonConfiguration filledButtonConfiguration];
 
-	card.backgroundColor = [UIColor colorWithRed:0.06 green:0.095 blue:0.135 alpha:0.96];
+	card.backgroundColor = [UIColor colorWithRed:0.06 green:0.095 blue:0.135 alpha:0.88];
 	card.layer.cornerRadius = 22;
 	card.layer.borderWidth = 1;
-	card.layer.borderColor = [accent colorWithAlphaComponent:last ? 0.75 : 0.28].CGColor;
+	card.layer.borderColor = [accent colorWithAlphaComponent:last ? 0.85 : 0.48].CGColor;
 	icon.tintColor = accent;
 	icon.contentMode = UIViewContentModeScaleAspectFit;
 	[spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
@@ -731,6 +732,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 		return out;
 	};
 	*button = [UIButton buttonWithConfiguration:configuration primaryAction:nil];
+	(*button).pointerInteractionEnabled = YES;
 	(*button).accessibilityIdentifier = identifier;
 	(*button).accessibilityHint = @"Opens this edition of Halo";
 	[*button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
@@ -770,12 +772,12 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	UISegmentedControl *choice = [[UISegmentedControl alloc] initWithItems:@[ @"Original", @"Sharper (Preview)" ]];
 	UILabel *caption = chooser_label(@"Graphics", UIFontTextStyleFootnote, UIFontWeightSemibold, [UIColor colorWithWhite:0.72 alpha:1]);
 	UILabel *note = chooser_label(@"Sharper renders at twice the resolution with 4× texture filtering and needs more GPU power.",
-		UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.58 alpha:1]);
+		UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.72 alpha:1]);
 	UIStackView *stack;
 	choice.selectedSegmentIndex = HPXboxSharperSelected(NSUserDefaults.standardUserDefaults) ? 1 : 0;
 	choice.accessibilityIdentifier = @"engine.xbox.quality";
 	choice.accessibilityLabel = @"Xbox graphics";
-	choice.selectedSegmentTintColor = [UIColor colorWithRed:0.42 green:0.8 blue:0.36 alpha:1];
+	choice.selectedSegmentTintColor = [UIColor colorWithRed:0.19 green:0.86 blue:0.94 alpha:1];
 	[choice setTitleTextAttributes:@{ NSForegroundColorAttributeName: UIColor.blackColor } forState:UIControlStateSelected];
 	[choice setTitleTextAttributes:@{ NSForegroundColorAttributeName: UIColor.whiteColor } forState:UIControlStateNormal];
 	[choice addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
@@ -797,6 +799,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	configuration.imagePadding = 6;
 	configuration.baseForegroundColor = [UIColor colorWithRed:0.6 green:0.78 blue:0.95 alpha:1];
 	button = [UIButton buttonWithConfiguration:configuration primaryAction:nil];
+	button.pointerInteractionEnabled = YES;
 	button.accessibilityIdentifier = identifier;
 	[button.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES;
 	[button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
@@ -810,19 +813,23 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	NSString *last = [NSUserDefaults.standardUserDefaults stringForKey:@"HaloPadLastEngine"];
 	NSString *app = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?";
 	BOOL pc_ready = self.makePC && pc_has_files(), xbox_ready = xbox_has_maps();
-	UIColor *blue = [UIColor colorWithRed:0.42 green:0.7 blue:1 alpha:1], *green = [UIColor colorWithRed:0.42 green:0.8 blue:0.36 alpha:1];
-	UILabel *brand = chooser_label(@"HALOPAD  ·  PROJECT REACH", UIFontTextStyleFootnote, UIFontWeightBold, [UIColor colorWithRed:0.55 green:0.77 blue:0.94 alpha:1]);
+	UIColor *blue = [UIColor colorWithRed:0.42 green:0.7 blue:1 alpha:1], *cyan = [UIColor colorWithRed:0.19 green:0.86 blue:0.94 alpha:1];
+	UILabel *brand = chooser_label(@"HALOPAD", UIFontTextStyleFootnote, UIFontWeightBold, [UIColor colorWithRed:0.55 green:0.77 blue:0.94 alpha:1]);
 	UILabel *title = chooser_label(@"Choose your edition", UIFontTextStyleLargeTitle, UIFontWeightBold, UIColor.whiteColor);
 	UILabel *subtitle = chooser_label(@"Each edition keeps its own saves, settings and multiplayer. You can switch later from ⋯ › Switch Edition.",
 		UIFontTextStyleSubheadline, UIFontWeightRegular, [UIColor colorWithWhite:0.7 alpha:1]);
 	UIView *pc, *xbox;
-	UIStackView *heading, *footer, *stack;
-	CAGradientLayer *gradient = [CAGradientLayer layer];
-
-	gradient.colors = @[ (id)[UIColor colorWithRed:0.04 green:0.085 blue:0.13 alpha:1].CGColor,
-		(id)[UIColor colorWithRed:0.008 green:0.02 blue:0.035 alpha:1].CGColor ];
+	UIStackView *heading, *stack;
+	UIImageView *background = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"ChooserBackground"]];
+	background.contentMode = UIViewContentModeScaleAspectFill;
+	background.clipsToBounds = YES;
+	background.isAccessibilityElement = NO;
+	background.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+	background.frame = root.bounds;
 	root.backgroundColor = [UIColor colorWithRed:0.008 green:0.02 blue:0.035 alpha:1];
-	[root.layer insertSublayer:gradient atIndex:0];
+	[root addSubview:background];
+	brand.attributedText = [[NSAttributedString alloc] initWithString:@"HALOPAD"
+		attributes:@{ NSKernAttributeName: @5 }];
 
 	pc = [self cardTitle:@"Halo Custom Edition" platform:@"WINDOWS" symbol:@"desktopcomputer" accent:blue
 		version:@"Version 1.10 · runs natively on Apple silicon"
@@ -832,7 +839,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 		last:self.makePC && [last isEqual:@"pc"] extra:nil button:&pc_play];
 	if (!self.makePC) pc_play.accessibilityHint = @"Explains how to add Custom Edition with PadMint";
 	xbox = [self cardTitle:@"Halo: Combat Evolved" platform:[build[@"candidate"] boolValue] ? @"XBOX · PREVIEW" : @"XBOX · EXPERIMENTAL"
-		symbol:@"gamecontroller" accent:green
+		symbol:@"gamecontroller" accent:cyan
 		version:[NSString stringWithFormat:@"OpenCE %@ · Metal", xbox_release(build)]
 		about:@"The original Xbox campaign and system link, from your own disc."
 		ready:xbox_ready status:xbox_ready ? @"Ready to play" : @"Add your Xbox disc image first"
@@ -846,22 +853,33 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	heading = [[UIStackView alloc] initWithArrangedSubviews:@[ brand, title, subtitle ]];
 	heading.axis = UILayoutConstraintAxisVertical;
 	heading.spacing = 6;
+	[heading setCustomSpacing:26 afterView:brand];
 	footer = [[UIStackView alloc] initWithArrangedSubviews:@[
 		[self footerButton:@"Update Xbox…" symbol:@"arrow.triangle.2.circlepath" identifier:@"engine.update" action:@selector(showUpdate)],
 		[self footerButton:@"About These Builds" symbol:@"info.circle" identifier:@"engine.builds" action:@selector(showBuilds)],
 		[self footerButton:@"Project Reach on GitHub" symbol:@"arrow.up.right.square" identifier:@"engine.github" action:@selector(openProject)],
 		[UIView new],
 		chooser_label([NSString stringWithFormat:@"HaloPad %@ · Bring your own copy of Halo; no game data is included.", app],
-			UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.5 alpha:1]) ]];
+			UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.72 alpha:1]) ]];
 	footer.spacing = 8;
+	footer.backgroundColor = [UIColor colorWithRed:0.02 green:0.04 blue:0.06 alpha:0.82];
+	footer.layer.cornerRadius = 12;
+	footer.layoutMargins = UIEdgeInsetsMake(8, 8, 8, 8);
+	footer.layoutMarginsRelativeArrangement = YES;
 	footer.alignment = UIStackViewAlignmentCenter;
 	((UILabel *)footer.arrangedSubviews.lastObject).textAlignment = NSTextAlignmentRight;
 
 	UILabel *update = chooser_label(@"", UIFontTextStyleFootnote, UIFontWeightSemibold, [UIColor colorWithRed:1 green:0.72 blue:0.3 alpha:1]);
-	update.hidden = YES;
+	UIStackView *notice = [[UIStackView alloc] initWithArrangedSubviews:@[ update ]];
+	notice.backgroundColor = [UIColor colorWithRed:0.02 green:0.04 blue:0.06 alpha:0.9];
+	notice.layer.cornerRadius = 12;
+	notice.layoutMargins = UIEdgeInsetsMake(12, 14, 12, 14);
+	notice.layoutMarginsRelativeArrangement = YES;
+	notice.hidden = YES;
 	__weak UILabel *weak_update = update;
-	xbox_check_upstream(build, ^(NSString *message) { weak_update.text = message; weak_update.hidden = NO; });
-	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, update, footer ]];
+	__weak UIView *weak_notice = notice;
+	xbox_check_upstream(build, ^(NSString *message) { weak_update.text = message; weak_notice.hidden = NO; });
+	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, notice, footer ]];
 	stack.axis = UILayoutConstraintAxisVertical;
 	stack.spacing = 24;
 	stack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -911,9 +929,26 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 - (void)viewDidLayoutSubviews
 {
 	[super viewDidLayoutSubviews];
-	self.view.layer.sublayers.firstObject.frame = self.view.bounds;
 	BOOL narrow = self.view.bounds.size.width < 700 || UIContentSizeCategoryIsAccessibilityCategory(self.traitCollection.preferredContentSizeCategory);
+	cards.distribution = narrow ? UIStackViewDistributionFill : UIStackViewDistributionFillEqually;
 	cards.axis = narrow ? UILayoutConstraintAxisVertical : UILayoutConstraintAxisHorizontal;
+	footer.alignment = narrow ? UIStackViewAlignmentFill : UIStackViewAlignmentCenter;
+	footer.axis = narrow ? UILayoutConstraintAxisVertical : UILayoutConstraintAxisHorizontal;
+	((UILabel *)footer.arrangedSubviews.lastObject).textAlignment = narrow ? NSTextAlignmentCenter : NSTextAlignmentRight;
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+	[super viewDidAppear:animated];
+	if (appeared) return;
+	appeared = YES;
+	if (UIAccessibilityIsReduceMotionEnabled()) return;
+	cards.alpha = 0;
+	cards.transform = CGAffineTransformMakeTranslation(0, 10);
+	[UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionCurveEaseOut animations:^{
+		self->cards.alpha = 1;
+		self->cards.transform = CGAffineTransformIdentity;
+	} completion:nil];
 }
 
 - (void)openProject

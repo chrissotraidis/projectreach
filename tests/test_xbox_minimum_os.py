@@ -54,6 +54,7 @@ class MinimumOSTests(unittest.TestCase):
                         {'original_root': 'original', 'modules': {}}).encode())
                     write('original/MANIFEST.json', b'{}')
                     write('config/xbox-engine.lock.json', b'{"revision":"fixture"}')
+                    write('port/ios/assets/ChooserBackground.png', b'background fixture')
                     write('xbox/halo_guest.elf')
                     write('xbox/brokers.txt')
                     write('xbox/build.json', b'{"revision":"fixture","guest_adaptation":{"name":"none"}}')
@@ -71,6 +72,10 @@ class MinimumOSTests(unittest.TestCase):
                             patch.object(builder.subprocess, 'run', side_effect=run) as commands:
                         app = builder.package(exe, out, root, target)
                     mac = 'macabi' in target
+                    resources = app / 'Contents/Resources' if mac else app
+                    self.assertEqual((resources / 'ChooserBackground.png').exists(), xbox)
+                    if xbox:
+                        self.assertEqual((resources / 'ChooserBackground.png').read_bytes(), b'background fixture')
                     info = plistlib.loads((app / 'Contents/Info.plist' if mac else app / 'Info.plist').read_bytes())
                     expected = ('14.4' if xbox else '14.0') if mac else ('17.4' if xbox else '17.0')
                     self.assertEqual(info['LSMinimumSystemVersion' if mac else 'MinimumOSVersion'], expected)

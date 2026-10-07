@@ -156,11 +156,27 @@ OpenCE 144's main menu. A native allocator test also covers mapping, unmapping,
 zero-filled allocation, pointer round-trips and high guest addresses.
 
 This is one M2 iPad on iPadOS 27.0.1, still signed with a paid development identity.
-It does not prove free-account provisioning, campaign memory pressure, lower-memory
-devices or consumer upgrades. Shipping packaging/signing/profile requirements are
-unchanged. The existing main HaloPad installation and player data were preserved;
-the diagnostic bundle uses separate copies of owned maps. Next prove the consumer
-signer and actual gameplay before relaxing those requirements.
+The no-extra-entitlement build subsequently failed during the opening Normal
+campaign cinematic: GL out-of-memory errors preceded SIGABRT from an allocation
+failure on an ANGLE shader-link worker. It was not a jetsam report. This does not
+isolate physical-memory pressure from virtual-address exhaustion. Menu startup
+alone therefore cannot justify removing the shipping entitlement requirements.
+
+A second private variant (0.3.8/build 5) requests Increased Memory Limit only. It
+was installed over the main app after two independent full data reads matched;
+119 save/profile/preference files matched again before launch, excluding changed
+OS-managed SplashBoard snapshots. Its opening cinematics ran farther, with no GL
+errors in the captured segment. Another task used the shared iPad before gameplay
+acceptance finished; no new HaloPad crash report was found. Treat this as an
+interrupted test, not a campaign pass or a demonstrated second crash. A signed
+build-6 variant with both entitlements is prepared but not installed.
+
+Free-account provisioning, sustained campaign/save/resume, lower-memory devices
+and consumer upgrades remain unproven. Shipping packaging/signing/profile
+requirements are unchanged. Apple refused new profile creation pending the
+account holder's Program License Agreement; an existing paid development profile
+allowed the private variants. Finish the controlled gameplay comparison and actual
+consumer signing route before relaxing requirements.
 
 ### 3. Build the smallest whole-app release pipeline
 
@@ -253,28 +269,45 @@ This experiment determines whether the extra policy mechanism earns its complexi
 
 ## Current evidence and next gate
 
-- Main iPad installation: private build 138/network 20, preserved. Campaign
-  startup and fresh save/resume were observed there; no accepted multiplayer match.
-- Separate test installation: OpenCE 144/network 21, version 0.3.8/build 4 (a
-  diagnostic re-sign of private build 3), with neither extra memory entitlement.
-  Picker and Halo main menu observed on physical M2 iPad; game log confirms the
-  exact revision and aligned guest memory. No campaign or multiplayer acceptance
-  for this test installation yet.
+OpenCE published build 145/network 22 after the 144 candidate was built. The
+picker correctly showed an incompatible-multiplayer update notice during design
+QA. Existing 144 artifacts remain reproducible evidence, not the latest network
+release. Record and validate 145 before advertising current-server compatibility.
+
+- Main iPad installation: private 0.3.8/build 5, OpenCE 144/network 21,
+  Increased Memory Limit only. In-place installation, data preservation and picker
+  passed; interrupted cinematic run is not campaign/save acceptance. Engine-138
+  data remains in verified local backups; no uninstall was performed.
+- Separate diagnostic installation: 0.3.8/build 4, same engine, neither extra
+  memory entitlement. Picker/menu passed, campaign cinematic crashed with an
+  allocation failure. Its data was backed up independently.
+- Mac: the exact release record builds 0.3.8/build 3; strict code signature
+  verification passed. An isolated app identity imported the owned disc, created
+  a profile and reached a Battle Creek/Slayer LAN lobby. Same-version two-peer
+  gameplay and public Mac installation/notarization remain open. A bounded
+  two-peer same-Mac discovery/join attempt did not complete a match; both isolated
+  configs were restored afterward. Direct-link paste also remains unsupported by
+  the host clipboard bridge and needs a deliberate user-controlled handoff.
+- Private Mac build 7 adds the selected space-themed native picker. Wide/narrow
+  layout and setup controls were checked; this UI has not replaced the physical
+  iPad installation. Evidence: `generated/picker-design-20261007/`, `design-qa.md`.
 - Private build-3 IPA: 19,853,117 bytes, strict signature verification passed;
   SHA-256 `efb2cea37e0575e43562ce3ea12faf3b5dcbf1067d917900940296f4b3d04884`.
   No maps/discs, PC product ID or provisioning profile included. Compiled engine
-  distribution review and dependency notices remain pending.
+  distribution review and complete dependency notices remain pending; 16 notice
+  files have been collected privately, not bundled into this archive.
 - Validation: 242 Xbox tests passed before the final record-error diagnostic test;
   the final 10-test release suite and all 26 installer/signing/profile tests also
   passed. All 21 builder tests passed, plus real versioned builds and independent
-  archive inspection.
-- Next gate: consumer signing and in-place upgrade/save preservation, actual
-  campaign under ordinary entitlements, and same-version multiplayer. Only then
-  promote a downloadable build and automate the accepted-artifact feed.
-- No compatibility override, shipping entitlement relaxation, public binary,
-  automatic publishing, or replacement of the main iPad app was performed.
+  archive inspection. These do not substitute for the physical acceptance above.
+- Next gate: exclusive iPad time for campaign/save/resume and a real Mac–iPad
+  multiplayer match; consumer signing and upgrade with the actual account and
+  entitlements. Only then promote a downloadable build and automate its feed.
+- No compatibility override, shipping entitlement relaxation, public binary or
+  automatic publishing was performed. Public HaloPad remains v0.3.7.
 
 Local evidence is excluded from source control:
 `generated/update-research-20261007/` holds adaptation tests and memory diagnostics;
-`generated/ipa-update-pipeline-20261007/` holds builds, archive audits and the
-separate test app's signature audit, physical-device log and main-menu screenshot.
+`generated/ipa-update-pipeline-20261007/` holds builds and archive audits;
+`generated/release-acceptance-20261007/` holds physical crash/campaign logs,
+independent backups/readbacks, signature variants, Mac builds and component notices.

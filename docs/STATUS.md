@@ -1,5 +1,56 @@
 # HaloPad status
 
+## Current release candidate: 0.3.8 Xbox-only beta
+
+**2026-10-07, physical acceptance in progress. Not released.** Public HaloPad
+remains v0.3.7 (source/recipe assets, no public IPA). The candidate uses OpenCE
+build **144**, commit `76b1898ee14e6fb58e0412acc183da509c10e001`, network **21**.
+The same recorded commit now builds both the iPad and Apple Silicon Mac apps.
+OpenCE subsequently published [build 145](https://github.com/OpenCommunityEdition/OpenCE/releases/tag/build-145)
+(2026-10-07 11:05 UTC), with network **22**. The candidate is therefore no longer
+network-current. Its live update notice correctly reported this during picker QA;
+145 still needs a recorded build and compatibility acceptance.
+
+The intended player-facing description is: install HaloPad, choose Xbox Halo,
+import your own Xbox disc once, and play with touch controls or a controller.
+This Xbox-only package does not require the Custom Edition PC installer or key.
+The picker explains that Custom Edition is not included; personal combined builds
+remain separate. The small app update preserves the data container, avoiding a
+repeat disc import. Automatic whole-app delivery is the next implementation step,
+not a feature in this candidate; ordinary consumer signing is still unproven.
+
+| Acceptance check | Current evidence |
+| --- | --- |
+| Reproducible candidate | Real iOS and Mac builds replay the exact saved OpenCE commit and package 0.3.8/build identities. Invalid release records fail early. |
+| iPad upgrade and picker | Main app upgraded in place from engine 138 to diagnostic 0.3.8/build 5, engine 144. Picker and Play Xbox observed; existing maps remain ready. |
+| Player data preservation | Before installation, two independent Documents/Library reads matched 516 files (8,291,058,624 bytes). After installation and before launch, all 119 checked save/profile/preference files matched. OS-managed SplashBoard snapshots changed and are explicitly excluded; this is not proof that old checkpoints resume. |
+| Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
+| Increased Memory Limit only | Build 5's actual signature requests Increased Memory Limit, without Extended Virtual Addressing. Opening cinematics progressed farther with zero GL errors in the captured segment. Shared-iPad testing interrupted the run; campaign/save acceptance remains open. Paid development signing was used. |
+| Mac host | Fresh disc import, profile creation and a one-player Battle Creek/Slayer LAN lobby observed on engine 144. Two isolated same-Mac peers did not discover/join in the bounded test. A completed match remains unverified; a real Mac–iPad test is still required. |
+| Themed picker | Private Mac build 7 implements the selected two-card layout over original space artwork. Wide/narrow visual checks, setup/back navigation, graphics selection and informational dialogs passed. Five packaging/minimum-OS tests passed. New picker not installed on the physical iPad. See `design-qa.md`. |
+| Distribution | Private IPA passes strict signature/archive checks. Sixteen component notice files collected; compiled-in asset provenance, complete transitive notices and exact-artifact publication decision remain open. Mac notarization is untested. |
+
+**Next acceptance session:** give the physical iPad exclusive test time, finish
+campaign/save/resume on build 5, then run a real matching-version Mac–iPad match.
+A build-6 comparison with both memory entitlements is signed and retained but has
+not been installed. Preserve new test saves before any replacement. Apple refused
+new provisioning profiles pending the account holder's updated Program License
+Agreement; the existing development profile allowed the private comparison above.
+The selected consumer signing account and its actual supported entitlements still
+need confirmation and an end-to-end installation/upgrade test.
+
+Private evidence: `generated/release-acceptance-20261007/`, including backup/readback
+audits, the build-4 crash report, build-5 signature and campaign logs, and Mac
+artifact audit. The release plan and exact private IPA identity are in
+[UPDATE-STRATEGY.md](UPDATE-STRATEGY.md). Shipping entitlement requirements remain
+unchanged. No public binary, update feed or automatic publisher exists.
+
+## Earlier investigation log
+
+The entries below are chronological investigation snapshots. Statements about
+what was installed or untested describe their own step; the current table above
+supersedes them.
+
 ## Reducing update maintenance
 
 **2026-10-07: implementation and physical memory test supersede the planning notes below.**
