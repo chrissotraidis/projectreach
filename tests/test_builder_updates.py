@@ -22,6 +22,7 @@ class BuilderUpdateTests(unittest.TestCase):
             '150e430dc54ffb265cbe96605ef8909c9ba0065fa11bdbf170bfd88391cf98ba',
             hashlib.sha256(b'fixture').hexdigest()).replace('/opt/homebrew/opt/llvm/bin/clang', 'clang')
         self.write('scripts/builder/build.sh', source)
+        self.write('scripts/app_version.py', (ROOT / 'scripts/app_version.py').read_text())
         self.write('input/HaloCESetup.exe', 'fixture')
         self.write('input/product-key.txt', 'inert fixture')
         self.write('ref/inputs/custom-original/haloce.exe', 'fixture')
@@ -73,14 +74,14 @@ pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_text('new game pack
         path.write_text(value)
         path.chmod(0o700)
 
-    def run_builder(self, mac=True, selected=None, **env):
+    def run_builder(self, mac=True, selected=None, extra=(), **env):
         environment = dict(os.environ, PATH=str(self.root / 'bin') + os.pathsep + os.environ['PATH'],
                            PYTHONPATH=str(self.root / 'probe_modules'),
                            FAIL_ENGINE='', HALOPAD_XBOX_PINNED='0')
         environment.update(env)
         return subprocess.run(['/bin/bash', str(self.root / 'scripts/builder/build.sh'),
                                str(selected or self.root / 'input'), '--xbox', *(['--mac'] if mac else []),
-                               '--zip', str(self.root / getattr(self, 'output', 'result.zip'))], cwd=self.root,
+                               '--zip', str(self.root / getattr(self, 'output', 'result.zip')), *extra], cwd=self.root,
                               env=environment, text=True, capture_output=True, timeout=30)
 
     def assert_old_outputs(self):
@@ -127,6 +128,32 @@ print('built', p)
         self.assertEqual((self.root / 'xbox.zip').read_text(), 'new archive')
         self.assertFalse((self.root / 'xbox.zip.data').exists())
         self.assert_old_outputs()
+
+    def test_record_and_app_identity_reach_real_builder_without_latest_resolution(self):
+        disc = self.xbox_only_input()
+        self.write('scripts/xbox/release.py', (ROOT / 'scripts/xbox/release.py').read_text())
+        self.write('saved record.json', '{"revision":"' + 'a' * 40 + '","release":"build-144"}')
+        script = self.root / 'scripts/build-ios-app.py'
+        script.write_text(script.read_text() + '''
+assert sys.argv[sys.argv.index('--app-version') + 1] == '0.3.8'
+assert sys.argv[sys.argv.index('--app-build') + 1] == '2'
+''')
+        result = self.run_builder(selected=disc, extra=(
+            '--xbox-release-record', str(self.root / 'saved record.json'),
+            '--app-version', '0.3.8', '--app-build', '2'))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.root / 'calls').read_text(), 'a' * 40 + ' 1 --mac\n')
+        self.assertIn('Rebuilding recorded OpenCE build-144', result.stdout)
+
+    def test_invalid_identity_or_record_conflict_stops_before_build(self):
+        for extra, env in ((('--app-build', '0'), {}),
+                           (('--app-version', 'latest'), {}),
+                           (('--xbox-release-record', 'missing'), {'HALOPAD_XBOX_PINNED': '1'})):
+            with self.subTest(extra=extra):
+                result = self.run_builder(extra=extra, **env)
+                self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
+                self.assertFalse((self.root / 'calls').exists())
+                self.assert_old_outputs()
 
     def test_xbox_only_refuses_to_export_a_previous_pc_sidecar(self):
         disc = self.xbox_only_input()

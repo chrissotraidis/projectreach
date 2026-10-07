@@ -14,6 +14,21 @@ import urllib.request
 LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
 
 
+def read_record(path):
+    """Replay a previously resolved commit without consulting a moving tag."""
+    record = json.loads(path.read_text())
+    if not isinstance(record, dict):
+        raise ValueError('Xbox release record must be an object')
+    revision, tag = record.get('revision'), record.get('release')
+    if not isinstance(revision, str) or not re.fullmatch(r'[0-9a-f]{40}', revision):
+        raise ValueError('Xbox release record needs a full lowercase commit SHA')
+    if not isinstance(tag, str) or not re.fullmatch(r'build-[0-9]+', tag):
+        raise ValueError('Xbox release record needs a build-N release label')
+    # The configured upstream URL remains authoritative. A record selects code,
+    # not a different repository or a claim of gameplay/release acceptance.
+    return {'revision': revision, 'release': tag, 'channel': 'record'}
+
+
 def resolve(lock, pinned=False):
     if pinned:
         return {**{k: lock[k] for k in ('revision', 'release')}, 'channel': 'pinned'}
@@ -43,11 +58,16 @@ def resolve(lock, pinned=False):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--pinned', action='store_true')
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument('--pinned', action='store_true')
+    selection.add_argument('--record', type=pathlib.Path, help='rebuild the commit in a saved xbox-release.json, without resolving latest')
     args = parser.parse_args()
     try:
-        print(json.dumps(resolve(json.loads(LOCK.read_text()), args.pinned)))
+        print(json.dumps(read_record(args.record) if args.record else resolve(json.loads(LOCK.read_text()), args.pinned)))
     except (OSError, ValueError, subprocess.SubprocessError) as error:
+        if args.record:
+            print(f'Cannot read the Xbox release record: {error}. Correct the record; no other release was selected.', file=sys.stderr)
+            return 1
         print(f'Cannot resolve the Xbox update: {error}. Retry when online. '
               'HALOPAD_XBOX_PINNED=1 explicitly builds the tested older engine instead.', file=sys.stderr)
         return 1

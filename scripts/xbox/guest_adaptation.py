@@ -53,12 +53,17 @@ def latest_mode():
     return os.environ.get('HALOPAD_XBOX_LATEST') == '1'
 
 
-def _latest_hash(revision, path):
-    """The file's hash at an unreviewed revision, only in latest mode."""
+def _latest_source(revision, path):
+    """Read the exact unreviewed revision, only in latest mode."""
     if not latest_mode():
         return None
     shown = subprocess.run(['git', '-C', str(ENGINE_CHECKOUT), 'show', f'{revision}:{path}'], capture_output=True)
-    return hashlib.sha256(shown.stdout).hexdigest() if shown.returncode == 0 else None
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def _latest_hash(revision, path):
+    source = _latest_source(revision, path)
+    return hashlib.sha256(source).hexdigest() if source is not None else None
 ANCHOR = b'\tscale[0] = scale[1] = 1.0f;\n#else\n'
 INSERT = b'''\t/* HaloPad private experiment: retain logical layout, scale only targets. */
 \t{
@@ -109,9 +114,32 @@ CACHED_FILTER_INSERT = (b'#ifdef HALO_ANDROID\n' + FILTER_INSERT
     + b'#endif\n')
 
 
-def filtering_recipe(renderer):
+def filtering_recipe(renderer, revision=None, original=None):
     if renderer in CACHED_FILTER_RENDERERS:
         return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT
+    # In latest mode, unrelated renderer edits must not select the old patch
+    # for the new sampler cache. Keep the exact input hash in the identity;
+    # recognize only the layout whose key fields this patch understands.
+    if latest_mode():
+        if original is None:
+            original = _latest_source(revision, RENDERER)
+        if original is None or hashlib.sha256(original).hexdigest() != renderer:
+            raise ValueError('Renderer filtering source differs from its identity')
+        if any(marker in original for marker in
+               (b'SAMPLER_STATE_WORDS', b'configured_sampler[', CACHED_FILTER_ANCHOR)):
+            required = (
+                b'static void configure_sampler(int stage, BOOL mipmapped, BOOL hires)\n{\n',
+                b'\tinputs[0] = hires ? D3DTEXF_LINEAR : state[D3DTSS_MINFILTER];\n',
+                b'\tinputs[1] = hires ? D3DTEXF_LINEAR : mipmapped ? state[D3DTSS_MIPFILTER] : D3DTEXF_NONE;\n',
+                b'\tinputs[8] = state[D3DTSS_MAXANISOTROPY];\n',
+                CACHED_FILTER_ANCHOR,
+                b'\tif (!configured_sampler[stage] || memcmp(configured[stage], inputs, sizeof(inputs)))\n',
+                b'\t\tconfigured_sampler[stage] = sampler_get(stage, inputs);\n',
+            )
+            positions = [original.find(part) for part in required]
+            if any(original.count(part) != 1 for part in required) or positions != sorted(positions):
+                raise ValueError('Renderer filtering input changed; review the sampler cache layout')
+            return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT
     return FILTER_ANCHOR, FILTER_INSERT
 
 # Private host-bridge token, never forwarded to a GLES implementation. The
@@ -193,7 +221,7 @@ def identity(name=None, revision=None):
     renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
     recipe = ANCHOR + INSERT
     if name in QUALITY_ADAPTATIONS:
-        recipe += b''.join(filtering_recipe(renderer))
+        recipe += b''.join(filtering_recipe(renderer, revision))
     if name in COUNTED_ADAPTATIONS:
         recipe += COUNT_ANCHOR + COUNT_INSERT + ATOMIC_ANCHOR + ATOMIC_REPLACE
     if name in WATER_ADAPTATIONS:
@@ -227,14 +255,14 @@ def adapted_camera(original, revision=None):
 
 def adapted_source(original, name='render-scale-v1'):
     expected = identity(name)['upstream_renderer_sha256']
-    filter_anchor, filter_insert = filtering_recipe(expected)
+    filter_anchor, filter_insert = filtering_recipe(expected, original=original) if name in QUALITY_ADAPTATIONS else (None, None)
     if hashlib.sha256(original).hexdigest() != expected or original.count(ANCHOR) != 1:
         raise ValueError('Renderer adaptation input changed; review the new upstream source first')
     if name in QUALITY_ADAPTATIONS and original.count(filter_anchor) != 1:
         raise ValueError('Renderer filtering input changed; review the new upstream source first')
     modified = original.replace(ANCHOR, ANCHOR[:-len(b'#else\n')] + INSERT + b'#else\n')
     if name in QUALITY_ADAPTATIONS:
-        replacement = (filter_anchor + filter_insert if expected in CACHED_FILTER_RENDERERS
+        replacement = (filter_anchor + filter_insert if filter_anchor == CACHED_FILTER_ANCHOR
                        else filter_insert + filter_anchor)
         modified = modified.replace(filter_anchor, replacement)
     if name in COUNTED_ADAPTATIONS:

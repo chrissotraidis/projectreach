@@ -7,6 +7,8 @@
 # --mac makes HaloPad.app for Apple silicon Macs instead (the same app, zipped; it runs
 # as built, with no Apple account), with its own game package in <zip>.data/.
 # --xbox-only (or an ISO/XISO input) builds Xbox without any PC inputs or tools.
+# --xbox-release-record FILE reuses a saved xbox-release.json commit instead of latest.
+# --app-version 0.3.8 --app-build 2 sets the app's update identity; defaults are 0.3/1.
 # --xbox adds the Xbox edition: your Mac fetches the latest OpenCE release and
 # ANGLE renderer from their own repositories and builds them into the same app (none of
 # it is part of HaloPad). You add your Xbox disc image in the app.
@@ -30,6 +32,7 @@ cd "$ROOT"
 PY=.venv/bin/python
 export HALOPAD_BUILDER=1                              # steps leave tracked repository files unchanged
 INPUT=""; OUT="$ROOT/generated/builder"; IPA=""; KEY_FILE=""; MAC=0; XBOX=0; PC=1
+XBOX_RECORD=""; APP_VERSION=0.3; APP_BUILD=1
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--out) OUT=$2; shift ;;
@@ -37,6 +40,9 @@ while [ $# -gt 0 ]; do
 	--mac) MAC=1 ;;
 	--xbox) XBOX=1 ;;
 	--xbox-only) XBOX=1; PC=0 ;;
+	--xbox-release-record) XBOX_RECORD=$2; shift ;;
+	--app-version) APP_VERSION=$2; shift ;;
+	--app-build) APP_BUILD=$2; shift ;;
 	--product-key-file) KEY_FILE=$2; shift ;;
 	--jobs) shift ;;                                  # accepted for PadMint; the steps size themselves
 	-*) echo "unknown option $1" >&2; exit 2 ;;
@@ -49,6 +55,13 @@ case "$INPUT" in *.[iI][sS][oO]|*.[xX][iI][sS][oO])
 	[ -f "$INPUT" ] || { echo "Xbox disc image not found: $INPUT" >&2; exit 2; }
 	XBOX=1; PC=0 ;;
 esac
+python3 scripts/app_version.py --version "$APP_VERSION" --build "$APP_BUILD"
+if [ -n "$XBOX_RECORD" ]; then
+	[ $XBOX = 1 ] || { echo "--xbox-release-record requires the Xbox edition" >&2; exit 2; }
+	[ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] || { echo "Choose either --xbox-release-record or HALOPAD_XBOX_PINNED=1" >&2; exit 2; }
+	# Validate and snapshot before tools/build work; later steps use these bytes.
+	XBOX_RELEASE=$(python3 scripts/xbox/release.py --record "$XBOX_RECORD")
+fi
 if [ $PC = 0 ] && [ -n "$KEY_FILE" ]; then
 	echo "An Xbox-only build does not use --product-key-file; omit it or choose the PC installer." >&2; exit 2
 fi
@@ -116,7 +129,9 @@ fi
 if [ $XBOX = 1 ]; then
 	step "resolving the Xbox release"
 	RELEASE_ARGS=(); [ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] || RELEASE_ARGS=(--pinned)
-	XBOX_RELEASE=$($PY scripts/xbox/release.py ${RELEASE_ARGS[@]+"${RELEASE_ARGS[@]}"})
+	if [ -z "$XBOX_RECORD" ]; then
+		XBOX_RELEASE=$($PY scripts/xbox/release.py ${RELEASE_ARGS[@]+"${RELEASE_ARGS[@]}"})
+	fi
 	XBOX_REV=$($PY -c 'import json,sys; print(json.loads(sys.argv[1])["revision"])' "$XBOX_RELEASE")
 	export XBOX_REV
 	XBOX_TAG=$($PY -c 'import json,sys; print(json.loads(sys.argv[1])["release"])' "$XBOX_RELEASE")
@@ -125,6 +140,8 @@ if [ $XBOX = 1 ]; then
 	if [ "${HALOPAD_XBOX_PINNED:-0}" = 1 ]; then
 		export HALOPAD_XBOX_LATEST=0
 		echo "Explicitly building tested $XBOX_TAG; it may not join current OpenCE games."
+	elif [ -n "$XBOX_RECORD" ]; then
+		echo "Rebuilding recorded OpenCE $XBOX_TAG ($XBOX_REV); acceptance is not implied."
 	else
 		echo "Building OpenCE $XBOX_TAG ($XBOX_REV); a failed update leaves your installed app unchanged."
 	fi
@@ -209,7 +226,7 @@ else
 fi
 if [ $MAC = 1 ]; then step "building HaloPad for your Mac"; TARGET=(--mac); else step "building HaloPad for iPhone and iPad"; TARGET=(--iphoneos); fi
 APP_LOG="$OUT/build-app.log"
-HALOPAD_XBOX=$XBOX_SETTING $PY scripts/build-ios-app.py "${TARGET[@]}" --work "$WORK" ${APP_OPTIONS[@]+"${APP_OPTIONS[@]}"} ${PRODUCT_ID[@]+"${PRODUCT_ID[@]}"} | tee "$APP_LOG"
+HALOPAD_XBOX=$XBOX_SETTING $PY scripts/build-ios-app.py "${TARGET[@]}" --work "$WORK" --app-version "$APP_VERSION" --app-build "$APP_BUILD" ${APP_OPTIONS[@]+"${APP_OPTIONS[@]}"} ${PRODUCT_ID[@]+"${PRODUCT_ID[@]}"} | tee "$APP_LOG"
 [ $XBOX = 0 ] || hdiutil detach "$ROOT/ref/xbox-build/vol" -quiet 2>/dev/null || true   # the engine's volume (after its release tag is read)
 APP=$(sed -n 's/^built //p' "$APP_LOG" | tail -n 1)
 [ -d "$APP" ] || { echo "app build failed" >&2; exit 5; }

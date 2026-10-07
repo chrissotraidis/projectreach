@@ -4,6 +4,7 @@ import io
 import json
 import pathlib
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -16,11 +17,38 @@ LOCK = {'url': 'https://github.com/OpenCommunityEdition/OpenCE.git',
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_record_replays_exact_commit_without_network_or_git(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / 'record.json'
+            path.write_text(json.dumps({'revision': 'a' * 40, 'release': 'build-144', 'channel': 'latest'}))
+            with patch.object(release.urllib.request, 'urlopen', side_effect=AssertionError('network')), \
+                    patch.object(release.subprocess, 'run', side_effect=AssertionError('git')):
+                self.assertEqual(release.read_record(path),
+                                 {'revision': 'a' * 40, 'release': 'build-144', 'channel': 'record'})
+
+    def test_invalid_record_fails_instead_of_resolving_latest(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / 'record.json'
+            for record in ([], {}, {'revision': 'main', 'release': 'build-144'},
+                           {'revision': 'a' * 40, 'release': None},
+                           {'revision': 'a' * 40, 'release': 'build-144\n'}):
+                path.write_text(json.dumps(record))
+                with self.subTest(record=record), self.assertRaises(ValueError):
+                    release.read_record(path)
+
     def resolve(self, tag='build-129', refs=None):
         refs = refs if refs is not None else f'{"2" * 40}\trefs/tags/{tag}\n'
         with patch.object(release.urllib.request, 'urlopen', return_value=io.BytesIO(json.dumps({'tag_name': tag}).encode())), \
                 patch.object(release.subprocess, 'run', return_value=subprocess.CompletedProcess([], 0, refs)):
             return release.resolve(LOCK)
+
+    def test_bad_record_cli_does_not_suggest_a_different_engine(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with patch('sys.argv', ['release.py', '--record', str(pathlib.Path(folder) / 'missing.json')]), \
+                    patch('sys.stderr', new_callable=io.StringIO) as error:
+                self.assertEqual(release.main(), 1)
+                self.assertIn('Correct the record', error.getvalue())
+                self.assertNotIn('PINNED', error.getvalue())
 
     def test_lightweight_tag(self):
         self.assertEqual(self.resolve(), {'revision': '2' * 40, 'release': 'build-129', 'channel': 'latest'})

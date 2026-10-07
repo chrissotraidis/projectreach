@@ -1,5 +1,73 @@
 # HaloPad status
 
+## Reducing update maintenance
+
+**2026-10-07: implementation and physical memory test supersede the planning notes below.**
+The builder now accepts `--xbox-release-record`, `--app-version` and `--app-build`.
+Real private builds 2 and 3 replayed the same OpenCE 144 commit and packaged the
+requested version/build identity. Invalid inputs stop before expensive work.
+The saved record does not imply gameplay acceptance; default latest selection and
+the existing app update notice are unchanged. No publishing workflow/feed exists.
+
+The Xbox allocator now directly reserves an aligned 4 GiB region with `vm_map`,
+avoiding the temporary 8 GiB reservation. On the connected M2 iPad, the old
+allocation failed without extra memory entitlements while the new one succeeded.
+Two fresh diagnostic launches exercised the production allocator. A separate full
+HaloPad test app with neither Extended Virtual Addressing nor Increased Memory
+Limit then reached the edition picker and the actual Halo main menu. Its log
+confirms OpenCE 144 and the aligned guest region. This used a paid development
+identity; free-account signing, campaign memory pressure and multiplayer remain
+unverified. Shipping entitlement/profile requirements were not relaxed.
+
+The main HaloPad build-138 installation and player data remain preserved. The
+separate `dev.halopad.MemoryProbe` app, displayed as HaloPad Test, has its own map
+copies. Evidence and the private 0.3.8/build-3 IPA are under
+`generated/ipa-update-pipeline-20261007/`; memory diagnostics are under
+`generated/update-research-20261007/memory-probe/`. The build-3 archive passed
+strict signature verification and contains no maps/discs, PC identity or profile.
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) for exact artifact identity, tests,
+remaining consumer-install/upgrade/gameplay gates and the whole-IPA release plan.
+No public binary was published.
+
+**2026-10-07: second-pass decision simplifies delivery.**
+Whole-IPA updates are the primary plan; a custom compatibility-policy service is
+deferred until there is evidence it is needed. The private IPA is about 20 MB;
+maps stay in the app's data container. Source inspection found two concrete
+release-pipeline gaps: the top-level builder re-resolves latest instead of accepting
+an immutable candidate input, and packaging hardcodes app version `0.3`, build `1`
+(also confirmed inside the private IPA). Neither gap was changed in this planning
+pass. A promoted HaloPad release should eventually drive both app updates and
+normal PadMint builds, with raw upstream latest an explicit experiment.
+
+Consumer installation comes first: Apple's current capability table marks Extended
+Virtual Addressing for paid memberships, not free accounts, and HaloPad currently
+requires it. The Xbox allocator temporarily reserves 8 GiB of virtual address
+space to retain an aligned 4 GiB region. Investigate that constraint with a bounded
+diagnostic before promising free-account SideStore installation; no allocator or
+profile check was weakened. See the revised [plan](UPDATE-STRATEGY.md) and local
+`generated/update-research-20261007/second-pass-evidence.json`. No runtime code,
+signing account, installed app or release changed during this second pass.
+
+**2026-10-07: deeper update plan and a bounded build fix, local changes.**
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) for the source-backed decision:
+keep the native engine and prove an on-device IPA upgrade through an existing
+signing client. The initial compatibility-data proposal below is now deferred
+by the second-pass decision. ChupathingyCE implements a useful
+compatibility-table design, but its documented cross-play automation is incomplete;
+its published network range is not evidence that HaloPad can join those peers.
+No network-version override or update service has been enabled.
+
+The latest-mode sampler adapter now recognizes the required cache layout after
+an unrelated source edit instead of relying solely on build 144's complete file
+hash. It retains exact input/recipe identities and rejects missing, duplicate,
+reordered or changed required fields. All 238 Xbox tests pass. An additional
+comparison against the previous adapter confirms unchanged historical recipe
+identities and byte-identical renderer output for the real build-144 source;
+that real source also passes the unrelated-edit probe and rejects changed fields.
+Evidence: `generated/update-research-20261007/`. The existing private IPA and
+physical iPad installation have not changed. Consumer signing and actual
+multiplayer remain the next acceptance gates, not completed work.
+
 ## Installation delivery
 
 **2026-10-07: current network candidate built, public IPA still pending.**

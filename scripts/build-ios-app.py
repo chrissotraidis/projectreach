@@ -34,6 +34,7 @@ import sys
 import time
 from halopad_package import create_identity
 from device_profile import check as check_device_profile
+from app_version import validate as validate_app_version
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location('run_core', ROOT / 'scripts' / 'run-core.py')
@@ -180,7 +181,8 @@ def checked_product_id(path):
     return '\n'.join(lines) + '\n'
 
 
-def package(exe, out, work, target=TARGET, identity=None, provisioning=None, product_id=None, *, pc=True):
+def package(exe, out, work, target=TARGET, identity=None, provisioning=None, product_id=None, *, pc=True, app_version='0.3', app_build='1'):
+    validate_app_version(app_version, app_build)
     xbox = bool(xbox_parts(target))
     if not pc and (not xbox or product_id):
         raise ValueError('Xbox-only packaging requires the Xbox engine and no PC product ID')
@@ -198,8 +200,8 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
     shutil.copy2(exe, app / 'Contents' / 'MacOS' / 'HaloPad' if mac else app / 'HaloPad')
     info = {
         'CFBundleIdentifier': BUNDLE_ID, 'CFBundleExecutable': 'HaloPad', 'CFBundleName': 'HaloPad',
-        'CFBundleDisplayName': 'HaloPad', 'CFBundlePackageType': 'APPL', 'CFBundleVersion': '1',
-        'CFBundleShortVersionString': '0.3', 'CFBundleSupportedPlatforms': ['iPhoneSimulator' if 'simulator' in target else 'iPhoneOS'],
+        'CFBundleDisplayName': 'HaloPad', 'CFBundlePackageType': 'APPL', 'CFBundleVersion': app_build,
+        'CFBundleShortVersionString': app_version, 'CFBundleSupportedPlatforms': ['iPhoneSimulator' if 'simulator' in target else 'iPhoneOS'],
         'MinimumOSVersion': minimum, 'UIDeviceFamily': [1, 2], 'UIRequiresFullScreen': True, 'UILaunchScreen': {},
         'UIStatusBarHidden': True,
         'UISupportedInterfaceOrientations': ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
@@ -324,6 +326,8 @@ def build_xbox_only(work, target):
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument('--work', type=pathlib.Path)
+    ap.add_argument('--app-version', default='0.3', help='app marketing version; use three components for releases')
+    ap.add_argument('--app-build', default='1', help='app update build number, 1 through 9999')
     ap.add_argument('--xbox-only', action='store_true', help='build without the PC installer, translation or product ID')
     ap.add_argument('--device', default='E129A00F-D338-4FDC-8AE8-BB243E9BA61B', help='Simulator UDID ("HaloPad iPad Pro 13")')
     ap.add_argument('--launch', action='store_true')
@@ -339,6 +343,10 @@ def main():
     ap.add_argument('--product-id', type=pathlib.Path,
                     help="your Halo product ID from scripts/product-id.sh (personal builds only; never share the app)")
     a = ap.parse_args()
+    try:
+        validate_app_version(a.app_version, a.app_build)
+    except ValueError as error:
+        ap.error(str(error))
     if a.profile and not a.identity:
         ap.error('--profile requires --identity')
     if a.iphoneos and a.profile:
@@ -371,7 +379,8 @@ def main():
             target = target.replace('ios17.0', 'ios17.4')
         extra += ['-Wl,-U,_HPEngineChooserMake', *xbox]
         exe, _ = run_core.build(work, target, ROOT / 'port' / 'ios' / 'HaloPadApp.m', extra=extra)
-    app = package(exe, work / f'ios-app-{target}', work, target, a.identity, a.profile, a.product_id, pc=not a.xbox_only)
+    app = package(exe, work / f'ios-app-{target}', work, target, a.identity, a.profile, a.product_id,
+                  pc=not a.xbox_only, app_version=a.app_version, app_build=a.app_build)
     print('built', app.relative_to(ROOT))
     if a.iphoneos or a.mac:
         return 0
