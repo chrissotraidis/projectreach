@@ -93,6 +93,27 @@ FILTER_INSERT = b'''\t/* HaloPad opt-in world filtering, independent of target r
 \t}
 '''
 
+# Build144 creates immutable samplers from an input key. Apply the optional
+# filtering before that key is compared/cached, while hires/mipmapped are in
+# scope. Changing a cached sampler would also change other draws using it.
+CACHED_FILTER_RENDERERS = {
+    'ddf4e9bbeda3d8f3fdf5258cfaa65f8d54122fb25c6e1eecca89beb8a0022aa4',
+}
+CACHED_FILTER_ANCHOR = b'\tinputs[10] = hires;\n'
+CACHED_FILTER_INSERT = (b'#ifdef HALO_ANDROID\n' + FILTER_INSERT
+    .replace(b'min_filter', b'inputs[0]')
+    .replace(b'mip_filter', b'inputs[1]')
+    .replace(b'state[D3DTSS_MAXANISOTROPY]', b'inputs[8]')
+    .replace(b'\t\tglSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);',
+             b'\t\t{ inputs[0] = D3DTEXF_ANISOTROPIC; inputs[8] = (DWORD)requested; }')
+    + b'#endif\n')
+
+
+def filtering_recipe(renderer):
+    if renderer in CACHED_FILTER_RENDERERS:
+        return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT
+    return FILTER_ANCHOR, FILTER_INSERT
+
 # Private host-bridge token, never forwarded to a GLES implementation. The
 # paired host/backend is required; normal GL_QUERY_RESULT remains boolean.
 COUNT_ANCHOR = b'\tglGetQueryObjectuiv(device.queries[index], GL_QUERY_RESULT, &samples);\n#ifdef HALO_ANDROID\n'
@@ -169,9 +190,10 @@ def identity(name=None, revision=None):
         raise ValueError('Unknown HALOPAD_XBOX_GUEST_ADAPTATION')
     if revision is None:
         revision = os.environ.get('XBOX_REV') or json.loads(ENGINE_LOCK.read_text())['revision']
+    renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
     recipe = ANCHOR + INSERT
     if name in QUALITY_ADAPTATIONS:
-        recipe += FILTER_ANCHOR + FILTER_INSERT
+        recipe += b''.join(filtering_recipe(renderer))
     if name in COUNTED_ADAPTATIONS:
         recipe += COUNT_ANCHOR + COUNT_INSERT + ATOMIC_ANCHOR + ATOMIC_REPLACE
     if name in WATER_ADAPTATIONS:
@@ -182,7 +204,6 @@ def identity(name=None, revision=None):
         recipe += profile_input.recipe()
     if name in PRESENT_ADAPTATIONS:
         recipe += PRESENT_ANCHOR + PRESENT_REPLACE
-    renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
     result = {'name': name, 'upstream_renderer_sha256': renderer}
     if name == 'render-camera-v1':
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
@@ -206,13 +227,16 @@ def adapted_camera(original, revision=None):
 
 def adapted_source(original, name='render-scale-v1'):
     expected = identity(name)['upstream_renderer_sha256']
+    filter_anchor, filter_insert = filtering_recipe(expected)
     if hashlib.sha256(original).hexdigest() != expected or original.count(ANCHOR) != 1:
         raise ValueError('Renderer adaptation input changed; review the new upstream source first')
-    if name in QUALITY_ADAPTATIONS and original.count(FILTER_ANCHOR) != 1:
+    if name in QUALITY_ADAPTATIONS and original.count(filter_anchor) != 1:
         raise ValueError('Renderer filtering input changed; review the new upstream source first')
     modified = original.replace(ANCHOR, ANCHOR[:-len(b'#else\n')] + INSERT + b'#else\n')
     if name in QUALITY_ADAPTATIONS:
-        modified = modified.replace(FILTER_ANCHOR, FILTER_INSERT + FILTER_ANCHOR)
+        replacement = (filter_anchor + filter_insert if expected in CACHED_FILTER_RENDERERS
+                       else filter_insert + filter_anchor)
+        modified = modified.replace(filter_anchor, replacement)
     if name in COUNTED_ADAPTATIONS:
         if original.count(COUNT_ANCHOR) != 1 or original.count(ATOMIC_ANCHOR) != 1:
             raise ValueError('Renderer visibility input changed; review upstream first')

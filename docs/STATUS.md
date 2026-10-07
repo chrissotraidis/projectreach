@@ -2,6 +2,108 @@
 
 ## Installation delivery
 
+**2026-10-07: current network candidate built, public IPA still pending.**
+The live GitHub API reports OpenCE **build 144**, revision
+`76b1898ee14e6fb58e0412acc183da509c10e001`, with **network version 21**.
+The physically tested build 138 uses network 20 and cannot join network-21
+hosts. Matching the protocol number is necessary but does not establish
+successful HaloPad multiplayer.
+
+The first build-144 attempt exposed an outdated HaloPad anisotropic-filtering
+insertion: upstream now caches immutable samplers and the old insertion referred
+to variables outside their scope. The compatibility fix applies the same optional
+filtering to the sampler input key before cache lookup. HUD, point-filtered and
+non-mipmapped textures retain their exclusions; an explicit stronger game setting
+is retained. Historic renderer recipes keep their original identity. Compiled
+regressions exercise exclusions, GPU limits and repeated cache keys.
+
+The rebuilt private iOS candidate packages build 144/network 21, requires iOS
+17.4+, and passes strict code-signature verification. It is 19,853,004 bytes;
+SHA-256 `b2a8ae7010b31cfcaeb80d7059cd007ccbde718c41b315adfe37704cb5e184d6`.
+No disc/maps, PC identity/modules or provisioning profile are packaged. The
+compiled Xbox engine is included. This candidate has not replaced the physical
+iPad's tested build 138. Evidence: `generated/release-candidate-20261007/`.
+Validation: all 236 Xbox tests and 26 archive/installer/signing/profile tests pass;
+Bash syntax and whitespace checks pass. The exact IPA also passes the real
+non-mutating signing/device preflight against the iPad's development profile.
+
+The intended first public app download is an **Xbox-only beta IPA**, with the
+edition picker, disc importer, touch/controller support and a tested OpenCE
+engine; players import their own Xbox disc after signing/installing. PC Custom
+Edition remains an optional personal combined build. Accompany the IPA with
+checksums, complete component notices, exact engine/network versions and tested
+installation/upgrade instructions. A Mac download needs its own acceptance and
+signing/notarization checks. The source/PadMint recipe updates are a separate
+deliverable; latest public PadMint 0.4.10 still lacks the draft conditional-tool
+flow in PadMint PR #133.
+
+Before promoting an IPA: test this exact candidate on hardware, including a
+real matching-version multiplayer match; reproduce an ordinary player's signing
+route with its actual memory entitlements; verify upgrade/save behavior and clear
+recovery guidance for incompatible old checkpoints; finish notices and the exact
+compiled-engine distribution decision. Installing with the maintainer's development
+profile alone does not establish a broadly usable sideloading route. No public
+binary or claim of release readiness follows from the successful build.
+
+**2026-10-07: direct-download delivery plan, implementation started.**
+Keep the existing Xbox engine, picker and disc importer. The intended release
+is an Xbox-only app; Custom Edition remains an optional personal combined build.
+Work through four separate acceptance steps:
+
+1. **Package and install handoff:** the existing device installer now accepts
+   `--ipa` directly and offers `--check-only`. Validate archive paths and app
+   identity before extracting, retain profile/device checks, sign a temporary
+   copy, and preserve the input IPA. This removes manual unzipping from the
+   developer-profile route; it is not yet a consumer signing application.
+2. **Physical device:** use one frozen candidate for signing, picker, gameplay
+   and update preservation checks. Back up and independently read back the
+   existing iPad data before replacement. The private build-138 IPA is the
+   candidate; record the exact hash and results rather than chasing a moving
+   upstream release during acceptance.
+3. **Distribution contents:** inventory the compiled engine and dependencies,
+   bundle required notices and review distribution treatment. Inspection of
+   the candidate found no bundled dependency notices. The guest build includes
+   musl, tomlc17, Expat, KCP, Monocypher and zlib; the host includes ANGLE and
+   xxHash. The component/license inventory still needs completion. Absence of
+   ISO/map files is not a complete review of compiled-in assets or engine rights.
+4. **Player delivery and updates:** after the first three steps, prepare a
+   stable platform-specific download, tested signing instructions, exact engine
+   and network versions, and an in-place upgrade path preserving player data.
+   Verify Mac signing/notarization separately. Keep a tested prior release and
+   promote tested builds rather than promise every daily upstream update works.
+
+Public binary publication remains pending. Source-only HaloPad/PadMint fixes
+can proceed independently of deciding how to distribute the compiled engine.
+
+Installer validation: 26 focused archive, device-wrapper, signing and profile
+tests pass, including invalid archive paths, non-device apps, failed signing,
+PC package requirements and non-mutating preflight. The real private IPA also
+passed preflight with the connected iPad's development profile. Before the
+in-place device install, two independent reads of Documents/Library matched
+all 459 files (7,422,708,827 bytes). Installation through `--ipa` succeeded;
+98 save/profile/preference files read back unchanged before first launch.
+QuickTime showed the physical iPad opening to the edition picker with build
+138 and the existing Xbox maps ready, plus the expected different-network
+warning for build 144.
+
+Physical interaction through Apple's Device Hub then verified touch menu navigation,
+a new test profile, Pillar of Autumn on Normal, swipe-to-look, the X action to leave
+the cryo tube, and Save and Quit followed by Continue back into the checkpoint.
+The original profile's Continue stayed in the menu and logged `checksum failed on
+persistent storage`; its pre-install save bytes are retained in the verified backup.
+This does not establish whether the old checkpoint was already invalid or became
+incompatible with this engine. Do not bypass the checksum or overwrite the backup.
+A one-player local Battle Creek lobby was created but did not start during this
+test; multiplayer remains unverified. Sustained movement, combat, controller input,
+audio and frame-rate acceptance remain open. Short remote stick gestures are not
+enough to diagnose a physical-touch defect.
+
+The iPad currently retains the private Xbox-only build 138, paused in the test
+campaign. Custom Edition is temporarily unavailable in this candidate. A signed
+combined build 125 is retained locally, but it is older and is not an exact backup
+of the original app; validate save compatibility before returning to that build.
+Private logs and backup audits: `generated/ipa-install-check-20261007/`.
+
 **2026-10-06: player reports identify a distribution problem as well as setup bugs.**
 Players want Xbox Halo on an iPhone/iPad, but encounter PC installer/key requirements,
 Mac/Xcode builds, unclear signing instructions and confusion over whether both Halo

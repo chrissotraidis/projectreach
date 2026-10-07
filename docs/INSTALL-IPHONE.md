@@ -5,7 +5,7 @@ once with PadMint or the [source builder](../README.md#build-and-install), then
 sign and install it. Do not run the source builder again after PadMint finishes.
 
 The current source supports **Xbox only**, with no PC installer, product key or
-prepared PC package. Released HaloPad 0.3.7 / PadMint 0.4.9 still build both
+prepared PC package. Released HaloPad 0.3.7 / PadMint 0.4.10 still build both
 editions. Both routes require an Apple silicon Mac with Xcode to build; the
 device requires iOS/iPadOS 17.4+, Developer Mode and a development profile
 covering that device with **Extended Virtual Addressing** and **Increased
@@ -19,26 +19,34 @@ your development identity and device-specific profile ready. If updating an
 installed app, back up its Documents and accessible Library first; retain the
 same app identity and do not uninstall it.
 
-1. Unzip your personal `HaloPad-Xbox.ipa` into a private folder. Its app is
-   `Payload/HaloPad.app`.
-2. Connect and trust your iPhone/iPad, then run:
+1. Connect and trust your iPhone/iPad. Check your personal IPA and signing
+   profile without installing anything:
 
    ```sh
    scripts/install-device.sh \
      --identity <Apple-Development-certificate-SHA1> \
      --profile /private/path/HaloPad.mobileprovision \
      --device <actual-device-UDID> \
-     --app /private/path/unpacked/Payload/HaloPad.app
+     --ipa /private/path/HaloPad-Xbox.ipa \
+     --check-only
    ```
 
-   The script validates your profile, signs a staged copy and installs it.
-   Xbox-only builds need no `--package`; PC and combined builds still need
-   their matching `.halopad.zip`.
+   The check validates the archive, device app and provisioning profile. It
+   does not sign, install or prove the app will launch. Invalid archives stop
+   before any device operation.
+2. Run the same command without `--check-only` to sign and install. The
+   installer unpacks the IPA into private temporary storage, signs a staged
+   copy and removes the temporary files afterward. Your original IPA stays
+   unchanged. Xbox-only builds need no `--package`; PC and combined builds
+   still need their matching `.halopad.zip`. `--app /path/HaloPad.app` remains
+   available for an already-unpacked app.
 3. Put your own Xbox Halo ISO/XISO in Files. Open HaloPad, choose **Add Your
    Xbox Disc**, and select it. Wait for import, then choose Xbox to play.
 
-The signing/installation handoff has regression coverage; physical-device
-acceptance of the new Xbox-only build is still pending. This is the current
+The direct-IPA route has installed the Xbox-only candidate on a physical iPad
+with the development profile and opened its edition picker, retaining the
+checked save/profile/preference files. See [the validation record](STATUS.md#installation-delivery)
+for the exact scope and outstanding gameplay checks. This is the current
 developer-profile route, not a verified one-click consumer signing flow.
 
 ## PC and combined development installation
@@ -55,11 +63,10 @@ include `--xbox` in the builder step and import your Xbox disc separately.
   Addressing and Increased Memory Limit.
 - A game-data package prepared for the **exact build** being installed.
 
-The App ID and both memory capabilities exist on team `VKDH2T9UTF`. The cached
-profile used for iPhone 14 testing includes **only that iPhone**. Once the
-physical iPad is connected, its UDID must be added to a new development profile
-before the same app can be signed for the iPad. Do not treat a paired iPad record
-in Device Hub as a connected device.
+Use a profile that includes the device being installed. The maintainer's iPad
+development profile passed these checks for the private build-138 installation;
+that profile does not authorize installation on other players' devices. Do not
+treat a paired iPad record in Device Hub as a connected device.
 
 ## Install on the connected iPad
 

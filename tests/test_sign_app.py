@@ -15,7 +15,7 @@ spec.loader.exec_module(sign_app)
 
 
 class SignAppTests(unittest.TestCase):
-    def run_sign(self, edition, platform='iPhoneOS', profile_error=False):
+    def run_sign(self, edition, platform='iPhoneOS', profile_error=False, check_only=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder).resolve()
             app = root / 'HaloPad.app'
@@ -43,9 +43,8 @@ class SignAppTests(unittest.TestCase):
                 if '--entitlements' in command:
                     path = Path(command[command.index('--entitlements') + 1])
                     entitlements.append(plistlib.loads(path.read_bytes()))
-                    path.unlink()  # The mocked signer has consumed the temporary file.
 
-            with patch.object(sys, 'argv', ['sign-app.py', str(app), '--identity', 'fixture', '--profile', str(profile)]), \
+            with patch.object(sys, 'argv', ['sign-app.py', str(app), '--identity', 'fixture', '--profile', str(profile), *(['--check-only'] if check_only else [])]), \
                     patch.object(sign_app, 'check', return_value={'get-task-allow': True}) as check, \
                     patch.object(sign_app.subprocess, 'run', side_effect=codesign) as run:
                 if profile_error:
@@ -60,6 +59,10 @@ class SignAppTests(unittest.TestCase):
                 else:
                     sign_app.main()
                     check.assert_called_once_with(profile, 'dev.halopad.HaloPad', 'fixture')
+                    if check_only:
+                        run.assert_not_called()
+                        self.assertFalse((app / 'embedded.mobileprovision').exists())
+                        return
                     self.assertEqual(run.call_count, 2)
                     self.assertEqual((app / 'embedded.mobileprovision').read_bytes(), profile.read_bytes())
                     self.assertEqual(entitlements, [dict(sign_app.ENTITLEMENTS, **{'get-task-allow': True})])
@@ -82,6 +85,10 @@ class SignAppTests(unittest.TestCase):
 
     def test_xbox_only_does_not_bypass_profile_validation(self):
         self.run_sign('xbox', profile_error=True)
+
+    def test_check_only_validates_without_signing_or_copying_profile(self):
+        self.run_sign('xbox', check_only=True)
+        self.run_sign('xbox', check_only=True, profile_error=True)
 
 
 if __name__ == '__main__':
