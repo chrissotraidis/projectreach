@@ -81,6 +81,8 @@ jobs:
           brew install llvm lld cmake ninja sdl3
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
+      - name: Check real keychain setup with disposable fixtures
+        run: python3 tools/testflight/smoke_keychain.py
       - name: Build the selected engine and audit both packages
         run: |
           python3 -c 'import json,os,pathlib; pathlib.Path("selected-engine.json").write_text(json.dumps(json.loads(os.environ["ENGINE_RECORD"])))'

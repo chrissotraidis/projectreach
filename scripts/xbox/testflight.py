@@ -33,7 +33,7 @@ def settings(env):
 
 def deliver(result, out, profile, identity, env, *, resume=False):
     config = settings(env)  # Reject incomplete setup before signing or contacting Apple.
-    proof = export_archive.export(result, out, profile, identity, config['auth'])
+    proof = export_archive.export(result, out, profile, identity, config['auth'], require_notices=True)
     artifact = proof['artifact']
     if candidate.digest(Path(artifact['path'])) != artifact['sha256']:
         raise ValueError('exported IPA changed before TestFlight submission')

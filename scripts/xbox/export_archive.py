@@ -89,12 +89,13 @@ def validate_distribution(profile, entitlements, team, now=None):
             raise ValueError(f'distribution profile and signature must both retain {key}')
 
 
-def verify_export(result, directory, team):
+def verify_export(result, directory, team, *, require_notices=False):
     ipas = list(directory.glob('*.ipa'))
     if len(ipas) != 1:
         raise ValueError('expected exactly one exported IPA')
     ipa = ipas[0]
-    checked = candidate.audit(ipa, 'ios', result['engine'], result['version'], result['build'], allow_profile=True)
+    checked = candidate.audit(ipa, 'ios', result['engine'], result['version'], result['build'],
+                              allow_profile=True, require_notices=require_notices)
     with tempfile.TemporaryDirectory(prefix='halopad-export-check-') as folder:
         app = extract_ipa.extract(ipa, Path(folder) / 'input')
         subprocess.run(['codesign', '--verify', '--deep', '--strict', '-R=anchor apple generic', str(app)],
@@ -125,12 +126,13 @@ def api_auth(path=None, key_id=None, issuer=None):
             '-authenticationKeyID', key_id, '-authenticationKeyIssuerID', issuer]
 
 
-def export(result, out, profile, identity, auth=()):
+def export(result, out, profile, identity, auth=(), *, require_notices=False):
     archive, options = prepare(result, out, profile, identity)
     subprocess.run(['xcodebuild', '-exportArchive', '-archivePath', str(archive),
                     '-exportPath', str(out / 'export'), '-exportOptionsPlist', str(options),
                     '-allowProvisioningUpdates', *auth], check=True)
-    return verify_export(result, out / 'export', plistlib.loads(options.read_bytes())['teamID'])
+    return verify_export(result, out / 'export', plistlib.loads(options.read_bytes())['teamID'],
+                         require_notices=require_notices)
 
 
 def main():

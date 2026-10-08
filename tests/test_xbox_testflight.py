@@ -72,6 +72,7 @@ class DeliveryTests(unittest.TestCase):
                 patch.object(testflight.subprocess, 'run') as upload:
             receipt = self.call(resume=True)
         self.assertIn('-authenticationKeyPath', export.call_args.args[-1])
+        self.assertTrue(export.call_args.kwargs['require_notices'])
         request = json.loads((self.out / 'testflight-request.json').read_text())
         self.assertEqual(request['sha256'], self.proof['artifact']['sha256'])
         self.assertEqual(request['build'], '1020')
@@ -101,7 +102,7 @@ class DeliveryTests(unittest.TestCase):
                 patch.object(export_archive, 'verify_export', return_value=self.proof) as verify:
             self.assertEqual(export_archive.export(self.result, self.out, self.root / 'profile', 'identity', auth), self.proof)
         self.assertEqual(run.call_args.args[0][-len(auth):], auth)
-        verify.assert_called_once_with(self.result, self.out / 'export', 'TEAM')
+        verify.assert_called_once_with(self.result, self.out / 'export', 'TEAM', require_notices=False)
 
 
 class KeychainTests(unittest.TestCase):

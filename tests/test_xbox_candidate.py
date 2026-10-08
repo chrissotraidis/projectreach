@@ -35,6 +35,13 @@ def package(path, platform, build='9', **changes):
 
 
 class AuditTests(unittest.TestCase):
+    def test_legacy_candidate_can_be_retrieved_but_not_submitted_without_notices(self):
+        with tempfile.TemporaryDirectory() as folder, patch.object(candidate.subprocess, 'run'):
+            path = Path(folder) / 'legacy.ipa'; package(path, 'ios')
+            candidate.audit(path, 'ios', SELECTED, '0.3.8', '9')
+            with self.assertRaisesRegex(ValueError, 'notice inventory is incomplete'):
+                candidate.audit(path, 'ios', SELECTED, '0.3.8', '9', require_notices=True)
+
     def test_actual_archive_identity_and_hash_on_both_platforms(self):
         with tempfile.TemporaryDirectory() as folder, patch.object(candidate.subprocess, 'run') as sign:
             for platform in ('ios', 'mac'):

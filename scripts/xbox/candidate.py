@@ -87,7 +87,7 @@ def command(argv, log):
             raise
 
 
-def audit(path, platform, selected, version, build, *, allow_profile=False):
+def audit(path, platform, selected, version, build, *, allow_profile=False, require_notices=False):
     """Inspect the delivered archive, not a possibly different build directory."""
     mac = platform == 'mac'
     bundle = 'HaloPad.app' if mac else 'Payload/HaloPad.app'
@@ -128,7 +128,7 @@ def audit(path, platform, selected, version, build, *, allow_profile=False):
         notice_names = {name for name in names if name.startswith(notice_root) and not name.endswith('/')}
         # Historical private candidates predate bundled notices and remain retrievable.
         # Every new package declares the schema, so stripping both files fails too.
-        if engine.get('notices_schema') is not None or notice_names:
+        if require_notices or engine.get('notices_schema') is not None or notice_names:
             if engine.get('notices_schema') != 1 or notice_names != {
                     notice_root + 'manifest.json', notice_root + 'THIRD-PARTY-NOTICES.txt'}:
                 raise ValueError('packaged component notice inventory is incomplete')
