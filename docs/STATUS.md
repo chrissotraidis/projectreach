@@ -4,7 +4,7 @@
 
 **2026-10-08, fixed release recipe and hosted-build work implemented. Not released.** Public HaloPad
 remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
-**0.3.8/build 18** uses OpenCE **154**, commit
+**0.3.8/build 19** uses OpenCE **154**, commit
 `544ee497b6c1da195fa4dd9363851074edc63cbb`, network **24**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
@@ -14,7 +14,7 @@ explicitly experimental. The fixed recipe remains OpenCE 150. Hosted build/feed
 verification passed on GitHub for both engine selections: build 1007/OpenCE 150
 and build 1008/OpenCE 154 use the same HaloPad product-source fingerprint.
 No upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
-with both required memory entitlements. Build 18 passed package checks on both
+with both required memory entitlements. Build 19 passed package checks on both
 platforms; it has not been installed or gameplay-tested.
 
 The intended player-facing description is: install HaloPad, choose Xbox Halo,
@@ -27,8 +27,8 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 
 | Acceptance check | Current evidence |
 | --- | --- |
-| Reproducible candidate | Real iOS and Mac build-18 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 284 Xbox and 23 builder tests passed. Both packages were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
-| Hosted build | Fixed-release run 37735761338 produced build 1007/OpenCE 150; upstream run 37735860129 produced build 1008/OpenCE 154. Each passed all 294 tests and both archive audits at 6ebedbd. Private-handoff run 37739072112 passed all 302 tests and both build-1009 archive audits at db81b9b; downloaded reports match staged archive identities. Run 37740472342 passed all 307 tests, both build-1010 archive audits and metadata staging at b323a8d; the downloaded report matches the current product-source fingerprint. Only reports were uploaded by branch runs; consumer delivery and gameplay remain unproven. |
+| Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
+| Hosted build | Latest clean run [37746454090](https://github.com/chrissotraidis/projectreach/actions/runs/37746454090) passed all 318 tests, both build-1012/OpenCE-150 archive audits and metadata staging at b289a13. Downloaded reports match that source fingerprint and both staged package identities. Local build 19 exercises the same source with OpenCE 154. Branch runs upload reports only; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
@@ -36,7 +36,7 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 | New Mac candidate | Build 10 picker and Halo main menu observed in an isolated test container with independent map copies. Captured render interval: zero GL errors. Campaign/multiplayer not accepted. Same-protocol releases no longer trigger picker update warnings. |
 | Earlier Mac host | Fresh disc import, profile creation and a one-player Battle Creek/Slayer LAN lobby observed on engine 144. Two isolated same-Mac peers did not discover/join in the bounded test. A completed match remains unverified; a real Mac–iPad test is still required. |
 | Themed picker | Private Mac build 7 implements the selected two-card layout over original space artwork. Wide/narrow visual checks, setup/back navigation, graphics selection and informational dialogs passed. Five packaging/minimum-OS tests passed. Build 10 now displays the themed picker on the physical iPad. See `design-qa.md`. |
-| Distribution | Private IPA passes strict signature/archive checks. Sixteen component notice files collected; compiled-in asset provenance, complete transitive notices and exact-artifact publication decision remain open. Mac notarization is untested. |
+| Distribution | Private IPA passes strict signature/archive checks. Build 19 bundles 27 known notice entries with source hashes; compiled-in asset provenance, complete transitive notices and exact-artifact publication decision remain open. Mac notarization is untested. |
 
 **Distribution export, 2026-10-08:** the saved Xcode developer account provides an
 existing provisioning path. A missing local distribution certificate does not
@@ -51,7 +51,7 @@ development-signed build-18 IPA was correctly rejected as a distribution result.
 A successful App Store export remains unproven behind the same agreement response.
 Hosted run [37743259579](https://github.com/chrissotraidis/projectreach/actions/runs/37743259579)
 passed all 313 tests, both build-1011 archive audits and metadata staging at b390fdb.
-The downloaded report matches the current product-source fingerprint and staged
+The downloaded report matches b390fdb's product-source fingerprint and staged
 package identities. That clean build verifies the export-check implementation,
 not an Apple-approved distribution export.
 
@@ -62,8 +62,13 @@ exact notice extracts are retained under
 `generated/distribution-export-20261008/notice-audit/`. OpenCE 154's build script
 places miniupnpc in its Android host objects, not the guest reused by HaloPad;
 repository presence alone does not establish a shipped dependency. Package-time
-notice collection from the actual selected inputs remains unfinished, as does
-the broader embedded-asset provenance review. No publication clearance is inferred.
+notice collection is now implemented: build 19 packages 27 notice entries from
+its actual engine, renderer and header inputs in both apps. Both archives contain
+identical verified notice bytes; the inventory records source hashes and engine/
+renderer revisions. Five new tests cover complete license text, source mismatches,
+missing licenses and corrupted/incomplete archives. All 295 Xbox and 23 builder
+tests passed, as did both real package audits. The broader embedded-asset
+provenance review remains open. No publication clearance is inferred.
 
 **Upstream maintenance, 2026-10-08:** a real hosted upstream build of OpenCE 154
 failed because it added `host_gl_read_buffer`. The build now generates guest-pointer
@@ -84,7 +89,7 @@ build-18 handoff adds a small receipt: a live upstream check correctly returned
 `build: false` for the already retained OpenCE 154/product-source pair. Real
 changed-engine and changed-version probes required a build. The prepared six-hour
 GitHub check remains disabled; `HALOPAD_PREVIEW_ENABLED` is unset. A fresh build-16
-distribution export still returned Apple's agreement denial; the downloaded build-18 export confirmed the same live denial.
+distribution export still returned Apple's agreement denial; the downloaded build-19 export confirmed the same live denial at 17:00 JST. Both package hashes and acceptance flags survived retention/retrieval; the signing archive contains the verified notice inventory. A live receipt check skips this exact engine/source pair and requires a build for a changed engine.
 
 Read-only USB queries reconfirmed the iPad is connected with HaloPad 0.3.8/build 10
 installed and a HaloPad process running. No process was stopped, app installed or

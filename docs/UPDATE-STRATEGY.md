@@ -89,6 +89,13 @@ retrievable; every new package declares the inventory schema. This removes manua
 notice copying when the engine changes. It covers known components, not a complete
 embedded-asset provenance or redistribution-rights determination.
 
+Verification: local build 19/OpenCE 154 and clean hosted build 1012/OpenCE 150
+both passed 295 Xbox and 23 builder tests, both archive audits and feed staging.
+Hosted run [37746454090](https://github.com/chrissotraidis/projectreach/actions/runs/37746454090)
+uses commit b289a13; its downloaded report matches the same product-source hash
+and exact staged package identities. Build 19 completed private retention,
+download, re-audit and signing-archive preparation with its notices intact.
+
 `scripts/xbox/draft_release.py` provides the private handoff from build to signing.
 It audits the candidate again, requires its exact source checkout, and stores a
 deterministic archive containing only the two packages and their candidate record.
@@ -287,8 +294,10 @@ not be marked complete merely because CI passes.
 
 **Remaining work:** complete distribution export after Apple's agreement condition changes, then validate the
 distribution entitlements and consumer delivery. A fresh export attempt against
-build 16 still returned the agreement denial. The downloaded build-17 archive is
-prepared for signing. Device acceptance is still unproven; use commands/APIs where
+build 16 still returned the agreement denial. The downloaded build-19 archive is
+prepared for signing, with its 27 known-component notices intact. Its live export
+at 17:00 JST on October 8 still returned `PLA Update available`; no success proof
+was written, and the retained source IPA is unchanged. Device acceptance is still unproven; use commands/APIs where
 possible and preserve player data instead of assuming keyboard control is needed.
 Verify the gated upstream check and establish unattended upload authentication;
 private package retention does not establish automatic player delivery. Keep
