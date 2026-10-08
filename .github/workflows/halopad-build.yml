@@ -21,6 +21,8 @@ jobs:
   build:
     runs-on: macos-15
     timeout-minutes: 120
+    permissions:
+      contents: write
     env:
       DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       HALOPAD_BUILD_JOBS: '3'
@@ -53,6 +55,16 @@ jobs:
           python3 scripts/xbox/update_source.py \
             --candidate generated/xbox-candidates/latest-built.json \
             --out generated/release-stage --tag "halopad-0.3.8-$((1000 + GITHUB_RUN_NUMBER))"
+      - name: Retain exact candidate privately for signing
+        # GITHUB_TOKEN cannot create a release targeting unmerged workflow changes.
+        # Drafts become available only to repository writers, never the player feed.
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/xbox/draft_release.py \
+            --candidate generated/xbox-candidates/latest-built.json \
+            --out generated/private-handoff > private-handoff.json
       - name: Save build report only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -60,12 +72,12 @@ jobs:
           name: halopad-build-report-${{ github.run_number }}
           path: |
             candidate-result.json
+            private-handoff.json
             generated/xbox-candidates/runs/*/result.json
             generated/xbox-candidates/runs/*/xbox-release.json
             generated/xbox-candidates/runs/*/*.log
             generated/release-stage/halopad-update.json
           if-no-files-found: warn
           retention-days: 14
-      # Binary upload/promotion stays off until exact-artifact distribution and
-      # consumer signing are accepted. No signing key, game disc or player data
-      # is needed by this hosted build. This is not a scheduled Codex agent.
+      # Public promotion stays off until distribution and consumer signing pass.
+      # No signing key, game disc or player data is needed by this hosted build.
