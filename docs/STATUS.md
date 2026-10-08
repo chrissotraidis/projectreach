@@ -10,7 +10,7 @@ remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
 platforms, skips unchanged work and retains previous packages on failure.
 Chris removed the local maintenance heartbeat. No public player update feed
 is live. Normal source builds now use a bundled engine record; upstream latest is
-explicitly experimental. Hosted build/feed verification is running on GitHub; no upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
+explicitly experimental. Hosted build/feed verification passed on GitHub (run 37718404061, build 1003); no upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
 with both required memory entitlements. Build 13 passed package checks on both
 platforms; it has not been installed or gameplay-tested.
 
@@ -25,6 +25,7 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-13 archives replay OpenCE 150, pass identity/digest/data/signature checks, and share network 24. 263 Xbox and 23 builder tests passed. Concurrent local builders share a tested cache lock. Exact-archive installer/update metadata staging passed. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
+| Hosted build | [Run 37718404061](https://github.com/chrissotraidis/projectreach/actions/runs/37718404061) built both 0.3.8/build-1003 archives with Xcode 26.3, passed all 286 tests and strict package audits, and staged matching update metadata. Product-source hash matches the current checkout. Only reports were uploaded; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |

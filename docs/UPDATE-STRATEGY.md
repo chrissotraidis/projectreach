@@ -76,8 +76,12 @@ Local candidate 0.3.8/build 13 packages OpenCE 150/network 24 on Mac and iOS.
 signature, identity, guest digest and data-content checks, and exact-archive feed
 staging passed. No device was controlled, installed or launched. The first hosted
 runs caught missing SDL3 test headers and a runner defaulting to Xcode 16.4 while
-the picker uses an iOS 26 API. SDL3 and Xcode 26.3 are now explicit; the next
-clean build is running. These results do not establish consumer delivery.
+the picker uses an iOS 26 API. SDL3 and Xcode 26.3 are now explicit; [clean hosted run 37718404061](https://github.com/chrissotraidis/projectreach/actions/runs/37718404061)
+passed. It built and audited Mac and iOS 0.3.8/build 1003, passed all 286 tests,
+and staged the exact-archive update metadata. Its product-source tree hash matches
+the current checkout and local build 13. The report and staged metadata agree on
+both archive hashes, sizes, minimum OS and network 24. Only reports were retained;
+no binary was published. These results do not establish consumer delivery.
 
 ### One-time delivery setup still required
 
