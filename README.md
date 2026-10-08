@@ -115,8 +115,9 @@ This is being prepared in [HaloPad #20](https://github.com/chrissotraidis/projec
 and [PadMint #133](https://github.com/chrissotraidis/padmint/pull/133). Use the source command
 below to try it now; the PadMint flow described next requires both updated projects.
 
-For either edition, you need an Apple silicon Mac with Xcode. Xbox builds need macOS 14.4+
-to play on a Mac, or iOS/iPadOS 17.4+ on an iPhone/iPad. iPhone/iPad installation also needs
+To build either edition from the current source, use an Apple silicon Mac with
+Xcode 26 or later on a macOS version supported by that Xcode. The finished Xbox
+app runs on macOS 14.4+ or iOS/iPadOS 17.4+. iPhone/iPad installation also needs
 Developer Mode and your own Apple development profile with **Extended Virtual Addressing**
 and **Increased Memory Limit** ([install guide](docs/INSTALL-IPHONE.md)).
 

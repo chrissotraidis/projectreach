@@ -6,8 +6,8 @@ sign and install it. Do not run the source builder again after PadMint finishes.
 
 The current source supports **Xbox only**, with no PC installer, product key or
 prepared PC package. Released HaloPad 0.3.7 / PadMint 0.4.10 still build both
-editions. Both routes require an Apple silicon Mac with Xcode to build; the
-device requires iOS/iPadOS 17.4+, Developer Mode and a development profile
+editions. The current source requires an Apple silicon Mac with Xcode 26 or
+later (and a macOS version that supports it) to build; the device requires iOS/iPadOS 17.4+, Developer Mode and a development profile
 covering that device with **Extended Virtual Addressing** and **Increased
 Memory Limit**. A generated IPA still needs signing. Generic sideloading-tool
 instructions are not evidence that those capabilities will be granted.
