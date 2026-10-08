@@ -1,6 +1,5 @@
 """A direct IPA release becomes public only after exact private asset readback."""
 import copy
-import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -134,6 +133,10 @@ class PublishTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, 'not newer'):
                     publish.require_newer(self.result, [self.old])
         self.assertFalse(any(c[1]=='PATCH' for c in self.calls))
+
+    def test_historical_two_component_versions_compare_as_the_same_version(self):
+        self.assertEqual(publish.version_key('0.3', '20'), publish.version_key('0.3.0', '20'))
+        self.assertLess(publish.version_key('0.3.0', '20'), publish.version_key('0.3', '21'))
 
     def test_profile_or_notice_audit_failure_precedes_any_remote_action(self):
         self.audit.side_effect = ValueError('private provisioning profile in candidate')

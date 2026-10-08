@@ -13,6 +13,14 @@ Xbox tests. Real build 20's six draft assets passed readback, while public lates
 remained v0.3.7. Consumer installation/upgrade and public distribution are unproven.
 See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#direct-ipa-publishing).
 
+Clean hosted private-delivery verification
+[37766384899](https://github.com/chrissotraidis/projectreach/actions/runs/37766384899)
+passed using the workflow token: retrieve retained build 19, upload all six
+release assets, verify download hashes, retry without rebuilding, and compare
+the repeated receipt plus GitHub asset digests. The release stayed private.
+The temporary probe was removed. A focused follow-up also checks that historical
+two-component versions cannot evade the downgrade guard.
+
 **Direct IPA clarification, 2026-10-08:** TestFlight is optional and disabled.
 It is not required for HaloPad builds, IPA packaging or existing local signing.
 Private **0.3.8/build 20, OpenCE 155, network 24** has now been signed using the

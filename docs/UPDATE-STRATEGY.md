@@ -100,7 +100,12 @@ Local verification: 322 Xbox tests pass, including upload interruption, bad
 readback, immutable retries, missing notice/profile audits and downgrade refusal.
 Actual build 20 was uploaded as private draft `halopad-0.3.8-20`; all six asset
 hashes matched on download and the public latest release stayed v0.3.7.
-Hosted verification and consumer upgrade acceptance are recorded separately.
+Clean hosted verification [37766384899](https://github.com/chrissotraidis/projectreach/actions/runs/37766384899)
+retrieved build 19, uploaded all six assets to its private release, downloaded and
+verified them, then reran the publisher and obtained the same release and hashes.
+The built-in workflow token was sufficient. GitHub's own asset digests also
+matched the receipt, and the release remained a draft. The temporary probe was
+removed after verification. Consumer upgrade acceptance remains separate.
 
 ### Hosted TestFlight delivery implementation
 

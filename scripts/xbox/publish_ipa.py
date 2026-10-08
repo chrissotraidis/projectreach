@@ -25,7 +25,8 @@ def assets(release):
 
 def version_key(version, build):
     candidate.validate(version, str(build))
-    return tuple(map(int, version.split('.'))), int(build)
+    parts = tuple(map(int, version.split('.')))
+    return parts + (0,) * (3 - len(parts)), int(build)
 
 
 def require_newer(result, releases):
