@@ -2,6 +2,17 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Direct IPA publisher implemented, 2026-10-08:** the new main-branch delivery
+workflow retrieves an existing candidate, verifies both packages and prepares a
+private draft with the IPA, Mac app, update feeds, icon and checksums. All assets
+must pass download/hash readback before the optional final public release update.
+Retries preserve identical assets; changed bytes and downgrades stop. No Apple
+service is used. Public promotion stays off while `HALOPAD_IPA_PUBLISH_ENABLED`
+is unset; the upstream check also remains off. Local verification passes all 322
+Xbox tests. Real build 20's six draft assets passed readback, while public latest
+remained v0.3.7. Consumer installation/upgrade and public distribution are unproven.
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#direct-ipa-publishing).
+
 **Direct IPA clarification, 2026-10-08:** TestFlight is optional and disabled.
 It is not required for HaloPad builds, IPA packaging or existing local signing.
 Private **0.3.8/build 20, OpenCE 155, network 24** has now been signed using the

@@ -53,7 +53,7 @@ def stage(result, out, tag):
                       'localizedDescription': 'Xbox Halo on Apple devices. Import your own disc once; app updates keep your files.',
                       'iconURL': f'{base}/icon.png',
                       'versions': [{'version': version, 'buildVersion': build,
-                                    'date': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                                    'date': result.get('started') or datetime.datetime.now(datetime.timezone.utc).isoformat(),
                                     'downloadURL': artifacts['ios']['url'], 'size': artifacts['ios']['size'],
                                     'minOSVersion': artifacts['ios']['minimum_os']}],
                       'appPermissions': {'entitlements': sorted(entitlements),

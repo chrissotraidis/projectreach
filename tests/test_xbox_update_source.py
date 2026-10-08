@@ -64,6 +64,13 @@ class UpdateSourceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'changed since'): self.stage()
         self.assertFalse((self.root / 'staged').exists())
 
+    def test_restage_uses_original_candidate_date_for_identical_retry_bytes(self):
+        self.result['started'] = '2026-10-08T08:00:00+00:00'
+        self.stage()
+        update_source.stage(self.result, self.root/'retry', 'v0.3.8')
+        for name in ('altstore.json', 'halopad-update.json', 'SHA256SUMS'):
+            self.assertEqual((self.root/'staged'/name).read_bytes(), (self.root/'retry'/name).read_bytes())
+
     def test_failed_candidate_and_path_like_tag_rejected(self):
         self.result['status']='failed'
         with self.assertRaises(ValueError): self.stage()

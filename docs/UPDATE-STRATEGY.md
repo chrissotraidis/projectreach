@@ -44,7 +44,8 @@ This is personal signing evidence, not public distribution or an installed upgra
 
 For shared delivery, the existing staging path produces a versioned IPA and
 AltStore source. The build/retention pipeline can follow upstream without daily
-pin edits; public asset promotion and the first consumer upgrade remain unfinished.
+pin edits. Direct IPA publishing is implemented below, but remains disabled;
+public delivery and the first consumer upgrade remain unverified.
 AltStore certificate refresh does not prove automatic app upgrading, and
 free-account/lower-memory compatibility remains unproven. No device action is
 authorized until Chris explicitly resumes device testing.
@@ -59,6 +60,47 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
 [TestFlight automatic updates](https://testflight.apple.com/),
 [TestFlight review](https://developer.apple.com/help/glossary/testflight-app-review/),
 [iOS runtime protections](https://support.apple.com/guide/security/sec15bfe098e/web).
+
+### Direct IPA publishing
+
+`.github/workflows/halopad-ipa.yml` consumes an exact successful main-branch
+candidate using the same skipped-build guard as the optional TestFlight route.
+It downloads and re-audits the retained packages, then runs
+`scripts/xbox/publish_ipa.py`. No engine compilation, Apple credentials, signing
+profile, TestFlight or device access is part of this delivery job.
+
+The default is an **unpublished draft** containing only `HaloPad.ipa`,
+`HaloPad-Mac.zip`, `icon.png`, `halopad-update.json`, `altstore.json` and
+`SHA256SUMS`. The publisher rejects embedded personal profiles and incomplete
+component notices. Local review records and private paths are not uploaded.
+Every asset is downloaded and checked before publication. Retries reuse identical
+assets; changed bytes, unknown assets and mismatched source commits stop without
+overwriting them. Feed dates use the original candidate timestamp so retries are
+byte-identical.
+
+Public promotion requires the one-time repository variable
+`HALOPAD_IPA_PUBLISH_ENABLED=true`, after the package/distribution and consumer
+upgrade checks are accepted. It publishes the complete draft and makes it latest
+in one final release update. Older/equal version/build identities cannot replace
+the current public app; prior releases remain available. The variable is unset.
+The intended operating path is to enable this delivery route and the existing
+`HALOPAD_PREVIEW_ENABLED` upstream check after acceptance. Those are GitHub jobs,
+not a restored Codex maintenance schedule. A new upstream release then needs no
+routine source pin edit or player compilation. Exceptional upstream build
+breakage still needs engineering; an IPA installer still supplies device signing.
+
+Manual delivery uses **HaloPad IPA delivery → Run workflow** with an existing
+`halopad-candidate-VERSION-BUILD` tag. That also finishes an interrupted upload
+without rebuilding. It respects the publication variable; leave that unset to
+prepare private drafts. Existing PadMint recipe lookup falls back to the latest
+release with a recipe, so these app-only releases do not replace the paired
+PadMint source release.
+
+Local verification: 322 Xbox tests pass, including upload interruption, bad
+readback, immutable retries, missing notice/profile audits and downgrade refusal.
+Actual build 20 was uploaded as private draft `halopad-0.3.8-20`; all six asset
+hashes matched on download and the public latest release stayed v0.3.7.
+Hosted verification and consumer upgrade acceptance are recorded separately.
 
 ### Hosted TestFlight delivery implementation
 
@@ -398,8 +440,8 @@ changed upstream engine reaches an already-installed iPad through the chosen
 consumer route without Chris rebuilding or editing code. The current goal must
 not be marked complete merely because CI passes.
 
-**Remaining work:** finish public IPA/feed promotion after exact-artifact acceptance,
-then demonstrate an update through the consumer's installer. Build 20 is already
+**Remaining work:** accept the exact artifacts and demonstrate an update through
+the consumer's installer before enabling the implemented IPA/feed publisher. Build 20 is already
 signed locally for the existing development profile; it has not been installed.
 Private package retention and successful personal signing do not establish
 automatic player delivery. Keep the optional TestFlight export parked unless

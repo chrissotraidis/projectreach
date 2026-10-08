@@ -1,0 +1,83 @@
+name: HaloPad IPA delivery
+on:
+  workflow_run:
+    workflows: [HaloPad release build]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      candidate:
+        description: Existing private candidate tag (no engine rebuild)
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: halopad-ipa-delivery
+  cancel-in-progress: false
+jobs:
+  select:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.candidate.outputs.ready }}
+      tag: ${{ steps.candidate.outputs.tag }}
+      commit: ${{ steps.candidate.outputs.commit }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.candidate }}
+        run: python3 scripts/xbox/select_delivery.py
+  deliver:
+    needs: select
+    if: needs.select.outputs.ready == 'true'
+    runs-on: macos-15
+    timeout-minutes: 15
+    permissions:
+      # Private draft visibility requires push access, including for downloads.
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CANDIDATE_TAG: ${{ needs.select.outputs.tag }}
+      PRODUCER_COMMIT: ${{ needs.select.outputs.commit }}
+      PUBLISH_IPA: ${{ vars.HALOPAD_IPA_PUBLISH_ENABLED }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Retrieve the exact candidate without recompiling
+        run: |
+          python3 scripts/xbox/draft_release.py --download "$CANDIDATE_TAG" --out generated/ipa-input
+          python3 - <<'PY'
+          import json, os
+          record = json.load(open('generated/ipa-input/result.json'))
+          expected = os.environ.get('PRODUCER_COMMIT')
+          if expected and record['source']['commit'] != expected:
+              raise SystemExit('Retained candidate differs from the producing run')
+          PY
+      - name: Prepare verified draft or publish when explicitly enabled
+        run: |
+          mode=()
+          if [ "$PUBLISH_IPA" = true ]; then mode=(--publish); fi
+          python3 scripts/xbox/publish_ipa.py --candidate generated/ipa-input/result.json \
+            --out generated/ipa-release "${mode[@]}"
+      - name: Save receipt only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: halopad-ipa-delivery-${{ github.run_id }}
+          path: generated/ipa-release/publication.json
+          if-no-files-found: ignore
+          retention-days: 30

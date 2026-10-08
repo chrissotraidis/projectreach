@@ -2,7 +2,7 @@ name: HaloPad release build
 on:
   push:
     branches: [main, codex/xbox-update-flow]
-    paths: ['port/**', 'scripts/**', 'config/**', 'tests/**', 'assets/**', 'tools/**', '.github/workflows/halopad-build.yml', '.github/workflows/halopad-testflight.yml']
+    paths: ['port/**', 'scripts/**', 'config/**', 'tests/**', 'assets/**', 'tools/**', '.github/workflows/halopad-build.yml', '.github/workflows/halopad-testflight.yml', '.github/workflows/halopad-ipa.yml']
   workflow_dispatch:
     inputs:
       engine:
