@@ -70,6 +70,17 @@ missing reports, failed builds and API errors remain failures. Manual delivery
 still requires an explicit retained-candidate tag. Six regression tests cover
 these paths; all 313 Xbox tests and workflow lint pass locally after this repair.
 
+Private draft visibility was also verified with the actual hosted `GITHUB_TOKEN`.
+The read-only probe [37758937251](https://github.com/chrissotraidis/projectreach/actions/runs/37758937251)
+could not see the retained candidates. With `contents: write`, the same download-only
+probe [37759064649](https://github.com/chrissotraidis/projectreach/actions/runs/37759064649)
+retrieved build 20 and matched its archive SHA-256 against both the receipt and
+GitHub's asset digest. GitHub [requires push access to list draft releases](https://docs.github.com/en/rest/releases/releases#list-releases).
+Only the build-selection and package-delivery jobs gain that permission; the
+report-selection job remains read-only. This prevents invisible drafts from
+causing repeated builds or failed delivery. The temporary probe workflow was
+removed after recording its result; no release was changed or published.
+
 Delivery remains **disabled** while `HALOPAD_TESTFLIGHT_CHANNEL` is unset. It only
 runs from `main`; fork/branch build events cannot activate credentialed delivery.
 Start with an existing internal TestFlight group for the first signing/upgrade

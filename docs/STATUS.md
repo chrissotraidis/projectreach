@@ -48,6 +48,14 @@ a signing runner. Missing artifacts from a successful build still fail visibly.
 All 313 Xbox tests, workflow lint and repository safety checks passed locally
 after this repair; it does not change the disabled delivery or device-acceptance gates.
 
+A real hosted-token check exposed a second handoff issue: read-only release
+listing hid every private candidate. Build selection and delivery now have the
+job-scoped permission needed to see drafts. The download-only confirmation
+[37759064649](https://github.com/chrissotraidis/projectreach/actions/runs/37759064649)
+retrieved build 20 with matching receipt and GitHub archive hashes. This verifies
+private package access, not Apple signing or delivery. The temporary probe was
+removed; existing private releases were preserved.
+
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
