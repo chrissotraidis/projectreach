@@ -4,7 +4,7 @@
 
 **2026-10-08, fixed release recipe and hosted-build work implemented. Not released.** Public HaloPad
 remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
-**0.3.8/build 17** uses OpenCE **154**, commit
+**0.3.8/build 18** uses OpenCE **154**, commit
 `544ee497b6c1da195fa4dd9363851074edc63cbb`, network **24**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
@@ -14,7 +14,7 @@ explicitly experimental. The fixed recipe remains OpenCE 150. Hosted build/feed
 verification passed on GitHub for both engine selections: build 1007/OpenCE 150
 and build 1008/OpenCE 154 use the same HaloPad product-source fingerprint.
 No upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
-with both required memory entitlements. Build 17 passed package checks on both
+with both required memory entitlements. Build 18 passed package checks on both
 platforms; it has not been installed or gameplay-tested.
 
 The intended player-facing description is: install HaloPad, choose Xbox Halo,
@@ -27,8 +27,8 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 
 | Acceptance check | Current evidence |
 | --- | --- |
-| Reproducible candidate | Real iOS and Mac build-17 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 279 Xbox and 23 builder tests passed. Both packages were privately retained, downloaded, re-audited and prepared as a development-signed xcarchive. A real upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
-| Hosted build | [Fixed-release run 37735761338](https://github.com/chrissotraidis/projectreach/actions/runs/37735761338) produced build 1007/OpenCE 150; [upstream run 37735860129](https://github.com/chrissotraidis/projectreach/actions/runs/37735860129) produced build 1008/OpenCE 154. Each passed all 294 tests, built/audited both platforms with Xcode 26.3 and staged matching update metadata. Independently downloaded reports match the current product-source fingerprint at 6ebedbd and their staged archive hashes, sizes, minimum OS and network 24. Only reports were uploaded; consumer delivery and gameplay remain unproven. |
+| Reproducible candidate | Real iOS and Mac build-18 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 284 Xbox and 23 builder tests passed. Both packages were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
+| Hosted build | Fixed-release run 37735761338 produced build 1007/OpenCE 150; upstream run 37735860129 produced build 1008/OpenCE 154. Each passed all 294 tests and both archive audits at 6ebedbd. Private-handoff run 37739072112 passed all 302 tests and both build-1009 archive audits at db81b9b; downloaded reports match staged archive identities. Run 37740472342 is verifying the final receipt/selection changes. Only reports were uploaded by branch runs; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
@@ -60,13 +60,22 @@ packages in unpublished GitHub drafts, verifies remote bytes, and retrieves them
 for signing without rebuilding. Build 17 completed that real round trip. Anonymous
 access to its draft, asset API and download URL returned 404; no player feed was
 published. The workflow enables retention on the default branch after merge;
-branch builds retain reports only. Clean hosted run 37739072112 is verifying the
-change. A fresh build-16 distribution export still returned Apple's agreement
-denial. The retrieved build-17 archive is ready for the next export attempt.
+branch builds retain reports only. Clean hosted run 37739072112 passed. The final
+build-18 handoff adds a small receipt: a live upstream check correctly returned
+`build: false` for the already retained OpenCE 154/product-source pair. Real
+changed-engine and changed-version probes required a build. The prepared six-hour
+GitHub check remains disabled; `HALOPAD_PREVIEW_ENABLED` is unset. A fresh build-16
+distribution export still returned Apple's agreement denial.
 
-**Next acceptance session:** Chris has stopped keyboard/mouse/device control until
-he explicitly resumes it. Do background code and package checks only meanwhile.
-After resumption, finish campaign/save/resume and a matching Mac-iPad match.
+Read-only USB queries reconfirmed the iPad is connected with HaloPad 0.3.8/build 10
+installed and a HaloPad process running. No process was stopped, app installed or
+input sent. Existing backups remain preserved; no new point-in-time save snapshot
+or gameplay acceptance is claimed from those queries.
+
+**Next acceptance session:** Chris has stopped keyboard control. Do not disrupt
+his computer. These passes used commands/APIs and read-only device queries; they
+did not install or launch a new app. Campaign/save/resume and a matching Mac-iPad
+match remain unverified; use methods that preserve keyboard availability and data.
 AltStore 2.3 accepted the private source and recognized build 10, but new signing
 failed with `Apple.APIError 403: PLA Update available`. The signed-in account is
 Developer; a paid account does not bypass the pending Program License Agreement.

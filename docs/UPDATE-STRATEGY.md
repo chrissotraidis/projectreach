@@ -2,8 +2,9 @@
 
 ## Current decision, 2026-10-08
 
-Chris removed the local Codex maintenance schedule. Do not recreate it. Keyboard,
-mouse and device control remain prohibited until he explicitly resumes them.
+Chris removed the local Codex maintenance schedule. Do not recreate it or capture
+his keyboard/mouse. Work through commands and APIs without disrupting his computer.
+The verification passes recorded here did not change the installed iPad app.
 The current goal is a product/release mechanism, not an agent repeatedly rebuilding
 on Chris's computer. The notes below this section retain earlier research evidence.
 
@@ -126,6 +127,13 @@ packages also count as completed work. Scheduled checks remain disabled until
 delivery is accepted and the one-time repository variable is enabled. This is a
 small hosted CI check, not the deleted Codex agent maintenance loop.
 
+Build **18/OpenCE 154** passed **284 Xbox and 23 builder tests**, both archive
+audits and a real receipt-backed retention/retrieval. Against the live GitHub
+receipt, the exact engine/source/version skipped; a changed engine or app version
+required a build. The real upstream CLI check resolved build 154 and returned
+`build: false`. The opt-in repository variable was verified absent. Final hosted
+verification is run 37740472342; its selection job already passed.
+
 ### Evidence from this implementation
 
 Local candidate 0.3.8/build 13 packages OpenCE 150/network 24 on Mac and iOS.
@@ -221,8 +229,8 @@ runner. Prove the first consumer upgrade before enabling automatic promotion.
 1. Prove the hosted clean build and feed staging. Keep the prior downloadable app
    untouched on any failure. Build identifiers for hosted releases start at 1001;
    use that single workflow's counter once public distribution starts.
-2. After Chris accepts Apple's updated agreement and resumes device control,
-   prove distribution signing and one real in-place upgrade, with independent
+2. After Apple's updated agreement is accepted, prove distribution signing and
+   one real in-place upgrade without capturing Chris's keyboard, with independent
    data readback and campaign/save/resume. TestFlight approval, actual entitlement
    support and installation identity must be measured, not inferred from a local
    development install. Finish exact-artifact notices/distribution review.
@@ -250,7 +258,8 @@ not be marked complete merely because CI passes.
 distribution export after Apple's agreement condition changes, then validate the
 distribution entitlements and consumer delivery. A fresh export attempt against
 build 16 still returned the agreement denial. The downloaded build-17 archive is
-prepared for signing. Device acceptance waits for Chris to resume device control.
+prepared for signing. Device acceptance is still unproven; use commands/APIs where
+possible and preserve player data instead of assuming keyboard control is needed.
 Verify the gated upstream check and establish unattended upload authentication;
 private package retention does not establish automatic player delivery. Keep
 working through those implementation gaps without restarting upstream builds
