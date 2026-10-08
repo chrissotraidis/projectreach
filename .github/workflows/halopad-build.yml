@@ -22,7 +22,7 @@ jobs:
           persist-credentials: false
       - name: Install build tools
         run: |
-          brew install llvm lld cmake ninja
+          brew install llvm lld cmake ninja sdl3
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
       - name: Build this release's fixed engine and audit both packages
@@ -43,7 +43,7 @@ jobs:
           path: |
             candidate-result.json
             generated/xbox-candidates/runs/*/result.json
-            generated/xbox-candidates/runs/*/tests-*.log
+            generated/xbox-candidates/runs/*/*.log
             generated/release-stage/halopad-update.json
           if-no-files-found: warn
           retention-days: 14
