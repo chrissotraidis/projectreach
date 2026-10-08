@@ -56,7 +56,9 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
 build's private handoff. It downloads the exact packages, checks the producing
 commit, imports scoped signing inputs into a temporary runner keychain, exports
 through Xcode with a team API key, and verifies the distribution profile and both
-memory entitlements. `scripts/xbox/testflight.py` then submits the verified IPA
+memory entitlements. Submission also requires the bundled component notices;
+legacy candidates remain retrievable but cannot skip that distribution check.
+`scripts/xbox/testflight.py` then submits the verified IPA
 through the pinned Fastlane tool in `tools/testflight/`. No engine rebuild or
 manual pin edit is part of delivery. This workflow has no schedule and does not
 control Chris's Mac or iPad.
@@ -97,6 +99,20 @@ retry of an unchanged failed submission is configured. A failed export or upload
 preserves earlier published builds and cannot produce a successful submission
 receipt. Actual Apple processing/review and the first consumer upgrade remain
 unverified; API fixtures and CI compilation cannot close those gates.
+
+Verification of the delivery implementation: 11 Python configuration/failure tests
+and seven Fastlane tests (42 assertions) passed locally. Hosted run 37754025686
+passed those tests, both build-1013/OpenCE-150 package audits and feed staging.
+The stricter submission check rejects real legacy build 18 and accepts build 20
+with its notices intact. Final run [37755072408](https://github.com/chrissotraidis/projectreach/actions/runs/37755072408)
+passed all 307 Xbox and 23 builder tests, seven Fastlane tests (42 assertions),
+both build-1014/OpenCE-150 archives and feed staging at 0d5c98c. It also passed
+the real macOS keychain smoke test with disposable certificates, including
+failed-import cleanup and restoration of the original search list. The downloaded
+report matches the committed product-source fingerprint and staged archive hashes,
+sizes, minimum OS and network version.
+An export retry at 18:05 JST still received Apple's agreement denial. No account
+credentials were exported or configured, and the delivery channel remains unset.
 
 References: [Fastlane TestFlight delivery](https://docs.fastlane.tools/actions/pilot/),
 [team API keys](https://docs.fastlane.tools/app-store-connect-api/), and

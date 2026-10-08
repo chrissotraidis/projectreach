@@ -36,11 +36,17 @@ The workflow remains off until the channel and scoped credentials are configured
 No Apple credentials were exported from this Mac, no repository secrets or variables
 were set, and no upload or review request was made. See the setup and remaining
 real-service gates in [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#hosted-testflight-delivery-implementation).
+Clean hosted run [37755072408](https://github.com/chrissotraidis/projectreach/actions/runs/37755072408)
+passed 330 Python tests, seven Fastlane tests (42 assertions), the real Mac
+keychain setup/cleanup fixture, both build-1014 archives and feed staging at
+0d5c98c. Downloaded reports match the source fingerprint and staged package
+identities. The latest saved-account export retry, at 18:05 JST, still received
+Apple's agreement denial; no success proof or TestFlight submission was produced.
 
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
-| Hosted build | Latest clean run [37746454090](https://github.com/chrissotraidis/projectreach/actions/runs/37746454090) passed all 318 tests, both build-1012/OpenCE-150 archive audits and metadata staging at b289a13. Downloaded reports match that source fingerprint and both staged package identities. Local build 19 exercises the same source with OpenCE 154. Branch runs upload reports only; consumer delivery and gameplay remain unproven. |
+| Hosted build | Latest clean run [37755072408](https://github.com/chrissotraidis/projectreach/actions/runs/37755072408) passed all 330 Python tests, seven Fastlane tests, the real keychain fixture, both build-1014/OpenCE-150 archive audits and metadata staging at 0d5c98c. Downloaded reports match that source fingerprint and both staged package identities. Branch runs upload reports only; actual Apple delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
