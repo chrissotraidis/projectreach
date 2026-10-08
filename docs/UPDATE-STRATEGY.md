@@ -107,7 +107,10 @@ mapping failure and buffer cleanup. Its recorded product-source fingerprint matc
 the implementation committed as `6ebedbd`; it was built just before that commit.
 The fixed recipe stays at 150. Hosted [fixed-release verification](https://github.com/chrissotraidis/projectreach/actions/runs/37735761338)
 and [upstream verification](https://github.com/chrissotraidis/projectreach/actions/runs/37735860129)
-are in progress. Exact-archive update metadata staging and development-signed
+both passed: build 1007/OpenCE 150 and build 1008/OpenCE 154 each passed all 294
+tests, both archive audits and update metadata staging. Their independently
+downloaded reports match the current product-source fingerprint and staged archive
+hashes, sizes, minimum OS and network 24. Exact-archive update metadata staging and development-signed
 xcarchive preparation also passed for build 16, preserving the original IPA.
 This does not establish distribution signing. No new candidate has been installed
 or gameplay-tested.
@@ -188,6 +191,14 @@ are necessary, but the daily-maintenance problem is not fully closed until a
 changed upstream engine reaches an already-installed iPad through the chosen
 consumer route without Chris rebuilding or editing code. The current goal must
 not be marked complete merely because CI passes.
+
+**Handoff after this verification pass:** both hosted engine selections passed.
+The saved-account exporter is ready; its last live response still requires Apple
+agreement acceptance. No routine source repair remains demonstrated by these runs.
+Resume with local distribution export after that account condition changes, then
+validate the distribution entitlements and consumer delivery. Device acceptance
+still waits for Chris to resume device control. Do not restart upstream builds or
+recreate a maintenance schedule while waiting for these external conditions.
 
 ## Earlier research and implementation snapshots
 
