@@ -83,24 +83,45 @@ the current checkout and local build 13. The report and staged metadata agree on
 both archive hashes, sizes, minimum OS and network 24. Only reports were retained;
 no binary was published. These results do not establish consumer delivery.
 
-### One-time delivery setup still required
+### Existing Apple account path and the current delivery gate
 
-A background-only check on 2026-10-08 found no Apple Distribution identity in the
-local signing keychain, two matching HaloPad profiles that are development-only,
-and no repository Actions secrets. The existing device signer intentionally
-requires a development profile; it is not a TestFlight distribution exporter.
-The last consumer-signing attempt returned Apple's pending-agreement error; its
-resolution has not been confirmed. No account terms or signing setup was changed.
+The initial conclusion that absent distribution certificates/upload keys prevented
+any further signing work was too broad. Xcode already has Chris's developer
+account configured. Its `-exportArchive -allowProvisioningUpdates` path can create
+profiles and managed signing certificates using that saved account. A real local
+export authenticated far enough to reach Apple's membership checks without any
+keyboard, mouse or device interaction.
 
-Before implementing an upload job, establish an App Store Connect app record for
-the intended bundle/team, an App Store distribution profile granting the two
-shipping memory entitlements, a distribution certificate, and scoped upload
-credentials. Keep these in the release environment's secret store, never source
-or build reports. Validate the exact signed archive with Apple's service, submit
-the first external beta, and then prove a second build updates through TestFlight.
-The current hand-built bundle also needs Apple's validation of its upload/SDK
-metadata; successful ad-hoc signing does not establish that acceptance. Do not
-create a nominal uploader that cannot yet authenticate or sign a valid package.
+The first attempt also exposed missing `DTPlatformName` in HaloPad's hand-built
+Info.plist: Xcode attempted a Mac installer path for the iOS app. Adding the
+correct iPhoneOS platform metadata removed that error. The production packager
+now emits the correct platform for device, simulator and Mac bundles.
+
+The repeatable command is `scripts/xbox/export_archive.py`. It checks the exact
+candidate's identity, hash and signature, validates an existing development
+profile, signs a private copy, writes an xcarchive and asks Xcode for a **local**
+App Store Connect export. It never uploads or submits a build and leaves the
+original IPA and device data unchanged. Use a fresh ignored output directory:
+
+```sh
+python3 scripts/xbox/export_archive.py \
+  --candidate generated/xbox-candidates/latest-built.json \
+  --out generated/distribution-export-attempt \
+  --profile /path/to/HaloPad-development.mobileprovision \
+  --identity 'Apple Development: YOUR NAME (TEAM)' --export
+```
+
+On 2026-10-08 the corrected live export returned `PLA Update available`: Apple
+requires the account holder to accept its updated Program License Agreement.
+The missing App Store profile was reported alongside that membership denial;
+do not treat it as proof that Xcode cannot create the profile after acceptance.
+No agreement was accepted by the agent. Chris has been asked to confirm it.
+
+After acceptance, rerun the same exporter, validate the distribution profile's
+actual memory entitlements and Apple's acceptance of the archive, and establish
+external TestFlight delivery. The hosted publisher still needs unattended upload
+authentication configured; saved local Xcode login is not a credential on a GitHub
+runner. Prove the first consumer upgrade before enabling automatic promotion.
 
 ### Complete the product loop in this order
 

@@ -77,6 +77,7 @@ class MinimumOSTests(unittest.TestCase):
                     if xbox:
                         self.assertEqual((resources / 'ChooserBackground.png').read_bytes(), b'background fixture')
                     info = plistlib.loads((app / 'Contents/Info.plist' if mac else app / 'Info.plist').read_bytes())
+                    self.assertEqual(info['DTPlatformName'], 'macosx' if mac else ('iphonesimulator' if 'simulator' in target else 'iphoneos'))
                     expected = ('14.4' if xbox else '14.0') if mac else ('17.4' if xbox else '17.0')
                     self.assertEqual(info['LSMinimumSystemVersion' if mac else 'MinimumOSVersion'], expected)
                     icon = next(call.args[0] for call in commands.call_args_list if 'actool' in call.args[0])
