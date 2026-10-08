@@ -1,0 +1,38 @@
+name: HaloPad private handoff access probe
+on:
+  push:
+    branches: [codex/xbox-update-flow]
+    paths: [.github/workflows/halopad-handoff-probe.yml]
+permissions:
+  contents: read
+jobs:
+  read-private-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify read-only token can download a complete private handoff
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, sys
+          sys.path.insert(0, 'scripts/xbox')
+          import draft_release as draft
+          releases = draft.api(draft.API + '?per_page=100', pages=True)
+          complete = [r for r in releases if r['draft'] and r['tag_name'].startswith('halopad-candidate-')
+                      and {a['name'] for a in r['assets']} == {draft.ASSET, draft.RECEIPT}
+                      and all(a['state'] == 'uploaded' for a in r['assets'])]
+          if not complete:
+              raise SystemExit('Read-only workflow token cannot see an existing complete private candidate')
+          release = draft.check_draft(complete[0]['id'])
+          assets = {a['name']: a for a in release['assets']}
+          receipt = json.loads(draft.asset_bytes(assets[draft.RECEIPT]))
+          archive_hash = hashlib.sha256(draft.asset_bytes(assets[draft.ASSET])).hexdigest()
+          if archive_hash != receipt['archive_sha256'] or assets[draft.ASSET]['digest'] != 'sha256:' + archive_hash:
+              raise SystemExit('Downloaded private archive differs from its receipt or GitHub digest')
+          print(json.dumps({'tag': release['tag_name'], 'read_only_download_verified': True,
+                            'archive_sha256': archive_hash}))
+          PY
