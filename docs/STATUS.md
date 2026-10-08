@@ -43,6 +43,11 @@ keychain setup/cleanup fixture, both build-1014 archives and feed staging at
 identities. The latest saved-account export retry, at 18:05 JST, still received
 Apple's agreement denial; no success proof or TestFlight submission was produced.
 
+The delivery handoff now skips a deliberately unchanged build before allocating
+a signing runner. Missing artifacts from a successful build still fail visibly.
+All 313 Xbox tests, workflow lint and repository safety checks passed locally
+after this repair; it does not change the disabled delivery or device-acceptance gates.
+
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |

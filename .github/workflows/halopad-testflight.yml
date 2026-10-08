@@ -20,7 +20,7 @@ concurrency:
   group: halopad-testflight
   cancel-in-progress: false
 jobs:
-  deliver:
+  select:
     # Empty/unset channel disables delivery. No PR/fork/branch can use credentials.
     if: >-
       (vars.HALOPAD_TESTFLIGHT_CHANNEL == 'internal' || vars.HALOPAD_TESTFLIGHT_CHANNEL == 'external') &&
@@ -29,6 +29,26 @@ jobs:
        (github.event.workflow_run.conclusion == 'success' &&
         github.event.workflow_run.head_branch == 'main' &&
         github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      ready: ${{ steps.candidate.outputs.ready }}
+      tag: ${{ steps.candidate.outputs.tag }}
+      commit: ${{ steps.candidate.outputs.commit }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Select a completed build or skip unchanged work
+        id: candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_TAG: ${{ inputs.candidate }}
+        run: python3 scripts/xbox/select_delivery.py
+  deliver:
+    needs: select
+    if: needs.select.outputs.ready == 'true'
     runs-on: macos-15
     timeout-minutes: 75
     env:
@@ -49,15 +69,9 @@ jobs:
       - name: Retrieve the exact retained build
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_TAG: ${{ inputs.candidate }}
-          PRODUCER_RUN: ${{ github.event.workflow_run.id }}
-          PRODUCER_NUMBER: ${{ github.event.workflow_run.run_number }}
-          PRODUCER_COMMIT: ${{ github.event.workflow_run.head_sha }}
+          CANDIDATE_TAG: ${{ needs.select.outputs.tag }}
+          PRODUCER_COMMIT: ${{ needs.select.outputs.commit }}
         run: |
-          if [ -n "$PRODUCER_RUN" ]; then
-            gh run download "$PRODUCER_RUN" --name "halopad-build-report-$PRODUCER_NUMBER" --dir generated/producer-report
-            CANDIDATE_TAG=$(python3 -c 'import json; print(json.load(open("generated/producer-report/private-handoff.json"))["tag"])')
-          fi
           python3 scripts/xbox/draft_release.py --download "$CANDIDATE_TAG" --out generated/testflight-input
           python3 - <<'PY'
           import json, os

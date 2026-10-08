@@ -63,6 +63,13 @@ through the pinned Fastlane tool in `tools/testflight/`. No engine rebuild or
 manual pin edit is part of delivery. This workflow has no schedule and does not
 control Chris's Mac or iPad.
 
+Delivery first checks the producing attempt's `build` job on an Ubuntu runner.
+A deliberately skipped build ends successfully without downloading a report or
+allocating a Mac signing runner. A successful build must have its private handoff;
+missing reports, failed builds and API errors remain failures. Manual delivery
+still requires an explicit retained-candidate tag. Six regression tests cover
+these paths; all 313 Xbox tests and workflow lint pass locally after this repair.
+
 Delivery remains **disabled** while `HALOPAD_TESTFLIGHT_CHANNEL` is unset. It only
 runs from `main`; fork/branch build events cannot activate credentialed delivery.
 Start with an existing internal TestFlight group for the first signing/upgrade
