@@ -49,6 +49,9 @@ jobs:
   deliver:
     needs: select
     if: needs.select.outputs.ready == 'true'
+    permissions:
+      # Draft release assets require push access even for download-only requests.
+      contents: write
     runs-on: macos-15
     timeout-minutes: 75
     env:

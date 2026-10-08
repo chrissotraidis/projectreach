@@ -40,6 +40,9 @@ jobs:
     # One-time opt-in stays off until a consumer delivery route is accepted.
     if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      # GitHub hides draft releases from read-only tokens, defeating deduplication.
+      contents: write
     outputs:
       build: ${{ steps.engine.outputs.build }}
       record: ${{ steps.engine.outputs.record }}
