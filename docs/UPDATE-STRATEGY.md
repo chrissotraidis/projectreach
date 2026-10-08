@@ -398,3 +398,11 @@ Local evidence is excluded from source control:
 `generated/ipa-update-pipeline-20261007/` holds builds and archive audits;
 `generated/release-acceptance-20261007/` holds physical crash/campaign logs,
 independent backups/readbacks, signature variants, Mac builds and component notices.
+
+The scheduled command was exercised again after the shared-lock change. It
+resolved OpenCE **150** (`d0b9049e2de2be55864bf77dc4f54a9b65ef9d78`) without
+manual pin edits and produced **0.3.8/build 12**, network **24**, for Mac and iOS.
+Both archives passed the delivered-package audit. The IPA is 21,889,496 bytes
+(SHA-256 `bf27b4dddf27c1f7470ee997881423a703757702cc1d3ce3300c4fb76d250cd6`).
+Build 10 remains intact. This demonstrates another complete automatic build
+cycle, not a consumer upgrade, gameplay pass, or public release.

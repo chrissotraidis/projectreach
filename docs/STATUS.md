@@ -4,14 +4,14 @@
 
 **2026-10-08, private candidate loop verified. Not released.** Public HaloPad
 remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
-**0.3.8/build 10** uses OpenCE **148**, commit
-`ff47e47ad6f54bc533cee2a0fe57232c8f63d614`, network **23**. It was produced by
+**0.3.8/build 12** uses OpenCE **150**, commit
+`d0b9049e2de2be55864bf77dc4f54a9b65ef9d78`, network **24**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
 A six-hour local candidate-check heartbeat is active; no public player update feed
 is live. The physical iPad has private build 10/OpenCE 148/network 23, installed
-with both required memory entitlements. A new candidate cycle has resolved OpenCE
-150; its build and acceptance results must be checked separately.
+with both required memory entitlements. Build 12 passed package checks on both
+platforms; it has not been installed or gameplay-tested.
 
 The intended player-facing description is: install HaloPad, choose Xbox Halo,
 import your own Xbox disc once, and play with touch controls or a controller.
@@ -23,7 +23,7 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 
 | Acceptance check | Current evidence |
 | --- | --- |
-| Reproducible candidate | Real iOS and Mac build-10 archives replay OpenCE 148, pass identity/digest/data/signature checks, and share network 23. 253 Xbox and 21 builder tests passed. Repeat invocation skips unchanged work; concurrent runner and invalid-record checks preserve the previous result. |
+| Reproducible candidate | Real iOS and Mac build-12 archives replay OpenCE 150, pass identity/digest/data/signature checks, and share network 24. 257 Xbox and 21 builder tests passed. Manual and scheduled builds share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
