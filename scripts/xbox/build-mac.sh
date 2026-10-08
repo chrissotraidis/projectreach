@@ -21,6 +21,7 @@ for f in xg_memory xg_thread xg_syscall xg_gl xg_sdl xg_posix xg_main_macos; do
 	clang $CFLAGS -c "$ROOT/port/xbox/$f.c" -o "$OBJ/$f.o"
 done
 clang $CFLAGS -c "$OUT/xg_gl_gen.c" -o "$OBJ/xg_gl_gen.o"
+clang $CFLAGS -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
 for f in posix_files posix_net; do
 	clang -O2 -w -include "$ROOT/port/xbox/xg_darwin_compat.h" -I"$ENGINE/port/linux/src" \
 		-c "$ENGINE/port/linux/src/$f.c" -o "$OBJ/upstream_$f.o"

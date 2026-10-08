@@ -68,6 +68,13 @@ python3 "$ROOT/scripts/xbox/translate.py" "$OUT/halo_guest.elf" "$OUT/guest.s" \
 sed -n 's/^#define __NR_\([a-z0-9_]*\)[[:space:]]*\([0-9]*\)$/#define LX_NR_\1 \2/p' \
 	"$GUEST/guest/libc_include/bits/syscall.h" > "$OUT/xg_linux_nr.h"
 python3 "$ROOT/scripts/xbox/gen-host-gl.py" "$GUEST/guest/gen/guest_gl.c" "$OUT/xg_gl_gen.c"
+python3 "$ROOT/scripts/xbox/gen-host-gl-helpers.py" \
+	--source "$ENGINE/port/android/host/host_gl.c" \
+	--header "$ENGINE/port/android/guest/runtime/guest_host.h" \
+	--imports "$ENGINE/port/android/host_imports.list" \
+	--implemented "$ROOT/port/xbox/xg_gl.c" --out "$OUT/xg_gl_helpers.c"
+# Reject unsupported helper dependencies before the expensive renderer build.
+xcrun clang -fsyntax-only -Werror -I"$ROOT/port/xbox" -I"$INC" "$OUT/xg_gl_helpers.c"
 # The pin predates upstream's extra UPnP argument. Keep rollback builds ABI-safe.
 python3 - "$ENGINE/port/linux/src/posix.h" "$OUT/xg_engine_compat.h" <<'PY'
 import pathlib, re, sys

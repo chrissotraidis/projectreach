@@ -128,6 +128,7 @@ for f in xg_memory xg_thread xg_syscall xg_gl xg_posix xg_xiso; do
 	$CC $CFLAGS -I"$INC" -c "$ROOT/port/xbox/$f.c" -o "$OBJ/$f.o"
 done
 $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_gen.c" -o "$OBJ/xg_gl_gen.o"
+$CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
 for f in xg_ios xg_touch xg_draw_capture xg_draw_replay xg_depth_capture xg_app_ios; do
 	$CC $CFLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
 done
