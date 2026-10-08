@@ -4,6 +4,14 @@ on:
     branches: [main, codex/xbox-update-flow]
     paths: ['port/**', 'scripts/**', 'config/**', 'tests/**', 'assets/**', '.github/workflows/halopad-build.yml']
   workflow_dispatch:
+    inputs:
+      engine:
+        description: Engine selection (upstream is an experimental candidate)
+        type: choice
+        options: [release, upstream]
+        default: release
+  repository_dispatch:
+    types: [opence-release]
 permissions:
   contents: read
 concurrency:
@@ -14,27 +22,37 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 120
     env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
       HALOPAD_BUILD_JOBS: '3'
       HOMEBREW_NO_AUTO_UPDATE: '1'
+      ENGINE_CHANNEL: ${{ github.event_name == 'repository_dispatch' && 'upstream' || inputs.engine || 'release' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
       - name: Install build tools
         run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
           brew install llvm lld cmake ninja sdl3
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
-      - name: Build this release's fixed engine and audit both packages
+      - name: Build the selected engine and audit both packages
         run: |
+          selection=(--record config/xbox-release.json)
+          case "$ENGINE_CHANNEL" in
+            release) ;;
+            upstream) selection=() ;;
+            *) echo "Unsupported engine channel" >&2; exit 2 ;;
+          esac
           python3 scripts/xbox/candidate.py --app-version 0.3.8 \
             --first-build "$((1000 + GITHUB_RUN_NUMBER))" \
-            --record config/xbox-release.json > candidate-result.json
+            "${selection[@]}" > candidate-result.json
       - name: Stage installer source and app-update metadata
         run: |
           python3 scripts/xbox/update_source.py \
             --candidate generated/xbox-candidates/latest-built.json \
-            --out generated/release-stage --tag v0.3.8
+            --out generated/release-stage --tag "halopad-0.3.8-$((1000 + GITHUB_RUN_NUMBER))"
       - name: Save build report only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -43,6 +61,7 @@ jobs:
           path: |
             candidate-result.json
             generated/xbox-candidates/runs/*/result.json
+            generated/xbox-candidates/runs/*/xbox-release.json
             generated/xbox-candidates/runs/*/*.log
             generated/release-stage/halopad-update.json
           if-no-files-found: warn

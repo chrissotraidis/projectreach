@@ -32,7 +32,10 @@ Evaluate **TestFlight as the preferred iPad beta delivery route**: Chris's paid
 membership signs the distributed app, and testers can enable automatic app updates.
 This avoids making each tester provision the memory entitlements. It still requires
 actual distribution-profile validation and Apple's external-beta review; neither is
-established. TestFlight supports up to 10,000 external testers and each build expires
+established. Apple documents review of the first build of a version; subsequent
+builds may not need a full review. Routine engine updates can therefore increment
+the app build number without unnecessarily changing the marketing version. This
+is not a promise of immediate processing or review exemption. TestFlight supports up to 10,000 external testers and each build expires
 after 90 days, so it is not a permanent unsupported release channel. App Store
 acceptance would be a separate long-term decision. Apple approval must not be assumed.
 
@@ -43,6 +46,7 @@ app upgrading. Free-account/lower-memory compatibility is still unproven.
 
 Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/),
 [TestFlight automatic updates](https://testflight.apple.com/),
+[TestFlight review](https://developer.apple.com/help/glossary/testflight-app-review/),
 [iOS runtime protections](https://support.apple.com/guide/security/sec15bfe098e/web).
 
 ### Implemented background-only work
@@ -56,9 +60,24 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
   `altstore.json`, `halopad-update.json`, icon and checksums. It does not upload,
   publish, overwrite previous staging or invent acceptance results.
 - `.github/workflows/halopad-build.yml` builds on a GitHub-hosted Apple-silicon Mac
-  when source changes or the workflow is manually dispatched. It needs no private
+  when source changes or the workflow is manually dispatched. Manual dispatch can
+  choose the fixed release or an upstream candidate. An authenticated
+  `repository_dispatch: opence-release` entry point also selects upstream, but no
+  sender is configured and it only becomes usable on the default branch. No poll
+  or schedule is installed. Staged asset URLs include the unique app build.
+  It needs no private
   disc, player data or signing secret. Only build reports are uploaded at present;
   no private executable is exposed. This is normal CI, not a restored Codex schedule.
+
+### Evidence from this implementation
+
+Local candidate 0.3.8/build 13 packages OpenCE 150/network 24 on Mac and iOS.
+263 Xbox tests and 23 builder tests passed. Both delivered archives passed strict
+signature, identity, guest digest and data-content checks, and exact-archive feed
+staging passed. No device was controlled, installed or launched. The first hosted
+runs caught missing SDL3 test headers and a runner defaulting to Xcode 16.4 while
+the picker uses an iOS 26 API. SDL3 and Xcode 26.3 are now explicit; the next
+clean build is running. These results do not establish consumer delivery.
 
 ### Complete the product loop in this order
 
