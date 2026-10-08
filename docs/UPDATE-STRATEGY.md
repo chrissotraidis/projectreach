@@ -83,6 +83,12 @@ local build 13 and the implementation at commit 398b884. The report and staged m
 both archive hashes, sizes, minimum OS and network 24. Only reports were retained;
 no binary was published. These results do not establish consumer delivery.
 
+The subsequent [hosted run 37732244804](https://github.com/chrissotraidis/projectreach/actions/runs/37732244804)
+passed all 290 tests and both build-1005 package audits, including the iOS platform
+metadata fix and exporter tests. Its product-source fingerprint matches commit
+cbe7135 and the current checkout; the report and staged update metadata agree.
+The saved-account distribution export remains a separate local verification.
+
 ### Existing Apple account path and the current delivery gate
 
 The initial conclusion that absent distribution certificates/upload keys prevented
