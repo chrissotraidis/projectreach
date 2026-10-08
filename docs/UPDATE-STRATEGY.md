@@ -29,21 +29,31 @@ that migration is not the smallest solution to this release problem.
 
 ### Delivery choice
 
-Evaluate **TestFlight as the preferred iPad beta delivery route**: Chris's paid
-membership signs the distributed app, and testers can enable automatic app updates.
-This avoids making each tester provision the memory entitlements. It still requires
-actual distribution-profile validation and Apple's external-beta review; neither is
-established. Apple documents review of the first build of a version; subsequent
-builds may not need a full review. Routine engine updates can therefore increment
-the app build number without unnecessarily changing the marketing version. This
-is not a promise of immediate processing or review exemption. TestFlight supports up to 10,000 external testers and each build expires
-after 90 days, so it is not a permanent unsupported release channel. App Store
-acceptance would be a separate long-term decision. Apple approval must not be assumed.
+**Continue with the existing direct IPA path.** Chris questioned the TestFlight
+detour on October 8. TestFlight is optional and remains disabled; do not make its
+agreement, app-record, API-key or review setup a prerequisite for building HaloPad,
+producing an IPA, or signing with an already-valid development profile.
 
-Keep a **versioned IPA plus AltStore source** as the fallback. This is a working
-format, but HaloPad's actual consumer signing/upgrade remains blocked by Apple's
-pending agreement and must be tested. AltStore certificate refresh is not automatic
-app upgrading. Free-account/lower-memory compatibility is still unproven.
+This distinction is now verified with real build 20/OpenCE 155: the existing
+profile and certificate signed a private IPA without contacting Apple's
+provisioning service. The resulting archive passes the package, component-notice,
+Apple-rooted signature, identity and memory-entitlement checks. The original IPA
+is unchanged. Evidence: `generated/direct-ipa-20261008T101049Z/personal-signing-proof.json`.
+The profile expires September 29, 2027 and covers its registered devices only.
+This is personal signing evidence, not public distribution or an installed upgrade.
+
+For shared delivery, the existing staging path produces a versioned IPA and
+AltStore source. The build/retention pipeline can follow upstream without daily
+pin edits; public asset promotion and the first consumer upgrade remain unfinished.
+AltStore certificate refresh does not prove automatic app upgrading, and
+free-account/lower-memory compatibility remains unproven. No device action is
+authorized until Chris explicitly resumes device testing.
+
+The optional TestFlight route below was evaluated for automatic beta updates.
+Its last App Store Connect export failed with `PLA Update available`; that
+service-specific failure must not be described as a failed HaloPad build or a
+failure of existing local signing. New Apple provisioning requests may still
+require the account holder to accept updated terms.
 
 Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/),
 [TestFlight automatic updates](https://testflight.apple.com/),
@@ -361,11 +371,12 @@ runner. Prove the first consumer upgrade before enabling automatic promotion.
 1. Prove the hosted clean build and feed staging. Keep the prior downloadable app
    untouched on any failure. Build identifiers for hosted releases start at 1001;
    use that single workflow's counter once public distribution starts.
-2. After Apple's updated agreement is accepted, prove distribution signing and
-   one real in-place upgrade without capturing Chris's keyboard, with independent
-   data readback and campaign/save/resume. TestFlight approval, actual entitlement
-   support and installation identity must be measured, not inferred from a local
-   development install. Finish exact-artifact notices/distribution review.
+2. Finish the direct IPA delivery path and exact-artifact distribution review.
+   Personal signing with the existing profile is verified; signing and upgrading
+   through the consumer's installer remain separate checks. After Chris explicitly
+   resumes device testing, back up and independently read back player data before
+   an in-place upgrade, then check campaign/save/resume. Request new Apple profiles
+   only when needed; optional TestFlight approval is not a gate for this route.
 3. Once the first delivery route works, enable the prepared **hosted preview release
    check** through its repository variable, or connect upstream release events.
    Resolve once, skip unchanged input, build/test, then distribute complete
@@ -387,17 +398,14 @@ changed upstream engine reaches an already-installed iPad through the chosen
 consumer route without Chris rebuilding or editing code. The current goal must
 not be marked complete merely because CI passes.
 
-**Remaining work:** complete distribution export after Apple's agreement condition changes, then validate the
-distribution entitlements and consumer delivery. A fresh export attempt against
-build 16 still returned the agreement denial. The downloaded build-19 archive is
-prepared for signing, with its 27 known-component notices intact. Its live export
-at 17:00 JST on October 8 still returned `PLA Update available`; no success proof
-was written, and the retained source IPA is unchanged. Device acceptance is still unproven; use commands/APIs where
-possible and preserve player data instead of assuming keyboard control is needed.
-Verify the gated upstream check and establish unattended upload authentication;
-private package retention does not establish automatic player delivery. Keep
-working through those implementation gaps without restarting upstream builds
-merely because another release appears or recreating the deleted Codex schedule.
+**Remaining work:** finish public IPA/feed promotion after exact-artifact acceptance,
+then demonstrate an update through the consumer's installer. Build 20 is already
+signed locally for the existing development profile; it has not been installed.
+Private package retention and successful personal signing do not establish
+automatic player delivery. Keep the optional TestFlight export parked unless
+Chris chooses that route. Preserve player data and the device-control restriction;
+do not restart builds merely because another release appears or recreate the
+deleted Codex schedule.
 
 ## Earlier research and implementation snapshots
 

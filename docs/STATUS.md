@@ -2,6 +2,18 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Direct IPA clarification, 2026-10-08:** TestFlight is optional and disabled.
+It is not required for HaloPad builds, IPA packaging or existing local signing.
+Private **0.3.8/build 20, OpenCE 155, network 24** has now been signed using the
+existing paid development profile, without a new Apple provisioning request.
+Its final IPA passes archive, Apple-rooted signature, identity, component-notice
+and memory-entitlement checks; the original candidate is unchanged. The profile
+expires September 29, 2027 and is limited to its registered devices. Evidence:
+`generated/direct-ipa-20261008T101049Z/personal-signing-proof.json`.
+It has not been installed or gameplay-tested. Public IPA/feed promotion and a
+consumer upgrade remain unfinished; the Apple agreement denial below concerns
+the optional App Store Connect export, not this successful local signing.
+
 **2026-10-08, fixed release recipe and hosted-build work implemented. Not released.** Public HaloPad
 remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
 **0.3.8/build 19** uses OpenCE **154**, commit
@@ -68,7 +80,7 @@ unverified. Both HaloPad PR #20 and companion PadMint PR #133 remain open drafts
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
-| Hosted build | Latest clean run [37755072408](https://github.com/chrissotraidis/projectreach/actions/runs/37755072408) passed all 330 Python tests, seven Fastlane tests, the real keychain fixture, both build-1014/OpenCE-150 archive audits and metadata staging at 0d5c98c. Downloaded reports match that source fingerprint and both staged package identities. Branch runs upload reports only; actual Apple delivery and gameplay remain unproven. |
+| Hosted build | Latest clean run [37758513718](https://github.com/chrissotraidis/projectreach/actions/runs/37758513718) passed all 336 Python tests, seven Fastlane tests, the real keychain fixture, both build-1015/OpenCE-150 archive audits and metadata staging at 4eb61fb. Downloaded reports match the current product-source fingerprint and both staged package identities. Branch runs upload reports only; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
