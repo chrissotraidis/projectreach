@@ -8,8 +8,9 @@ remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
 `d0b9049e2de2be55864bf77dc4f54a9b65ef9d78`, network **24**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
-A six-hour local candidate-check heartbeat is active; no public player update feed
-is live. The physical iPad has private build 10/OpenCE 148/network 23, installed
+Chris removed the local maintenance heartbeat. No public player update feed
+is live. Normal source builds now use a bundled engine record; upstream latest is
+explicitly experimental. Hosted build/feed verification is being implemented. The physical iPad has private build 10/OpenCE 148/network 23, installed
 with both required memory entitlements. Build 12 passed package checks on both
 platforms; it has not been installed or gameplay-tested.
 

@@ -159,34 +159,37 @@ To update, install over the existing app. Deleting HaloPad deletes its profiles 
 
 ### Updating HaloPad
 
-HaloPad opens to the edition picker on every fresh launch. **Update Xbox…** explains how to update;
-the Xbox card identifies the installed OpenCE build. A newer release with the same multiplayer
-version is optional; a different multiplayer version needs a matching build to join those players.
-The check needs an internet connection, but opening the picker and playing offline do not.
+HaloPad opens to the edition picker on every fresh launch. The Xbox card identifies the
+installed engine. **Updates…** links to HaloPad releases. The app only announces a newer
+HaloPad package when that release includes download metadata for your platform; it does
+not tell you to rebuild whenever OpenCE changes. There is no public app feed yet.
 
-On your Mac, open PadMint, select **HaloPad** and the same platform, and build again using the
-same kind of input: your Xbox ISO/XISO for Xbox-only, or the original PC installer with
-`product-key.txt` beside it for both editions. Install over the existing app; on iPhone/iPad,
-use the same signing identity. Imported files, profiles and settings stay. Xbox checkpoints may
-need a level restart after an engine update, even though their files are retained and backed up.
+Normal PadMint builds use the exact engine recorded in `config/xbox-release.json` for
+that HaloPad source release. Tomorrow's OpenCE changes do not silently change today's
+recipe. The current development snapshot is build 150; package checks have passed, but
+physical gameplay and consumer-upgrade acceptance are still pending. A fixed engine
+keeps builds reproducible; it does not guarantee compatibility with newer multiplayer
+protocols. Offline play and peers using the same supported protocol do not expire when
+upstream publishes another build.
 
-The current builder resolves one exact OpenCE release before building. Repeat builds in the same
-PadMint source checkout reuse Custom Edition's translation and compiled objects after checking
-their inputs and outputs by hash. The existing ANGLE build is incremental. A first build, changed
-PC sources/toolchain, or missing/damaged cache requires rebuilding the PC translation. Updating to
-a new HaloPad release may use a new checkout and therefore need a full build once.
+Until downloadable app delivery is available, update the HaloPad recipe in PadMint and
+build using the same input type: your Xbox ISO/XISO for Xbox-only, or your original PC
+installer with `product-key.txt` for both editions. Install over the existing app using
+the same signing identity. Keep imported files and profiles; do not delete HaloPad.
+Xbox checkpoints may require a level restart after changing engines.
 
-If the newest OpenCE release cannot be fetched or built, the update stops; keep your installed app
-and report the build log. It does **not** silently package an older engine as a successful update.
-For an explicit offline/tested build from the command line, prefix the existing builder command with
-`HALOPAD_XBOX_PINNED=1`; that version may not join current OpenCE games. Updating the Xbox engine
-still rebuilds and repackages the app on your Mac. The update button opens instructions, not an
-automatic background installer.
+For an explicit experiment with upstream's newest engine, add `--xbox-latest` to the
+builder command. A failed experiment stops without substituting another engine.
+`--xbox-release-record FILE` replays an exact saved candidate;
+`HALOPAD_XBOX_PINNED=1` retains the older reviewed development pin. These choices are
+mutually exclusive. Repeated builds reuse verified PC translations and incremental
+engine work when their inputs match. Source builds still compile on your Mac; an update
+notice does not install executable code inside HaloPad.
 
 ### Adding the Xbox edition
 
 PadMint and the `--xbox` builder option add the Xbox edition to the same app, so HaloPad opens to the
-edition picker. Your Mac downloads the latest released [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
+edition picker. Your Mac downloads this HaloPad release’s recorded [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
 engine and the pinned ANGLE renderer from their own repositories and builds them; none of that code is part of
 HaloPad. You add your own Xbox disc image in the app (**Add Your Xbox Disc** on the picker).
 

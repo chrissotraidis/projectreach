@@ -1,6 +1,96 @@
 # HaloPad updates without daily maintainer work
 
-Research and implementation snapshot: 2026-10-08. Private candidate loop and six-hour local scheduled checks implemented; no shipped updater or scheduled publisher.
+## Current decision, 2026-10-08
+
+Chris removed the local Codex maintenance schedule. Do not recreate it. Keyboard,
+mouse and device control remain prohibited until he explicitly resumes them.
+The current goal is a product/release mechanism, not an agent repeatedly rebuilding
+on Chris's computer. The notes below this section retain earlier research evidence.
+
+There are two separate problems:
+
+1. **An old HaloPad recipe changes underneath new players.** Fixed now in source:
+   normal PadMint builds read `config/xbox-release.json`, not OpenCE's latest API.
+   This development branch records build 150. `--xbox-latest` is an explicit
+   experiment, and immutable candidate records remain supported. A broken/missing
+   record is an error, never permission to substitute a moving release.
+2. **Installed players need new code when multiplayer changes.** Pinning does not
+   solve this. Deliver whole app updates from a hosted build pipeline. Daily
+   upstream commits must not require Chris to edit a pin, compile on his Mac, or
+   have every player run PadMint. Offline play and compatible peers continue;
+   exact latest-upstream cross-play requires the matching implementation.
+
+The native engine is compiled into HaloPad. Downloading a compatibility number
+cannot implement new packet handling. Ordinary iOS code-signing constraints also
+prevent treating a replacement native engine as an unsigned data download. A web
+runtime or interpreter is a different port with unproven performance and storage;
+that migration is not the smallest solution to this release problem.
+
+### Delivery choice
+
+Evaluate **TestFlight as the preferred iPad beta delivery route**: Chris's paid
+membership signs the distributed app, and testers can enable automatic app updates.
+This avoids making each tester provision the memory entitlements. It still requires
+actual distribution-profile validation and Apple's external-beta review; neither is
+established. TestFlight supports up to 10,000 external testers and each build expires
+after 90 days, so it is not a permanent unsupported release channel. App Store
+acceptance would be a separate long-term decision. Apple approval must not be assumed.
+
+Keep a **versioned IPA plus AltStore source** as the fallback. This is a working
+format, but HaloPad's actual consumer signing/upgrade remains blocked by Apple's
+pending agreement and must be tested. AltStore certificate refresh is not automatic
+app upgrading. Free-account/lower-memory compatibility is still unproven.
+
+Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-connect/test-a-beta-version/testflight-overview/),
+[TestFlight automatic updates](https://testflight.apple.com/),
+[iOS runtime protections](https://support.apple.com/guide/security/sec15bfe098e/web).
+
+### Implemented background-only work
+
+- Normal builds use one fixed engine record; upstream experiments are explicit.
+- The picker checks HaloPad's own release metadata. Source-only releases, failed
+  requests, older/equal versions, missing platform assets, malformed metadata and
+  unsupported OS versions produce no update prompt. Raw OpenCE bumps produce none.
+- `scripts/xbox/update_source.py` re-audits both delivered packages, verifies their
+  hashes and the IPA's actual memory entitlements, then stages the exact packages,
+  `altstore.json`, `halopad-update.json`, icon and checksums. It does not upload,
+  publish, overwrite previous staging or invent acceptance results.
+- `.github/workflows/halopad-build.yml` builds on a GitHub-hosted Apple-silicon Mac
+  when source changes or the workflow is manually dispatched. It needs no private
+  disc, player data or signing secret. Only build reports are uploaded at present;
+  no private executable is exposed. This is normal CI, not a restored Codex schedule.
+
+### Complete the product loop in this order
+
+1. Prove the hosted clean build and feed staging. Keep the prior downloadable app
+   untouched on any failure. Build identifiers for hosted releases start at 1001;
+   use that single workflow's counter once public distribution starts.
+2. After Chris accepts Apple's updated agreement and resumes device control,
+   prove distribution signing and one real in-place upgrade, with independent
+   data readback and campaign/save/resume. TestFlight approval, actual entitlement
+   support and installation identity must be measured, not inferred from a local
+   development install. Finish exact-artifact notices/distribution review.
+3. Once the first delivery route works, wire the **hosted preview release job** to
+   upstream release events (or a deterministic GitHub poll if upstream provides no
+   event). Resolve once, skip unchanged input, build/test, then distribute complete
+   accepted packages and update the feed last. This requires no daily source-pin
+   changes. It is not enabled by the current source-only CI workflow.
+4. Keep the normal release channel deliberate and reproducible. Preview can follow
+   upstream for players who prioritize public-lobby compatibility. Promote stable
+   releases for meaningful fixes, rather than for every upstream commit. Develop a
+   private-data automated gameplay regression before unattended binary promotion;
+   public build checks alone cannot substitute for that acceptance.
+5. Reduce exceptional repair work by upstreaming the narrow Apple host hooks and
+   correctness fixes. Do not weaken protocol checks or promise that automation can
+   repair arbitrary future upstream changes without engineering work.
+
+**Completion boundary:** fixed source selection, hosted compilation and metadata
+are necessary, but the daily-maintenance problem is not fully closed until a
+changed upstream engine reaches an already-installed iPad through the chosen
+consumer route without Chris rebuilding or editing code. The current goal must
+not be marked complete merely because CI passes.
+
+## Earlier research and implementation snapshots
 
 ## Decision
 
@@ -209,11 +299,8 @@ packages pass. Failure leaves that pointer and previous packages intact. Retryin
 allocates a new build number/directory. Candidate and manual builder/prepare/platform entry points now share an inherited
 lock over the engine cache. A competing build stops before changing it; nested
 build stages retain the same lock. Tests time out after ten minutes and builds
-after four hours. The local Codex heartbeat `halopad-opence-update-loop` is active
-every six hours in this chat, running the command above. Keep the computer on
-and the app running for local scheduled work. Unchanged results stay quiet; new
-candidates and actionable failures are reported. This schedules candidate builds,
-not publication or a player-facing updater.
+after four hours. The local Codex heartbeat was briefly created and then removed by Chris.
+Do not recreate it; the current decision above supersedes that approach.
 
 Validation: 257 Xbox tests and 21 builder tests passed under the candidate lock.
 Four lock tests exercise real nested/competing processes, stale inherited state
@@ -254,7 +341,7 @@ Play Xbox started the engine and menu rendering. Campaign, save/resume and a
 matching Mac-iPad session remain unverified.
 
 Chris subsequently prohibited keyboard/mouse/device control until he explicitly
-resumes it. The scheduled prompt records that restriction. Continue background
+resumes it. The deleted schedule must not be restored. Continue background
 code/package work only; do not resume device interaction merely because it is
 connected. Evidence is in `generated/device-update-20261008/`.
 Private evidence: `generated/update-loop-20261008/` and

@@ -8,8 +8,9 @@
 # as built, with no Apple account), with its own game package in <zip>.data/.
 # --xbox-only (or an ISO/XISO input) builds Xbox without any PC inputs or tools.
 # --xbox-release-record FILE reuses a saved xbox-release.json commit instead of latest.
+# --xbox-latest explicitly tries upstream latest instead of this HaloPad release's engine.
 # --app-version 0.3.8 --app-build 2 sets the app's update identity; defaults are 0.3/1.
-# --xbox adds the Xbox edition: your Mac fetches the latest OpenCE release and
+# --xbox adds the Xbox edition: your Mac fetches this HaloPad release's OpenCE snapshot and
 # ANGLE renderer from their own repositories and builds them into the same app (none of
 # it is part of HaloPad). You add your Xbox disc image in the app.
 #
@@ -36,7 +37,7 @@ cd "$ROOT"
 PY=.venv/bin/python
 export HALOPAD_BUILDER=1                              # steps leave tracked repository files unchanged
 INPUT=""; OUT="$ROOT/generated/builder"; IPA=""; KEY_FILE=""; MAC=0; XBOX=0; PC=1
-XBOX_RECORD=""; APP_VERSION=0.3; APP_BUILD=1
+XBOX_RECORD=""; XBOX_LATEST=0; APP_VERSION=0.3; APP_BUILD=1
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--out) OUT=$2; shift ;;
@@ -45,6 +46,7 @@ while [ $# -gt 0 ]; do
 	--xbox) XBOX=1 ;;
 	--xbox-only) XBOX=1; PC=0 ;;
 	--xbox-release-record) XBOX_RECORD=$2; shift ;;
+	--xbox-latest) XBOX_LATEST=1 ;;
 	--app-version) APP_VERSION=$2; shift ;;
 	--app-build) APP_BUILD=$2; shift ;;
 	--product-key-file) KEY_FILE=$2; shift ;;
@@ -60,6 +62,12 @@ case "$INPUT" in *.[iI][sS][oO]|*.[xX][iI][sS][oO])
 	XBOX=1; PC=0 ;;
 esac
 python3 scripts/app_version.py --version "$APP_VERSION" --build "$APP_BUILD"
+if [ "$XBOX_LATEST" = 1 ]; then
+    [ "$XBOX" = 1 ] || { echo "--xbox-latest requires the Xbox edition" >&2; exit 2; }
+    [ -z "$XBOX_RECORD" ] && [ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] || {
+        echo "Choose only one Xbox engine: --xbox-latest, --xbox-release-record or HALOPAD_XBOX_PINNED=1" >&2; exit 2;
+    }
+fi
 if [ -n "$XBOX_RECORD" ]; then
 	[ $XBOX = 1 ] || { echo "--xbox-release-record requires the Xbox edition" >&2; exit 2; }
 	[ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] || { echo "Choose either --xbox-release-record or HALOPAD_XBOX_PINNED=1" >&2; exit 2; }
@@ -128,11 +136,12 @@ done < <(find "$INPUT" -maxdepth 2 -iname '*.exe' -print0)
 [ -n "$KEY_FILE" ] || [ ! -f "$INPUT/product-key.txt" ] || KEY_FILE="$INPUT/product-key.txt"
 [ -n "$KEY_FILE" ] || [ -t 0 ] || { echo "put product-key.txt (your Halo PC product key) beside HaloCESetup.exe; Halo will not start without it" >&2; exit 3; }
 fi
-# Resolve once, before the expensive work. An update must never silently become
-# an older build because GitHub is unavailable or the newest engine fails.
+# Normal builds use this HaloPad release's fixed engine. Latest is opt-in;
+# a failed experiment never falls back silently to a different engine.
 if [ $XBOX = 1 ]; then
 	step "resolving the Xbox release"
 	RELEASE_ARGS=(); [ "${HALOPAD_XBOX_PINNED:-0}" != 1 ] || RELEASE_ARGS=(--pinned)
+	[ "$XBOX_LATEST" != 1 ] || RELEASE_ARGS=(--latest)
 	if [ -z "$XBOX_RECORD" ]; then
 		XBOX_RELEASE=$($PY scripts/xbox/release.py ${RELEASE_ARGS[@]+"${RELEASE_ARGS[@]}"})
 	fi
@@ -146,8 +155,10 @@ if [ $XBOX = 1 ]; then
 		echo "Explicitly building tested $XBOX_TAG; it may not join current OpenCE games."
 	elif [ -n "$XBOX_RECORD" ]; then
 		echo "Rebuilding recorded OpenCE $XBOX_TAG ($XBOX_REV); acceptance is not implied."
-	else
+	elif [ "$XBOX_LATEST" = 1 ]; then
 		echo "Building OpenCE $XBOX_TAG ($XBOX_REV); a failed update leaves your installed app unchanged."
+	else
+		echo "Building this HaloPad release's OpenCE $XBOX_TAG ($XBOX_REV). Upstream releases do not change this build."
 	fi
 fi
 

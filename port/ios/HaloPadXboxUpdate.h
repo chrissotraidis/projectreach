@@ -1,29 +1,47 @@
-/* Update metadata only; executable updates are built on the player's Mac. */
+/* Announce downloadable HaloPad releases, never a moving upstream engine. */
 #import <Foundation/Foundation.h>
 
-static BOOL HPXboxReleaseTag(id tag)
+static BOOL HPHaloPadVersion(id value)
 {
-    return [tag isKindOfClass:NSString.class] &&
-        [tag rangeOfString:@"^build-[0-9]+$" options:NSRegularExpressionSearch].location != NSNotFound;
+    return [value isKindOfClass:NSString.class] &&
+        [value rangeOfString:@"^[0-9]+(\\.[0-9]+){0,2}\\z" options:NSRegularExpressionSearch].location != NSNotFound;
 }
 
-static NSNumber *HPXboxNetworkVersion(NSString *header)
+static BOOL HPHaloPadDownloadURL(id value)
 {
-    if (!header) return nil;
-    NSRegularExpression *pattern = [NSRegularExpression regularExpressionWithPattern:
-        @"(?m)^\\s*#define\\s+HALO_PORT_NETWORK_VERSION\\s+([0-9]+)\\b" options:0 error:nil];
-    NSTextCheckingResult *match = [pattern firstMatchInString:header options:0 range:NSMakeRange(0, header.length)];
-    return match ? @([[header substringWithRange:[match rangeAtIndex:1]] integerValue]) : nil;
+    if (![value isKindOfClass:NSString.class]) return NO;
+    NSURLComponents *url = [NSURLComponents componentsWithString:value];
+    return [url.scheme isEqualToString:@"https"] && [url.host isEqualToString:@"github.com"] &&
+        !url.user && !url.password && !url.port && !url.query && !url.fragment &&
+        [url.path hasPrefix:@"/chrissotraidis/projectreach/releases/download/"] &&
+        ![url.path containsString:@"/../"];
 }
 
-static NSString *HPXboxUpdateNotice(NSDictionary *build, NSString *tag, NSNumber *network)
+static NSString *HPHaloPadManifestURL(NSDictionary *release)
 {
-    if (!HPXboxReleaseTag(tag)) return nil;
-    NSNumber *mine = build[@"network_version"];
-    NSString *version = [tag stringByReplacingOccurrencesOfString:@"build-" withString:@"build "];
-    if ([mine isKindOfClass:NSNumber.class] && network && mine.integerValue != network.integerValue)
-        return [NSString stringWithFormat:@"OpenCE %@ uses a different multiplayer version. To join those hosts, rebuild Xbox with PadMint. Your installed game remains available.", version];
-    /* A newer build on the same protocol is not an urgent player update.
-       Only advertise a downloadable HaloPad update once a tested app feed exists. */
+    if (![release isKindOfClass:NSDictionary.class] || ![release[@"draft"] isEqual:@NO] ||
+        ![release[@"prerelease"] isEqual:@NO] || ![release[@"assets"] isKindOfClass:NSArray.class]) return nil;
+    for (id asset in release[@"assets"])
+        if ([asset isKindOfClass:NSDictionary.class] && [asset[@"name"] isEqual:@"halopad-update.json"] &&
+            HPHaloPadDownloadURL(asset[@"browser_download_url"])) return asset[@"browser_download_url"];
     return nil;
+}
+
+static NSString *HPHaloPadUpdateNotice(NSDictionary *manifest, NSString *version, NSString *build,
+                                      NSString *platform, NSString *osVersion)
+{
+    if (![manifest isKindOfClass:NSDictionary.class] || ![manifest[@"schema"] isEqual:@1] ||
+        ![manifest[@"bundle_id"] isEqual:@"dev.halopad.HaloPad"] ||
+        !HPHaloPadVersion(version) || !HPHaloPadVersion(build) ||
+        !HPHaloPadVersion(manifest[@"version"]) || !HPHaloPadVersion(manifest[@"build"]) ||
+        ![manifest[@"artifacts"] isKindOfClass:NSDictionary.class]) return nil;
+    NSDictionary *artifact = manifest[@"artifacts"][platform];
+    if (![artifact isKindOfClass:NSDictionary.class] || !HPHaloPadDownloadURL(artifact[@"url"]) ||
+        ![artifact[@"size"] isKindOfClass:NSNumber.class] || [artifact[@"size"] longLongValue] <= 0 ||
+        !HPHaloPadVersion(artifact[@"minimum_os"]) || !HPHaloPadVersion(osVersion) ||
+        [artifact[@"minimum_os"] compare:osVersion options:NSNumericSearch] == NSOrderedDescending) return nil;
+    NSComparisonResult order = [manifest[@"version"] compare:version options:NSNumericSearch];
+    if (order == NSOrderedAscending || (order == NSOrderedSame &&
+        [manifest[@"build"] compare:build options:NSNumericSearch] != NSOrderedDescending)) return nil;
+    return [NSString stringWithFormat:@"HaloPad %@ is available. Open Updates to get the app. Your installed game remains available.", manifest[@"version"]];
 }

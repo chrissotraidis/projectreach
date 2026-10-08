@@ -89,7 +89,7 @@ pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_text('new game pack
         self.assertEqual((self.root / 'result.zip').read_text(), 'old archive')
         self.assertEqual((self.root / 'result.zip.data/Halo-CE.halopad.zip').read_text(), 'old game package')
 
-    def test_latest_reuses_pc_and_retains_cached_run(self):
+    def test_release_reuses_pc_and_retains_cached_run(self):
         result = self.run_builder()
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((self.root / 'calls').read_text(), '2' * 40 + ' 1 --mac\n')
@@ -145,6 +145,31 @@ assert sys.argv[sys.argv.index('--app-build') + 1] == '2'
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual((self.root / 'calls').read_text(), 'a' * 40 + ' 1 --mac\n')
         self.assertIn('Rebuilding recorded OpenCE build-144', result.stdout)
+
+    def test_default_uses_real_bundled_resolver_even_with_stale_latest_environment(self):
+        disc = self.xbox_only_input()
+        self.write('scripts/xbox/release.py', (ROOT / 'scripts/xbox/release.py').read_text())
+        self.write('config/xbox-release.json', '{"revision":"' + 'a' * 40 + '","release":"build-150"}')
+        # No engine-lock file exists, and any network/git lookup would fail.
+        result = self.run_builder(selected=disc, XBOX_REV='b' * 40, HALOPAD_XBOX_LATEST='1')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.root / 'calls').read_text(), 'a' * 40 + ' 1 --mac\n')
+        self.assertIn('Upstream releases do not change this build', result.stdout)
+
+    def test_latest_is_explicit_and_conflicting_selections_are_rejected(self):
+        self.write('scripts/xbox/release.py', '''import json, sys
+assert '--latest' in sys.argv
+print(json.dumps({'revision':'4'*40, 'release':'build-999','channel':'latest'}))
+''')
+        result = self.run_builder(extra=('--xbox-latest',))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((self.root / 'calls').read_text(), '4' * 40 + ' 1 --mac\n')
+        for extra, env in ((('--xbox-latest', '--xbox-release-record', 'record'), {}),
+                           (('--xbox-latest',), {'HALOPAD_XBOX_PINNED': '1'})):
+            with self.subTest(extra=extra):
+                result = self.run_builder(extra=extra, **env)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn('Choose only one Xbox engine', result.stderr)
 
     def test_invalid_identity_or_record_conflict_stops_before_build(self):
         for extra, env in ((('--app-build', '0'), {}),

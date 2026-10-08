@@ -17,6 +17,25 @@ LOCK = {'url': 'https://github.com/OpenCommunityEdition/OpenCE.git',
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_default_cli_uses_bundled_record_without_resolving_upstream(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = pathlib.Path(folder) / 'bundled.json'
+            path.write_text(json.dumps({'revision': 'a' * 40, 'release': 'build-150'}))
+            with patch.object(release, 'BUNDLED', path), patch('sys.argv', ['release.py']), \
+                    patch.object(release, 'resolve', side_effect=AssertionError('upstream')), \
+                    patch('sys.stdout', new_callable=io.StringIO) as output:
+                self.assertEqual(release.main(), 0)
+                self.assertEqual(json.loads(output.getvalue()),
+                                 {'revision': 'a' * 40, 'release': 'build-150', 'channel': 'release'})
+
+    def test_broken_bundled_record_never_falls_forward_to_latest(self):
+        with patch.object(release, 'BUNDLED', pathlib.Path('/nonexistent/record')), \
+                patch('sys.argv', ['release.py']), patch.object(release, 'resolve') as latest, \
+                patch('sys.stderr', new_callable=io.StringIO) as error:
+            self.assertEqual(release.main(), 1)
+            latest.assert_not_called()
+            self.assertIn('no upstream release was substituted', error.getvalue())
+
     def test_record_replays_exact_commit_without_network_or_git(self):
         with tempfile.TemporaryDirectory() as folder:
             path = pathlib.Path(folder) / 'record.json'

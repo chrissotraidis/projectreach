@@ -115,7 +115,7 @@ if [ "$RENDERER" = angle-metal ]; then
             -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECTURES=arm64 \
             -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release
     fi
-    cmake --build "$ANGLE_BUILD" --parallel 12
+    cmake --build "$ANGLE_BUILD" --parallel "${HALOPAD_BUILD_JOBS:-12}"
     ANGLE_LIB="$ANGLE_BUILD/libhalopad-angle.a"
     ANGLE_FLAGS="-DXG_USE_ANGLE=1 -I$XBOX_ANGLE_SOURCE/include"
     [ "$COUNTED" != ON ] || ANGLE_FLAGS="$ANGLE_FLAGS -DXG_COUNTED_VISIBILITY=1"

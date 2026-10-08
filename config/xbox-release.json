@@ -1,0 +1,5 @@
+{
+  "revision": "d0b9049e2de2be55864bf77dc4f54a9b65ef9d78",
+  "release": "build-150",
+  "note": "Engine snapshot for this HaloPad source release. Mac and iOS packages built and audited; gameplay and consumer upgrade acceptance remain open. Moving upstream releases do not change this record."
+}

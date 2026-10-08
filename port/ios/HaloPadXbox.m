@@ -614,29 +614,34 @@ static NSString *const HPProjectURL = @"https://github.com/chrissotraidis/projec
 	BOOL choosing;
 }
 
-/* Online players must share OpenCE's network version, not necessarily its build.
-   Report optional releases separately from incompatible multiplayer versions. */
-static void xbox_check_upstream(NSDictionary *build, void (^notice)(NSString *message))
+/* A new upstream commit is not a new HaloPad release. Source-only releases
+   have no manifest and must never send a player to a nonexistent app download. */
+static void halopad_check_release(void (^notice)(NSString *message))
 {
-	NSString *repo = @"OpenCommunityEdition/OpenCE";
-	NSURL *latest = [NSURL URLWithString:[NSString stringWithFormat:@"https://api.github.com/repos/%@/releases/latest", repo]];
-	NSURLRequest *request = [NSURLRequest requestWithURL:latest cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
-	[[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
-		if (e || ![r isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)r).statusCode != 200) return;
-		NSDictionary *release = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-		NSString *tag = [release isKindOfClass:NSDictionary.class] ? release[@"tag_name"] : nil;
-		if (!HPXboxReleaseTag(tag)) return;
-		NSURL *limits = [NSURL URLWithString:[NSString stringWithFormat:
-			@"https://raw.githubusercontent.com/%@/%@/port/linux/include/halo_port_limits.h", repo, tag]];
-		NSURLRequest *headerRequest = [NSURLRequest requestWithURL:limits cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
-		[[NSURLSession.sharedSession dataTaskWithRequest:headerRequest completionHandler:^(NSData *header, NSURLResponse *r2, NSError *e2) {
-			BOOL ok = !e2 && [r2 isKindOfClass:NSHTTPURLResponse.class] && ((NSHTTPURLResponse *)r2).statusCode == 200;
-			NSString *text = ok && header ? [[NSString alloc] initWithData:header encoding:NSUTF8StringEncoding] : nil;
-			NSString *message = HPXboxUpdateNotice(build, tag, HPXboxNetworkVersion(text));
-			if (!message) return;
-			dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
-		}] resume];
-	}] resume];
+    NSURL *latest = [NSURL URLWithString:@"https://api.github.com/repos/chrissotraidis/projectreach/releases/latest"];
+    NSURLRequest *request = [NSURLRequest requestWithURL:latest cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
+    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
+        if (e || ![r isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)r).statusCode != 200 || data.length > 1024 * 1024) return;
+        NSDictionary *release = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
+        NSString *url = HPHaloPadManifestURL(release);
+        if (!url) return;
+        NSURLRequest *metadata = [NSURLRequest requestWithURL:[NSURL URLWithString:url] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
+        [[NSURLSession.sharedSession dataTaskWithRequest:metadata completionHandler:^(NSData *body, NSURLResponse *r2, NSError *e2) {
+            if (e2 || ![r2 isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)r2).statusCode != 200 || body.length > 64 * 1024) return;
+            NSDictionary *manifest = body ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+            NSDictionary *info = NSBundle.mainBundle.infoDictionary;
+            NSOperatingSystemVersion os = NSProcessInfo.processInfo.operatingSystemVersion;
+            NSString *osVersion = [NSString stringWithFormat:@"%ld.%ld.%ld", (long)os.majorVersion, (long)os.minorVersion, (long)os.patchVersion];
+            NSString *message = HPHaloPadUpdateNotice(manifest, info[@"CFBundleShortVersionString"], info[@"CFBundleVersion"],
+#if TARGET_OS_MACCATALYST
+                @"mac", osVersion
+#else
+                @"ios", osVersion
+#endif
+            );
+            if (message) dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
+        }] resume];
+    }] resume];
 }
 
 static UILabel *chooser_label(NSString *text, UIFontTextStyle style, UIFontWeight weight, UIColor *color)
@@ -855,7 +860,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	heading.spacing = 6;
 	[heading setCustomSpacing:26 afterView:brand];
 	footer = [[UIStackView alloc] initWithArrangedSubviews:@[
-		[self footerButton:@"Update Xbox…" symbol:@"arrow.triangle.2.circlepath" identifier:@"engine.update" action:@selector(showUpdate)],
+		[self footerButton:@"Updates…" symbol:@"arrow.triangle.2.circlepath" identifier:@"engine.update" action:@selector(showUpdate)],
 		[self footerButton:@"About These Builds" symbol:@"info.circle" identifier:@"engine.builds" action:@selector(showBuilds)],
 		[self footerButton:@"Project Reach on GitHub" symbol:@"arrow.up.right.square" identifier:@"engine.github" action:@selector(openProject)],
 		[UIView new],
@@ -878,7 +883,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	notice.hidden = YES;
 	__weak UILabel *weak_update = update;
 	__weak UIView *weak_notice = notice;
-	xbox_check_upstream(build, ^(NSString *message) { weak_update.text = message; weak_notice.hidden = NO; });
+	halopad_check_release(^(NSString *message) { weak_update.text = message; weak_notice.hidden = NO; });
 	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, notice, footer ]];
 	stack.axis = UILayoutConstraintAxisVertical;
 	stack.spacing = 24;
@@ -958,8 +963,11 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 
 - (void)showUpdate
 {
-	NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\nOn your Mac, open PadMint, select HaloPad and the same platform, then select %@. PadMint builds the latest Xbox release. Combined builds reuse verified Custom Edition work.\n\nInstall over the existing app with the same signing identity. Keep your imported files and profiles; do not delete HaloPad. Xbox checkpoints may need a level restart after an engine update.\n\nIf the update fails, keep playing your installed build and report the build log.", xbox_release(xbox_build()), self.makePC ? @"your original PC installer with product-key.txt beside it" : @"your Xbox ISO or XISO (no PC installer or product key needed)"];
-	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Update Xbox with PadMint" message:message preferredStyle:UIAlertControllerStyleAlert];
+    NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\nHaloPad releases include a fixed Xbox engine. New OpenCE builds do not expire your game. Multiplayer peers need compatible engine versions; newer upstream hosts may require a newer HaloPad release.\n\nFor a published app update, use your installation client's Update action or get the new HaloPad app from Releases. Install over the existing app with the same signing identity; do not delete HaloPad. Your imported disc and profiles stay, though an engine change may require restarting a level.\n\nIf you build with PadMint, updating the HaloPad recipe selects that release's engine. Experimental upstream builds are a separate command-line option.", xbox_release(xbox_build())];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"HaloPad Updates" message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"HaloPad Releases" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"/releases"]] options:@{} completionHandler:nil];
+    }]];
 	[alert addAction:[UIAlertAction actionWithTitle:@"Update Guide" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
 		[UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"#updating-halopad"]] options:@{} completionHandler:nil];
 	}]];

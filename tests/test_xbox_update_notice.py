@@ -15,24 +15,32 @@ class UpdateNoticeTests(unittest.TestCase):
 #import "HaloPadXboxUpdate.h"
 #include <assert.h>
 int main(void) { @autoreleasepool {
-    NSDictionary *build = @{@"release": @"build-125", @"network_version": @16};
-    assert(HPXboxReleaseTag(@"build-129"));
-    assert(!HPXboxReleaseTag(@"build-129/other"));
-    assert(!HPXboxReleaseTag(@42));
-    assert(HPXboxNetworkVersion(@"#define\tHALO_PORT_NETWORK_VERSION  18 // protocol\n").intValue == 18);
-    assert(!HPXboxNetworkVersion(@"// #define HALO_PORT_NETWORK_VERSION 99"));
-    assert(!HPXboxNetworkVersion(@"404: Not Found"));
-    assert(!HPXboxNetworkVersion(nil));
-    assert(!HPXboxUpdateNotice(build, @"build-125", @16));
-    assert(!HPXboxUpdateNotice(build, @"build-124", @16));
-    assert([HPXboxUpdateNotice(build, @"build-129", @18) containsString:@"different multiplayer version"]);
-    assert([HPXboxUpdateNotice(build, @"build-129", @15) containsString:@"different multiplayer version"]);
-    assert(!HPXboxUpdateNotice(build, @"build-129", @16));
-    assert(!HPXboxUpdateNotice(build, @"build-129", nil));
-    assert(!HPXboxUpdateNotice(build, @"build-invalid", @18));
-    assert(!HPXboxUpdateNotice(@{}, @"build-129", @18));
-    assert(!HPXboxUpdateNotice(@{@"release": @"build-125", @"network_version": @"bad"}, @"build-129", @18));
-    assert(!HPXboxUpdateNotice(@{@"release": @"build-147", @"network_version": @23}, @"build-148", @23));
+    NSString *url = @"https://github.com/chrissotraidis/projectreach/releases/download/v0.3.8/HaloPad.ipa";
+    NSDictionary *artifact = @{@"url":url, @"size":@100,@"minimum_os":@"17.4"};
+    NSDictionary *manifest = @{@"schema":@1,@"bundle_id":@"dev.halopad.HaloPad",@"version":@"0.3.8",@"build":@"12",@"artifacts":@{@"ios":artifact}};
+    assert(HPHaloPadUpdateNotice(manifest, @"0.3.8", @"11", @"ios", @"27.0"));
+    assert(!HPHaloPadUpdateNotice(manifest, @"0.3.8", @"11", @"ios", @"16.0"));
+    assert(HPHaloPadUpdateNotice(manifest, @"0.3.7", @"99", @"ios", @"27.0"));
+    assert(!HPHaloPadUpdateNotice(manifest, @"0.3.8", @"12", @"ios", @"27.0"));
+    assert(!HPHaloPadUpdateNotice(manifest, @"0.3.8", @"13", @"ios", @"27.0"));
+    assert(!HPHaloPadUpdateNotice(manifest, @"0.3.9", @"1", @"ios", @"27.0"));
+    assert(!HPHaloPadUpdateNotice(manifest, @"0.3.8", @"11", @"mac", @"27.0"));
+    assert(!HPHaloPadUpdateNotice(@{}, @"0.3.8", @"11", @"ios", @"27.0"));
+    for (id malformed in @[@42, @[], @{}, [NSNull null], @"", @"0.3.8\n", @"latest"]) {
+        assert(!HPHaloPadVersion(malformed));
+        NSMutableDictionary *bad = [manifest mutableCopy]; bad[@"version"] = malformed;
+        assert(!HPHaloPadUpdateNotice(bad, @"0.3.8", @"11", @"ios", @"27.0"));
+    }
+    assert(!HPHaloPadDownloadURL(@"https://evil.invalid/HaloPad.ipa"));
+    assert(!HPHaloPadDownloadURL(@"http://github.com/chrissotraidis/projectreach/releases/download/v1/app.ipa"));
+    assert(!HPHaloPadDownloadURL(@"https://github.com/chrissotraidis/projectreach/releases/download/../app.ipa"));
+    NSDictionary *release = @{@"draft":@NO,@"prerelease":@NO,@"assets":@[@{@"name":@"halopad-update.json",@"browser_download_url":url}]};
+    assert(HPHaloPadManifestURL(release));
+    assert(!HPHaloPadManifestURL(@{@"draft":@NO,@"prerelease":@NO,@"assets":@[]}));
+    NSMutableDictionary *bad = [release mutableCopy]; bad[@"draft"] = @YES;
+    assert(!HPHaloPadManifestURL(bad)); bad[@"draft"] = @{};
+    assert(!HPHaloPadManifestURL(bad));
+
 } return 0; }
 '''
         with tempfile.TemporaryDirectory() as folder:

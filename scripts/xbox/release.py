@@ -1,4 +1,4 @@
-"""Resolve one immutable OpenCE release before starting a personal build.
+"""Use HaloPad's bundled engine record; upstream latest is an explicit experiment.
 
 Failure is an update failure, never permission to silently ship an older engine.
 The reviewed pin remains an explicit offline choice (HALOPAD_XBOX_PINNED=1).
@@ -12,6 +12,7 @@ import sys
 import urllib.request
 
 LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
+BUNDLED = LOCK.with_name('xbox-release.json')
 
 
 def read_record(path):
@@ -60,13 +61,23 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     selection = parser.add_mutually_exclusive_group()
     selection.add_argument('--pinned', action='store_true')
+    selection.add_argument('--latest', action='store_true', help='experiment with the newest upstream release')
     selection.add_argument('--record', type=pathlib.Path, help='rebuild the commit in a saved xbox-release.json, without resolving latest')
     args = parser.parse_args()
     try:
-        print(json.dumps(read_record(args.record) if args.record else resolve(json.loads(LOCK.read_text()), args.pinned)))
+        if args.record:
+            selected = read_record(args.record)
+        elif args.latest or args.pinned:
+            selected = resolve(json.loads(LOCK.read_text()), args.pinned)
+        else:
+            selected = {**read_record(BUNDLED), 'channel': 'release'}
+        print(json.dumps(selected))
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         if args.record:
             print(f'Cannot read the Xbox release record: {error}. Correct the record; no other release was selected.', file=sys.stderr)
+            return 1
+        if not args.latest and not args.pinned:
+            print(f'Cannot read this HaloPad release\'s engine record: {error}. Restore config/xbox-release.json; no upstream release was substituted.', file=sys.stderr)
             return 1
         print(f'Cannot resolve the Xbox update: {error}. Retry when online. '
               'HALOPAD_XBOX_PINNED=1 explicitly builds the tested older engine instead.', file=sys.stderr)
