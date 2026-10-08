@@ -43,7 +43,7 @@ def prepare(result, out, profile, identity):
     extracted.rename(app)
     subprocess.run([sys.executable, str(candidate.ROOT / 'scripts/sign-app.py'), str(app),
                     '--profile', str(profile), '--identity', identity], check=True)
-    signature = subprocess.run(['codesign', '-dv', str(app)], check=True, capture_output=True, text=True)
+    signature = subprocess.run(['codesign', '--display', '--verbose=4', str(app)], check=True, capture_output=True, text=True)
     authorities = [s.removeprefix('Authority=') for s in signature.stderr.splitlines() if s.startswith('Authority=')]
     if not authorities:
         raise ValueError('archive needs a certificate-backed development signature')

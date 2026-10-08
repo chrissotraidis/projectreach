@@ -79,7 +79,7 @@ runs caught missing SDL3 test headers and a runner defaulting to Xcode 16.4 whil
 the picker uses an iOS 26 API. SDL3 and Xcode 26.3 are now explicit; [clean hosted run 37718404061](https://github.com/chrissotraidis/projectreach/actions/runs/37718404061)
 passed. It built and audited Mac and iOS 0.3.8/build 1003, passed all 286 tests,
 and staged the exact-archive update metadata. Its product-source tree hash matches
-the current checkout and local build 13. The report and staged metadata agree on
+local build 13 and the implementation at commit 398b884. The report and staged metadata agree on
 both archive hashes, sizes, minimum OS and network 24. Only reports were retained;
 no binary was published. These results do not establish consumer delivery.
 
@@ -116,6 +116,13 @@ requires the account holder to accept its updated Program License Agreement.
 The missing App Store profile was reported alongside that membership denial;
 do not treat it as proof that Xcode cannot create the profile after acceptance.
 No agreement was accepted by the agent. Chris has been asked to confirm it.
+
+The production exporter was exercised against newly built 0.3.8/build 14 after
+267 Xbox and 23 builder tests passed and both platform archives passed their
+checks. It prepared a certificate-signed iOS archive, preserved the source IPA's
+hash, and reached the same live Apple agreement denial. The minimal metadata fix
+removed the Mac-installer error. Export success and external delivery remain
+unproven; this result is a validated route to retry after account acceptance.
 
 After acceptance, rerun the same exporter, validate the distribution profile's
 actual memory entitlements and Apple's acceptance of the archive, and establish
