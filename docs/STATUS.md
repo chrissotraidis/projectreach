@@ -56,6 +56,15 @@ retrieved build 20 with matching receipt and GitHub archive hashes. This verifie
 private package access, not Apple signing or delivery. The temporary probe was
 removed; existing private releases were preserved.
 
+Final full run [37758513718](https://github.com/chrissotraidis/projectreach/actions/runs/37758513718)
+passed 336 Python tests, seven Fastlane tests (42 assertions), real keychain
+setup/cleanup, both build-1015/OpenCE-150 package audits and feed staging.
+Downloaded reports match the current product-source fingerprint and staged
+package identities. The later permission-only change passed the independent
+hosted download probe above; its duplicate queued build was canceled before
+starting. Automatic delivery, Apple acceptance and a consumer upgrade remain
+unverified. Both HaloPad PR #20 and companion PadMint PR #133 remain open drafts.
+
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |

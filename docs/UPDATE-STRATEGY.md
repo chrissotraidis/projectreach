@@ -81,6 +81,14 @@ report-selection job remains read-only. This prevents invisible drafts from
 causing repeated builds or failed delivery. The temporary probe workflow was
 removed after recording its result; no release was changed or published.
 
+Final source verification [37758513718](https://github.com/chrissotraidis/projectreach/actions/runs/37758513718)
+passed 336 Python tests, seven Fastlane tests (42 assertions), real keychain
+setup/cleanup, both build-1015/OpenCE-150 package audits and feed staging.
+The downloaded report matches the current product-source fingerprint and both
+staged package identities. The subsequent permission-only fix has the separate
+hosted download proof above; the queued duplicate engine build was canceled
+before any job started. These checks leave consumer delivery unverified.
+
 Delivery remains **disabled** while `HALOPAD_TESTFLIGHT_CHANNEL` is unset. It only
 runs from `main`; fork/branch build events cannot activate credentialed delivery.
 Start with an existing internal TestFlight group for the first signing/upgrade
