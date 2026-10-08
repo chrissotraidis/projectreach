@@ -79,6 +79,25 @@ runs caught missing SDL3 test headers and a runner defaulting to Xcode 16.4 whil
 the picker uses an iOS 26 API. SDL3 and Xcode 26.3 are now explicit; the next
 clean build is running. These results do not establish consumer delivery.
 
+### One-time delivery setup still required
+
+A background-only check on 2026-10-08 found no Apple Distribution identity in the
+local signing keychain, two matching HaloPad profiles that are development-only,
+and no repository Actions secrets. The existing device signer intentionally
+requires a development profile; it is not a TestFlight distribution exporter.
+The last consumer-signing attempt returned Apple's pending-agreement error; its
+resolution has not been confirmed. No account terms or signing setup was changed.
+
+Before implementing an upload job, establish an App Store Connect app record for
+the intended bundle/team, an App Store distribution profile granting the two
+shipping memory entitlements, a distribution certificate, and scoped upload
+credentials. Keep these in the release environment's secret store, never source
+or build reports. Validate the exact signed archive with Apple's service, submit
+the first external beta, and then prove a second build updates through TestFlight.
+The current hand-built bundle also needs Apple's validation of its upload/SDK
+metadata; successful ad-hoc signing does not establish that acceptance. Do not
+create a nominal uploader that cannot yet authenticate or sign a valid package.
+
 ### Complete the product loop in this order
 
 1. Prove the hosted clean build and feed staging. Keep the prior downloadable app
