@@ -4,14 +4,17 @@
 
 **2026-10-08, fixed release recipe and hosted-build work implemented. Not released.** Public HaloPad
 remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
-**0.3.8/build 14** uses OpenCE **150**, commit
-`d0b9049e2de2be55864bf77dc4f54a9b65ef9d78`, network **24**. It was produced by
+**0.3.8/build 16** uses OpenCE **154**, commit
+`544ee497b6c1da195fa4dd9363851074edc63cbb`, network **24**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
 Chris removed the local maintenance heartbeat. No public player update feed
 is live. Normal source builds now use a bundled engine record; upstream latest is
-explicitly experimental. Hosted build/feed verification passed on GitHub (run 37732244804, build 1005); no upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
-with both required memory entitlements. Build 14 passed package checks on both
+explicitly experimental. The fixed recipe remains OpenCE 150. Hosted build/feed
+verification passed on GitHub (run 37732244804, build 1005); verification of the
+subsequent portable GL helper adapter is running against both engine selections.
+No upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
+with both required memory entitlements. Build 16 passed package checks on both
 platforms; it has not been installed or gameplay-tested.
 
 The intended player-facing description is: install HaloPad, choose Xbox Halo,
@@ -24,8 +27,8 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 
 | Acceptance check | Current evidence |
 | --- | --- |
-| Reproducible candidate | Real iOS and Mac build-14 archives replay OpenCE 150, pass identity/digest/data/signature checks, and share network 24. 267 Xbox and 23 builder tests passed. Concurrent local builders share a tested cache lock. Exact-archive installer/update metadata staging passed. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
-| Hosted build | [Run 37732244804](https://github.com/chrissotraidis/projectreach/actions/runs/37732244804) built both 0.3.8/build-1005 archives with Xcode 26.3, passed all 290 tests and strict package audits, and staged matching update metadata. This verifies the current product-source fingerprint at commit cbe7135, including the iOS export metadata fix. Only reports were uploaded; consumer delivery and gameplay remain unproven. |
+| Reproducible candidate | Real iOS and Mac build-16 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 271 Xbox and 23 builder tests passed. Exact-archive update metadata staging and private development-signed xcarchive preparation passed. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
+| Hosted build | [Run 37732244804](https://github.com/chrissotraidis/projectreach/actions/runs/37732244804) built both 0.3.8/build-1005 archives with Xcode 26.3, passed all 290 tests and strict package audits, and staged matching update metadata. This verifies commit cbe7135, including the iOS export metadata fix, before the GL helper adapter. Fixed-release run 37735761338 and upstream run 37735860129 are verifying that adapter at 6ebedbd. Only reports are uploaded; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
@@ -42,6 +45,15 @@ metadata Xcode needs; the reusable `scripts/xbox/export_archive.py` prepared its
 signed archive and reached Apple's live membership check. Apple returned
 `PLA Update available` and could not obtain an App Store profile. The original IPA
 remains unchanged. No upload, account agreement acceptance or device action occurred.
+
+**Upstream maintenance, 2026-10-08:** a real hosted upstream build of OpenCE 154
+failed because it added `host_gl_read_buffer`. The build now generates guest-pointer
+bridges around new self-contained upstream GL helpers instead of requiring a copied
+Apple implementation for each addition. Existing HaloPad overrides stay in place;
+unsupported signatures and dependent/stateful helpers fail before expensive builds.
+Tests execute the generated readback wrapper, including mapping failure and buffer
+cleanup. Build 16 verifies both archives with this final implementation. This removes
+one source of routine port edits, not the need to engineer arbitrary future host APIs.
 
 **Next acceptance session:** Chris has stopped keyboard/mouse/device control until
 he explicitly resumes it. Do background code and package checks only meanwhile.

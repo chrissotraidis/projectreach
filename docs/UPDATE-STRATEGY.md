@@ -52,6 +52,9 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
 ### Implemented background-only work
 
 - Normal builds use one fixed engine record; upstream experiments are explicit.
+- New self-contained upstream GL helpers are reused through generated guest-pointer
+  bridges. Existing HaloPad overrides remain; unsupported signatures, state and
+  dependencies fail early. This avoids copying each portable helper added upstream.
 - The picker checks HaloPad's own release metadata. Source-only releases, failed
   requests, older/equal versions, missing platform assets, malformed metadata and
   unsupported OS versions produce no update prompt. Raw OpenCE bumps produce none.
@@ -86,8 +89,28 @@ no binary was published. These results do not establish consumer delivery.
 The subsequent [hosted run 37732244804](https://github.com/chrissotraidis/projectreach/actions/runs/37732244804)
 passed all 290 tests and both build-1005 package audits, including the iOS platform
 metadata fix and exporter tests. Its product-source fingerprint matches commit
-cbe7135 and the current checkout; the report and staged update metadata agree.
+cbe7135; the report and staged update metadata agree.
 The saved-account distribution export remains a separate local verification.
+
+A real upstream-mode [run 37733000100](https://github.com/chrissotraidis/projectreach/actions/runs/37733000100)
+then exposed a new OpenCE 154 import, `host_gl_read_buffer`, missing from HaloPad's
+manually maintained host helpers. `gen-host-gl-helpers.py` now extracts only missing
+self-contained upstream helper bodies and generates their guest-pointer ABI bridges
+and GL procedure resolution. It preserves existing overrides and rejects unsupported
+signatures, stateful helpers and undeclared dependencies. It does not claim arbitrary
+future host changes can be accepted automatically.
+
+Local **0.3.8/build 16**, OpenCE **154** (`544ee497b6c1da195fa4dd9363851074edc63cbb`),
+network **24**, passed **271 Xbox and 23 builder tests** and both platform archive
+audits. Tests compile and execute the new wrapper for copied bytes, pointer conversion,
+mapping failure and buffer cleanup. Its recorded product-source fingerprint matches
+the implementation committed as `6ebedbd`; it was built just before that commit.
+The fixed recipe stays at 150. Hosted [fixed-release verification](https://github.com/chrissotraidis/projectreach/actions/runs/37735761338)
+and [upstream verification](https://github.com/chrissotraidis/projectreach/actions/runs/37735860129)
+are in progress. Exact-archive update metadata staging and development-signed
+xcarchive preparation also passed for build 16, preserving the original IPA.
+This does not establish distribution signing. No new candidate has been installed
+or gameplay-tested.
 
 ### Existing Apple account path and the current delivery gate
 
