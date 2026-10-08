@@ -28,7 +28,7 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-18 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 284 Xbox and 23 builder tests passed. Both packages were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
-| Hosted build | Fixed-release run 37735761338 produced build 1007/OpenCE 150; upstream run 37735860129 produced build 1008/OpenCE 154. Each passed all 294 tests and both archive audits at 6ebedbd. Private-handoff run 37739072112 passed all 302 tests and both build-1009 archive audits at db81b9b; downloaded reports match staged archive identities. Run 37740472342 is verifying the final receipt/selection changes. Only reports were uploaded by branch runs; consumer delivery and gameplay remain unproven. |
+| Hosted build | Fixed-release run 37735761338 produced build 1007/OpenCE 150; upstream run 37735860129 produced build 1008/OpenCE 154. Each passed all 294 tests and both archive audits at 6ebedbd. Private-handoff run 37739072112 passed all 302 tests and both build-1009 archive audits at db81b9b; downloaded reports match staged archive identities. Run 37740472342 passed all 307 tests, both build-1010 archive audits and metadata staging at b323a8d; the downloaded report matches the current product-source fingerprint. Only reports were uploaded by branch runs; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
@@ -65,7 +65,7 @@ build-18 handoff adds a small receipt: a live upstream check correctly returned
 `build: false` for the already retained OpenCE 154/product-source pair. Real
 changed-engine and changed-version probes required a build. The prepared six-hour
 GitHub check remains disabled; `HALOPAD_PREVIEW_ENABLED` is unset. A fresh build-16
-distribution export still returned Apple's agreement denial.
+distribution export still returned Apple's agreement denial; the downloaded build-18 export confirmed the same live denial.
 
 Read-only USB queries reconfirmed the iPad is connected with HaloPad 0.3.8/build 10
 installed and a HaloPad process running. No process was stopped, app installed or

@@ -115,7 +115,7 @@ the same draft ID and identical archive checksum. Anonymous requests to the actu
 candidate's draft, asset API and download URL all returned 404. No public release
 or signing secret was uploaded. This change is still on PR #20; default-branch
 automation awaits integration. Hosted run 37739072112 passed; final selection/
-receipt changes are undergoing their next verification pass.
+receipt changes also passed in hosted run 37740472342.
 
 The handoff now also uploads a small `handoff.json` receipt after verifying the
 candidate archive. `check_update.py` compares the selected engine, product-source
@@ -132,7 +132,10 @@ audits and a real receipt-backed retention/retrieval. Against the live GitHub
 receipt, the exact engine/source/version skipped; a changed engine or app version
 required a build. The real upstream CLI check resolved build 154 and returned
 `build: false`. The opt-in repository variable was verified absent. Final hosted
-verification is run 37740472342; its selection job already passed.
+run 37740472342 passed the selection job, all 307 tests, both build-1010 archives
+and metadata staging. Its downloaded report matches the current product-source
+fingerprint and exact staged package identities. Distribution export from the
+downloaded build-18 archive still received Apple's live agreement denial.
 
 ### Evidence from this implementation
 
@@ -254,8 +257,7 @@ changed upstream engine reaches an already-installed iPad through the chosen
 consumer route without Chris rebuilding or editing code. The current goal must
 not be marked complete merely because CI passes.
 
-**Remaining work:** verify the private-handoff changes in hosted CI, complete
-distribution export after Apple's agreement condition changes, then validate the
+**Remaining work:** complete distribution export after Apple's agreement condition changes, then validate the
 distribution entitlements and consumer delivery. A fresh export attempt against
 build 16 still returned the agreement denial. The downloaded build-17 archive is
 prepared for signing. Device acceptance is still unproven; use commands/APIs where
