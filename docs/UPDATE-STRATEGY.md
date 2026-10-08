@@ -66,11 +66,65 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
   when source changes or the workflow is manually dispatched. Manual dispatch can
   choose the fixed release or an upstream candidate. An authenticated
   `repository_dispatch: opence-release` entry point also selects upstream, but no
-  sender is configured and it only becomes usable on the default branch. No poll
-  or schedule is installed. Staged asset URLs include the unique app build.
+  sender is configured and it only becomes usable on the default branch. A
+  six-hour GitHub release check is prepared behind `HALOPAD_PREVIEW_ENABLED=true`;
+  that opt-in is not enabled. It resolves once before allocating a Mac runner and
+  skips an exact engine/product-source pair already retained. Staged asset URLs include the unique app build.
   It needs no private
-  disc, player data or signing secret. Only build reports are uploaded at present;
-  no private executable is exposed. This is normal CI, not a restored Codex schedule.
+  disc, player data or signing secret. On the default branch, successful builds
+  retain the exact audited packages in an unpublished draft for repository writers.
+  Branch verification uploads reports only. Public binary promotion remains off.
+  This is normal CI, not a restored Codex schedule.
+
+### Retain the built package instead of rebuilding for delivery
+
+`scripts/xbox/draft_release.py` provides the private handoff from build to signing.
+It audits the candidate again, requires its exact source checkout, and stores a
+deterministic archive containing only the two packages and their candidate record.
+It verifies the uploaded bytes by downloading them. Repeated uploads of identical
+content are safe; different existing content or a published release stops the
+command without overwriting anything. The command has no publish operation.
+
+```sh
+python3 scripts/xbox/draft_release.py \
+  --candidate generated/xbox-candidates/latest-built.json \
+  --out generated/private-handoff
+
+python3 scripts/xbox/draft_release.py \
+  --download halopad-candidate-0.3.8-BUILD_NUMBER \
+  --out generated/retrieved-candidate
+```
+
+The downloaded `result.json` is accepted by `export_archive.py`; retrieval restores
+local paths, audits both actual packages and preserves every acceptance flag.
+Use a fresh output directory each time. No disc, save, provisioning profile or
+signing key is included. These are unpublished drafts, not player update sources.
+GitHub [documents draft visibility](https://docs.github.com/en/rest/releases/releases)
+as limited to users with push access. A live inert-file probe also verified
+authenticated byte retrieval and anonymous 404 responses for the draft, asset API
+and download URL, then removed the probe. The current workflow limits retention
+to the default branch because GitHub's built-in token cannot create a release
+targeting a branch's unmerged workflow changes.
+
+Real verification: **build 17/OpenCE 154**, following **279 Xbox and 23 builder
+tests**, was retained as `halopad-candidate-0.3.8-17`, downloaded to a fresh
+directory, re-audited and prepared as a development-signed xcarchive. Both original
+package hashes and all acceptance flags were preserved. A repeated upload returned
+the same draft ID and identical archive checksum. Anonymous requests to the actual
+candidate's draft, asset API and download URL all returned 404. No public release
+or signing secret was uploaded. This change is still on PR #20; default-branch
+automation awaits integration. Hosted run 37739072112 passed; final selection/
+receipt changes are undergoing their next verification pass.
+
+The handoff now also uploads a small `handoff.json` receipt after verifying the
+candidate archive. `check_update.py` compares the selected engine, product-source
+fingerprint, app version and GitHub's archive digest against that receipt. A match
+skips the Mac build. A changed engine/source/version builds a new candidate; a
+partial, malformed or mismatched handoff cannot suppress it. API access failure
+stops the check instead of starting repeated builds. Already promoted matching
+packages also count as completed work. Scheduled checks remain disabled until
+delivery is accepted and the one-time repository variable is enabled. This is a
+small hosted CI check, not the deleted Codex agent maintenance loop.
 
 ### Evidence from this implementation
 
@@ -172,11 +226,11 @@ runner. Prove the first consumer upgrade before enabling automatic promotion.
    data readback and campaign/save/resume. TestFlight approval, actual entitlement
    support and installation identity must be measured, not inferred from a local
    development install. Finish exact-artifact notices/distribution review.
-3. Once the first delivery route works, wire the **hosted preview release job** to
-   upstream release events (or a deterministic GitHub poll if upstream provides no
-   event). Resolve once, skip unchanged input, build/test, then distribute complete
+3. Once the first delivery route works, enable the prepared **hosted preview release
+   check** through its repository variable, or connect upstream release events.
+   Resolve once, skip unchanged input, build/test, then distribute complete
    accepted packages and update the feed last. This requires no daily source-pin
-   changes. It is not enabled by the current source-only CI workflow.
+   changes. The prepared check is not yet enabled; public distribution is not wired.
 4. Keep the normal release channel deliberate and reproducible. Preview can follow
    upstream for players who prioritize public-lobby compatibility. Promote stable
    releases for meaningful fixes, rather than for every upstream commit. Develop a
@@ -192,13 +246,15 @@ changed upstream engine reaches an already-installed iPad through the chosen
 consumer route without Chris rebuilding or editing code. The current goal must
 not be marked complete merely because CI passes.
 
-**Handoff after this verification pass:** both hosted engine selections passed.
-The saved-account exporter is ready; its last live response still requires Apple
-agreement acceptance. No routine source repair remains demonstrated by these runs.
-Resume with local distribution export after that account condition changes, then
-validate the distribution entitlements and consumer delivery. Device acceptance
-still waits for Chris to resume device control. Do not restart upstream builds or
-recreate a maintenance schedule while waiting for these external conditions.
+**Remaining work:** verify the private-handoff changes in hosted CI, complete
+distribution export after Apple's agreement condition changes, then validate the
+distribution entitlements and consumer delivery. A fresh export attempt against
+build 16 still returned the agreement denial. The downloaded build-17 archive is
+prepared for signing. Device acceptance waits for Chris to resume device control.
+Verify the gated upstream check and establish unattended upload authentication;
+private package retention does not establish automatic player delivery. Keep
+working through those implementation gaps without restarting upstream builds
+merely because another release appears or recreating the deleted Codex schedule.
 
 ## Earlier research and implementation snapshots
 

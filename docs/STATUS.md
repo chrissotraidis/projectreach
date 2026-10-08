@@ -4,7 +4,7 @@
 
 **2026-10-08, fixed release recipe and hosted-build work implemented. Not released.** Public HaloPad
 remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
-**0.3.8/build 16** uses OpenCE **154**, commit
+**0.3.8/build 17** uses OpenCE **154**, commit
 `544ee497b6c1da195fa4dd9363851074edc63cbb`, network **24**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
@@ -14,7 +14,7 @@ explicitly experimental. The fixed recipe remains OpenCE 150. Hosted build/feed
 verification passed on GitHub for both engine selections: build 1007/OpenCE 150
 and build 1008/OpenCE 154 use the same HaloPad product-source fingerprint.
 No upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
-with both required memory entitlements. Build 16 passed package checks on both
+with both required memory entitlements. Build 17 passed package checks on both
 platforms; it has not been installed or gameplay-tested.
 
 The intended player-facing description is: install HaloPad, choose Xbox Halo,
@@ -27,7 +27,7 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 
 | Acceptance check | Current evidence |
 | --- | --- |
-| Reproducible candidate | Real iOS and Mac build-16 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 271 Xbox and 23 builder tests passed. Exact-archive update metadata staging and private development-signed xcarchive preparation passed. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
+| Reproducible candidate | Real iOS and Mac build-17 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 279 Xbox and 23 builder tests passed. Both packages were privately retained, downloaded, re-audited and prepared as a development-signed xcarchive. A real upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
 | Hosted build | [Fixed-release run 37735761338](https://github.com/chrissotraidis/projectreach/actions/runs/37735761338) produced build 1007/OpenCE 150; [upstream run 37735860129](https://github.com/chrissotraidis/projectreach/actions/runs/37735860129) produced build 1008/OpenCE 154. Each passed all 294 tests, built/audited both platforms with Xcode 26.3 and staged matching update metadata. Independently downloaded reports match the current product-source fingerprint at 6ebedbd and their staged archive hashes, sizes, minimum OS and network 24. Only reports were uploaded; consumer delivery and gameplay remain unproven. |
 | iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
 | Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
@@ -54,6 +54,15 @@ unsupported signatures and dependent/stateful helpers fail before expensive buil
 Tests execute the generated readback wrapper, including mapping failure and buffer
 cleanup. Build 16 verifies both archives with this final implementation. This removes
 one source of routine port edits, not the need to engineer arbitrary future host APIs.
+
+**Private delivery handoff, 2026-10-08:** `draft_release.py` now retains audited
+packages in unpublished GitHub drafts, verifies remote bytes, and retrieves them
+for signing without rebuilding. Build 17 completed that real round trip. Anonymous
+access to its draft, asset API and download URL returned 404; no player feed was
+published. The workflow enables retention on the default branch after merge;
+branch builds retain reports only. Clean hosted run 37739072112 is verifying the
+change. A fresh build-16 distribution export still returned Apple's agreement
+denial. The retrieved build-17 archive is ready for the next export attempt.
 
 **Next acceptance session:** Chris has stopped keyboard/mouse/device control until
 he explicitly resumes it. Do background code and package checks only meanwhile.

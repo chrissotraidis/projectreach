@@ -14,6 +14,7 @@ import candidate
 REPO = 'chrissotraidis/projectreach'
 API = f'repos/{REPO}/releases'
 ASSET = 'HaloPad-candidate.zip'
+RECEIPT = 'handoff.json'
 PACKAGES = {'ios': 'HaloPad.ipa', 'mac': 'HaloPad-Mac.zip'}
 MEMBERS = {'candidate.json', *PACKAGES.values()}
 
@@ -90,16 +91,24 @@ def retain(result, out):
     release = check_draft(release['id'])
     if release['target_commitish'] != commit:
         raise ValueError('existing draft has a different source commit')
-    assets = release['assets']
-    if assets:
-        if len(assets) != 1 or assets[0]['name'] != ASSET or asset_bytes(assets[0]) != bundle.read_bytes():
-            raise ValueError('existing draft content differs; nothing overwritten')
-    else:
-        subprocess.run(['gh', 'release', 'upload', tag, str(bundle), '--repo', REPO], check=True)
-    release = check_draft(release['id'])
-    if (len(release['assets']) != 1 or release['assets'][0]['name'] != ASSET
-            or hashlib.sha256(asset_bytes(release['assets'][0])).hexdigest() != candidate.digest(bundle)):
-        raise ValueError('retained candidate readback differs')
+    receipt = out / RECEIPT
+    candidate.write_json(receipt, {'schema': 1, 'candidate': record, 'archive_sha256': candidate.digest(bundle)})
+    if any(a['name'] not in (ASSET, RECEIPT) for a in release['assets']):
+        raise ValueError('existing draft content differs; nothing overwritten')
+    # Upload the small receipt last, after verifying the actual archive. The
+    # upstream checker treats only this completed pair as an existing build.
+    for path in (bundle, receipt):
+        release = check_draft(release['id'])
+        assets = [a for a in release['assets'] if a['name'] == path.name]
+        if assets:
+            if len(assets) != 1 or asset_bytes(assets[0]) != path.read_bytes():
+                raise ValueError('existing draft content differs; nothing overwritten')
+        else:
+            subprocess.run(['gh', 'release', 'upload', tag, str(path), '--repo', REPO], check=True)
+        release = check_draft(release['id'])
+        assets = [a for a in release['assets'] if a['name'] == path.name]
+        if len(assets) != 1 or hashlib.sha256(asset_bytes(assets[0])).hexdigest() != candidate.digest(path):
+            raise ValueError('retained candidate readback differs')
     return {'tag': tag, 'release_id': release['id'], 'sha256': candidate.digest(bundle), 'published': False}
 
 
@@ -107,11 +116,12 @@ def retrieve(tag, out):
     if not re.fullmatch(r'halopad-candidate-[0-9.]+-[0-9]+', tag):
         raise ValueError('invalid candidate tag')
     release = find_draft(tag)
-    if release is None or len(release['assets']) != 1 or release['assets'][0]['name'] != ASSET:
+    assets = [a for a in release['assets'] if a['name'] == ASSET] if release else []
+    if (len(assets) != 1 or any(a['name'] not in (ASSET, RECEIPT) for a in release['assets'])):
         raise ValueError('no complete private candidate at this tag')
     out.mkdir(parents=True, exist_ok=False)
     bundle = out / ASSET
-    bundle.write_bytes(asset_bytes(release['assets'][0]))
+    bundle.write_bytes(asset_bytes(assets[0]))
     with zipfile.ZipFile(bundle) as archive:
         if set(archive.namelist()) != MEMBERS or len(archive.namelist()) != len(MEMBERS):
             raise ValueError('unexpected or duplicate candidate archive members')

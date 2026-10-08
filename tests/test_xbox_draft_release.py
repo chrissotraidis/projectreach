@@ -28,9 +28,10 @@ class DraftReleaseTests(unittest.TestCase):
                 'size':path.stat().st_size,'network_version':24,'minimum_os':'17.4'}
         self.release = None
         self.remote = None
+        self.receipt = None
         self.calls = []
         p=patch.object(draft,'api',side_effect=self.api);p.start();self.addCleanup(p.stop)
-        p=patch.object(draft,'asset_bytes',side_effect=lambda asset:self.remote);p.start();self.addCleanup(p.stop)
+        p=patch.object(draft,'asset_bytes',side_effect=lambda asset:self.remote if asset['name']==draft.ASSET else self.receipt);p.start();self.addCleanup(p.stop)
         p=patch.object(draft.subprocess,'run',side_effect=self.upload);p.start();self.addCleanup(p.stop)
         p=patch.object(draft.candidate,'source_identity',return_value=self.result['source']);p.start();self.addCleanup(p.stop)
         p=patch.object(draft.candidate,'audit',side_effect=lambda path,platform,*args: self.result['artifacts'][platform]);p.start();self.addCleanup(p.stop)
@@ -46,8 +47,10 @@ class DraftReleaseTests(unittest.TestCase):
     def upload(self,args,**kwargs):
         self.assertEqual(args[:3],['gh','release','upload'])
         self.assertNotIn('--clobber',args)
-        self.remote=Path(args[4]).read_bytes()
-        self.release['assets']=[{'id':456,'name':draft.ASSET}]
+        path=Path(args[4])
+        if path.name==draft.ASSET:self.remote=path.read_bytes()
+        else:self.receipt=path.read_bytes()
+        self.release['assets'].append({'id':456 if path.name==draft.ASSET else 457,'name':path.name})
 
     def retain(self,name='retain'):
         return draft.retain(self.result,self.root/name)

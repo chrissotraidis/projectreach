@@ -46,7 +46,7 @@ def write_json(path, value):
     os.replace(temp, path)
 
 
-def source_identity():
+def product_digest():
     # Include uncommitted source edits; ignored private inputs/output are excluded.
     names = subprocess.check_output(['git', 'ls-files', '-z', '--cached', '--others', '--exclude-standard'], cwd=ROOT)
     result = hashlib.sha256()
@@ -57,8 +57,12 @@ def source_identity():
         result.update(name + b'\0')
         result.update(path.read_bytes() if path.is_file() else b'<absent>')
         result.update(b'\0')
+    return result.hexdigest()
+
+
+def source_identity():
     return {'commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(),
-            'tree_sha256': result.hexdigest(),
+            'tree_sha256': product_digest(),
             'xcode': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
             'guest_compiler': subprocess.check_output([str(Path(os.environ.get('XBOX_LLVM_BIN', '/opt/homebrew/opt/llvm/bin')) / 'clang'), '--version'], text=True).strip()}
 
