@@ -45,6 +45,10 @@ metadata Xcode needs; the reusable `scripts/xbox/export_archive.py` prepared its
 signed archive and reached Apple's live membership check. Apple returned
 `PLA Update available` and could not obtain an App Store profile. The original IPA
 remains unchanged. No upload, account agreement acceptance or device action occurred.
+The exporter now also validates the final exported IPA's identity, signature,
+App Store profile and both memory entitlements. Six focused tests passed; a real
+development-signed build-18 IPA was correctly rejected as a distribution result.
+A successful App Store export remains unproven behind the same agreement response.
 
 **Upstream maintenance, 2026-10-08:** a real hosted upstream build of OpenCE 154
 failed because it added `host_gl_read_buffer`. The build now generates guest-pointer

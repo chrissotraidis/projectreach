@@ -86,7 +86,7 @@ def command(argv, log):
             raise
 
 
-def audit(path, platform, selected, version, build):
+def audit(path, platform, selected, version, build, *, allow_profile=False):
     """Inspect the delivered archive, not a possibly different build directory."""
     mac = platform == 'mac'
     bundle = 'HaloPad.app' if mac else 'Payload/HaloPad.app'
@@ -102,7 +102,7 @@ def audit(path, platform, selected, version, build):
                 raise ValueError('unsafe archive path')
             if stat.S_ISLNK(item.external_attr >> 16):
                 raise ValueError('unexpected archive symlink')
-        if any(name.endswith('embedded.mobileprovision') for name in names):
+        if not allow_profile and any(name.endswith('embedded.mobileprovision') for name in names):
             raise ValueError('private provisioning profile in candidate')
         info = plistlib.loads(archive.read(plist))
         if (info.get('CFBundleIdentifier') != 'dev.halopad.HaloPad'

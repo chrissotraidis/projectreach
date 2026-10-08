@@ -200,6 +200,21 @@ profile, signs a private copy, writes an xcarchive and asks Xcode for a **local*
 App Store Connect export. It never uploads or submits a build and leaves the
 original IPA and device data unchanged. Use a fresh ignored output directory:
 
+After a successful export, the command now audits the actual exported IPA again,
+checks an Apple-rooted signature and the embedded profile's exact App ID, team,
+expiry and App Store markers, and requires both memory capabilities in the profile
+and the signed entitlements. A development/ad-hoc/enterprise profile cannot pass
+as a consumer-distribution result. It writes `export-proof.json` for the exact
+exported bytes with upload, Apple acceptance and consumer-upgrade flags still false.
+This follows Apple's distinction between [profile permissions](https://developer.apple.com/documentation/technotes/tn3125-inside-code-signing-provisioning-profiles)
+and the [App Store beta entitlement](https://developer.apple.com/library/archive/qa/qa1830/_index.html).
+
+Six focused tests cover the post-export checks, and a real build-18 development
+IPA passed archive/Apple-root signature verification before being rejected for
+its development profile; no success proof was written. A real App Store-signed
+positive result still requires the Apple agreement gate to clear. No new runtime
+candidate was rebuilt solely to add these export checks.
+
 ```sh
 python3 scripts/xbox/export_archive.py \
   --candidate generated/xbox-candidates/latest-built.json \

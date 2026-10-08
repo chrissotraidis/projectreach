@@ -12,10 +12,11 @@ from pathlib import Path
 import plistlib
 import subprocess
 import sys
+import tempfile
 import zipfile
 
 import candidate
-from device_profile import check
+from device_profile import check, decode, REQUIRED
 
 spec = importlib.util.spec_from_file_location('extract_ipa', candidate.ROOT / 'scripts/extract-ipa.py')
 extract_ipa = importlib.util.module_from_spec(spec)
@@ -63,6 +64,54 @@ def prepare(result, out, profile, identity):
     return archive, options
 
 
+def validate_distribution(profile, entitlements, team, now=None):
+    """Check exported profile/capabilities; this does not claim Apple acceptance."""
+    granted = profile.get('Entitlements', {})
+    app_id = f'{team}.dev.halopad.HaloPad'
+    if (profile.get('TeamIdentifier') != [team]
+            or granted.get('application-identifier') != app_id
+            or granted.get('com.apple.developer.team-identifier') != team
+            or entitlements.get('application-identifier') != app_id
+            or entitlements.get('com.apple.developer.team-identifier') != team):
+        raise ValueError('distribution profile/signature App ID or team differs')
+    if (profile.get('ProvisionedDevices') or profile.get('ProvisionsAllDevices')
+            or granted.get('get-task-allow') is not False
+            or granted.get('beta-reports-active') is not True
+            or entitlements.get('beta-reports-active') is not True
+            or entitlements.get('get-task-allow', False) is not False):
+        raise ValueError('export must use an App Store profile, not development, ad hoc or enterprise')
+    expiry = profile.get('ExpirationDate')
+    if not isinstance(expiry, datetime.datetime) or expiry <= (now or datetime.datetime.now(datetime.timezone.utc)).replace(tzinfo=None):
+        raise ValueError('distribution profile is expired or has no expiration date')
+    for key in REQUIRED:
+        if granted.get(key) is not True or entitlements.get(key) is not True:
+            raise ValueError(f'distribution profile and signature must both retain {key}')
+
+
+def verify_export(result, directory, team):
+    ipas = list(directory.glob('*.ipa'))
+    if len(ipas) != 1:
+        raise ValueError('expected exactly one exported IPA')
+    ipa = ipas[0]
+    checked = candidate.audit(ipa, 'ios', result['engine'], result['version'], result['build'], allow_profile=True)
+    with tempfile.TemporaryDirectory(prefix='halopad-export-check-') as folder:
+        app = extract_ipa.extract(ipa, Path(folder) / 'input')
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', '-R=anchor apple generic', str(app)],
+                       check=True, capture_output=True)
+        entitlements = plistlib.loads(subprocess.check_output(
+            ['codesign', '--display', '--entitlements', ':-', str(app)], stderr=subprocess.DEVNULL))
+        profile = decode(app / 'embedded.mobileprovision')
+        validate_distribution(profile, entitlements, team)
+    if candidate.digest(ipa) != checked['sha256']:
+        raise ValueError('exported IPA changed during verification')
+    proof = {'artifact': checked, 'team': team, 'profile_uuid': profile.get('UUID'),
+             'profile_expires': profile['ExpirationDate'].isoformat(),
+             'memory_entitlements': list(REQUIRED), 'uploaded': False,
+             'apple_acceptance': False, 'consumer_upgrade': False}
+    candidate.write_json(directory / 'export-proof.json', proof)
+    return proof
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--candidate', required=True, type=Path)
@@ -80,6 +129,8 @@ def main():
             subprocess.run(['xcodebuild', '-exportArchive', '-archivePath', str(archive),
                             '-exportPath', str(out / 'export'), '-exportOptionsPlist', str(options),
                             '-allowProvisioningUpdates'], check=True)
+            verify_export(json.loads(args.candidate.read_text()), out / 'export',
+                          plistlib.loads(options.read_bytes())['teamID'])
     except (OSError, ValueError, KeyError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
         parser.exit(1, f'Archive/export stopped: {error}\n')
     print(f'Prepared in {out}; nothing uploaded or submitted.')
