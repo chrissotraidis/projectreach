@@ -28,6 +28,10 @@
 # alone. Never share or upload it.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+# Scheduled and manual builds must not rewrite the shared engine concurrently.
+if ! python3 "$ROOT/scripts/xbox/build_lock.py" --check; then
+    exec python3 "$ROOT/scripts/xbox/build_lock.py" -- /bin/bash "$0" "$@"
+fi
 cd "$ROOT"
 PY=.venv/bin/python
 export HALOPAD_BUILDER=1                              # steps leave tracked repository files unchanged

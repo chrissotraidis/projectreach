@@ -8,8 +8,10 @@ remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
 `ff47e47ad6f54bc533cee2a0fe57232c8f63d614`, network **23**. It was produced by
 `scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
 platforms, skips unchanged work and retains previous packages on failure.
-No scheduler or player update feed is live. The physical iPad still has private
-build 5/OpenCE 144/network 21; build 10 has not been installed on it.
+A six-hour local candidate-check heartbeat is active; no public player update feed
+is live. The physical iPad has private build 10/OpenCE 148/network 23, installed
+with both required memory entitlements. A new candidate cycle has resolved OpenCE
+150; its build and acceptance results must be checked separately.
 
 The intended player-facing description is: install HaloPad, choose Xbox Halo,
 import your own Xbox disc once, and play with touch controls or a controller.
@@ -22,25 +24,26 @@ not a feature in this candidate; ordinary consumer signing is still unproven.
 | Acceptance check | Current evidence |
 | --- | --- |
 | Reproducible candidate | Real iOS and Mac build-10 archives replay OpenCE 148, pass identity/digest/data/signature checks, and share network 23. 253 Xbox and 21 builder tests passed. Repeat invocation skips unchanged work; concurrent runner and invalid-record checks preserve the previous result. |
-| iPad upgrade and picker | Main app upgraded in place from engine 138 to diagnostic 0.3.8/build 5, engine 144. Picker and Play Xbox observed; existing maps remain ready. |
-| Player data preservation | Before installation, two independent Documents/Library reads matched 516 files (8,291,058,624 bytes). After installation and before launch, all 119 checked save/profile/preference files matched. OS-managed SplashBoard snapshots changed and are explicitly excluded; this is not proof that old checkpoints resume. |
+| iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
+| Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
 | Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
 | Increased Memory Limit only | Build 5's actual signature requests Increased Memory Limit, without Extended Virtual Addressing. Opening cinematics progressed farther with zero GL errors in the captured segment. Shared-iPad testing interrupted the run; campaign/save acceptance remains open. Paid development signing was used. |
 | New Mac candidate | Build 10 picker and Halo main menu observed in an isolated test container with independent map copies. Captured render interval: zero GL errors. Campaign/multiplayer not accepted. Same-protocol releases no longer trigger picker update warnings. |
 | Earlier Mac host | Fresh disc import, profile creation and a one-player Battle Creek/Slayer LAN lobby observed on engine 144. Two isolated same-Mac peers did not discover/join in the bounded test. A completed match remains unverified; a real Mac–iPad test is still required. |
-| Themed picker | Private Mac build 7 implements the selected two-card layout over original space artwork. Wide/narrow visual checks, setup/back navigation, graphics selection and informational dialogs passed. Five packaging/minimum-OS tests passed. New picker not installed on the physical iPad. See `design-qa.md`. |
+| Themed picker | Private Mac build 7 implements the selected two-card layout over original space artwork. Wide/narrow visual checks, setup/back navigation, graphics selection and informational dialogs passed. Five packaging/minimum-OS tests passed. Build 10 now displays the themed picker on the physical iPad. See `design-qa.md`. |
 | Distribution | Private IPA passes strict signature/archive checks. Sixteen component notice files collected; compiled-in asset provenance, complete transitive notices and exact-artifact publication decision remain open. Mac notarization is untested. |
 
-**Next acceptance session:** give the physical iPad exclusive test time, finish
-campaign/save/resume on build 5, then run a real matching-version Mac–iPad match.
-A build-6 comparison with both memory entitlements is signed and retained but has
-not been installed. Preserve new test saves before any replacement. Apple refused
-new provisioning profiles pending the account holder's updated Program License
-Agreement; the existing development profile allowed the private comparison above.
-The selected consumer signing account and its actual supported entitlements still
-need confirmation and an end-to-end installation/upgrade test.
+**Next acceptance session:** Chris has stopped keyboard/mouse/device control until
+he explicitly resumes it. Do background code and package checks only meanwhile.
+After resumption, finish campaign/save/resume and a matching Mac-iPad match.
+AltStore 2.3 accepted the private source and recognized build 10, but new signing
+failed with `Apple.APIError 403: PLA Update available`. The signed-in account is
+Developer; a paid account does not bypass the pending Program License Agreement.
+Chris was asked to accept that agreement. Consumer install/upgrade and its actual
+entitlements remain unverified; the successful development-profile install above
+is separate evidence.
 
-Private evidence: `generated/update-loop-20261008/`, `generated/xbox-candidates/`, and `generated/release-acceptance-20261007/`, including backup/readback
+Private evidence: `generated/device-update-20261008/`, `generated/update-loop-20261008/`, `generated/xbox-candidates/`, and `generated/release-acceptance-20261007/`, including backup/readback
 audits, the build-4 crash report, build-5 signature and campaign logs, and Mac
 artifact audit. The release plan and exact private IPA identity are in
 [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md). Shipping entitlement requirements remain

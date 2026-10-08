@@ -1,6 +1,6 @@
 # HaloPad updates without daily maintainer work
 
-Research and implementation snapshot: 2026-10-08. Private candidate loop implemented and exercised; no shipped updater or scheduled publisher.
+Research and implementation snapshot: 2026-10-08. Private candidate loop and six-hour local scheduled checks implemented; no shipped updater or scheduled publisher.
 
 ## Decision
 
@@ -206,12 +206,21 @@ publication/provenance audit. Private artifacts remain under ignored `generated/
 
 Successful metadata is atomically written to `latest-built.json` only after both
 packages pass. Failure leaves that pointer and previous packages intact. Retrying
-allocates a new build number/directory. Runner instances share a lock, including
-child build processes; tests time out after ten minutes and builds after four
-hours. Do not run direct manual engine builds concurrently in this checkout:
-those entry points still share the same engine cache and do not use this lock.
-Use a dedicated worker before scheduling. The runner is a single invocation;
-no recurring scheduler has been installed by this change.
+allocates a new build number/directory. Candidate and manual builder/prepare/platform entry points now share an inherited
+lock over the engine cache. A competing build stops before changing it; nested
+build stages retain the same lock. Tests time out after ten minutes and builds
+after four hours. The local Codex heartbeat `halopad-opence-update-loop` is active
+every six hours in this chat, running the command above. Keep the computer on
+and the app running for local scheduled work. Unchanged results stay quiet; new
+candidates and actionable failures are reported. This schedules candidate builds,
+not publication or a player-facing updater.
+
+Validation: 257 Xbox tests and 21 builder tests passed under the candidate lock.
+Four lock tests exercise real nested/competing processes, stale inherited state
+and child failure. During a real OpenCE 150 build, both another candidate runner
+and the direct device builder were refused, with the counter and previous
+candidate pointer unchanged. The temporary private LAN feed server was stopped
+after the account-blocked AltStore test; its files remain available locally.
 
 The real first attempt stopped on macOS AppleDouble metadata files. Mac packaging
 now omits resource forks/extended attributes, and archive verification succeeded
@@ -226,8 +235,28 @@ render interval had zero GL errors. This is not campaign or multiplayer acceptan
 `latest-built.json` explicitly records gameplay, consumer-upgrade and publication
 acceptance as false. It is **not** an AltStore source or a player-facing feed.
 Do not expose it as one. The next step remains a proven AltStore in-place upgrade,
-then promotion of the exact accepted package. AltStore 2.3 is present on the test
-iPad; the account type and exclusive device test window remain unanswered.
+then promotion of the exact accepted package.
+
+On 2026-10-08, AltStore 2.3 on the physical M2 iPad accepted a private LAN source
+and displayed the 21.9 MB 0.3.8/build-10 test app and permissions. Its signed-in
+account is Developer, also confirmed by Chris. Installation reached Apple but
+failed with `Apple.APIError 403: Unable to process request - PLA Update available`.
+Chris must accept the updated Apple Developer Program License Agreement before
+new consumer signing can proceed. The source was not publicly hosted and no
+AltStore installation or upgrade is claimed.
+
+The existing valid paid development profile did allow an in-place main-app
+upgrade from build 5 to build 10 with both shipping memory entitlements. Two
+independent pre-install reads matched 608 files / 9,962,453,249 bytes. A complete
+post-install read found no changed retained files and only four replaced
+OS-managed SplashBoard snapshots. The themed picker showed existing maps ready;
+Play Xbox started the engine and menu rendering. Campaign, save/resume and a
+matching Mac-iPad session remain unverified.
+
+Chris subsequently prohibited keyboard/mouse/device control until he explicitly
+resumes it. The scheduled prompt records that restriction. Continue background
+code/package work only; do not resume device interaction merely because it is
+connected. Evidence is in `generated/device-update-20261008/`.
 Private evidence: `generated/update-loop-20261008/` and
 `generated/xbox-candidates/runs/10-build-148/`.
 

@@ -6,7 +6,6 @@ feed promotion or gameplay-acceptance claim. All packages remain private.
 """
 import argparse
 import datetime
-import fcntl
 import hashlib
 import json
 import os
@@ -20,6 +19,7 @@ import tempfile
 import zipfile
 
 import release
+import build_lock
 
 ROOT = Path(__file__).resolve().parents[2]
 LOCK_FD = None
@@ -212,18 +212,16 @@ def main():
         if not out.is_relative_to(ROOT / 'generated'):
             raise ValueError('--out must be under ignored generated/; candidate packages are private')
         out.mkdir(parents=True, exist_ok=True)
-        # Serialize runner instances even when they use different output folders.
-        # Direct manual builds also use the engine cache; do not run those concurrently.
-        with (ROOT / 'generated/.xbox-candidate.lock').open('a') as lock:
-            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            LOCK_FD = lock.fileno()
+        # Manual builders and scheduled candidates share this inherited lock.
+        with build_lock.acquire() as fd:
+            LOCK_FD = fd
             try:
                 result = iterate(out, args.app_version, args.first_build, args.record, args.retry_failed)
             finally:
                 LOCK_FD = None
         print(json.dumps(result, indent=2))
         return 0 if result['status'] == 'built-awaiting-acceptance' else 1
-    except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.SubprocessError) as error:
+    except (OSError, RuntimeError, ValueError, KeyError, zipfile.BadZipFile, subprocess.SubprocessError) as error:
         print(f'Candidate cycle stopped: {error}. Previous built packages are retained.', file=sys.stderr)
         return 1
 

@@ -10,6 +10,10 @@
 #   out/                  the guest image, its translation and the program
 set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+# Scheduled and manual builds must not rewrite the shared engine concurrently.
+if ! python3 "$ROOT/scripts/xbox/build_lock.py" --check; then
+    exec python3 "$ROOT/scripts/xbox/build_lock.py" -- /bin/sh "$0" "$@"
+fi
 WORK="$ROOT/ref/xbox-build"
 LLVM=${XBOX_LLVM_BIN:-/opt/homebrew/opt/llvm/bin}
 LOCK="$ROOT/config/xbox-engine.lock.json"

@@ -15,6 +15,7 @@ SDK=iphonesimulator
 LAUNCH=""
 IDENTITY="-"
 PROFILE=""
+parse_options() {
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--device) TARGET=arm64-apple-ios17.4; SDK=iphoneos ;;
@@ -26,9 +27,15 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
+}
+parse_options "$@"
 if [ -n "$LAUNCH" ] && [ "$SDK" != iphonesimulator ]; then
     echo "--launch is Simulator-only; device builds are not installed by this script" >&2
     exit 2
+fi
+# Scheduled and manual builds must not rewrite the shared engine concurrently.
+if ! python3 "$ROOT/scripts/xbox/build_lock.py" --check; then
+    exec python3 "$ROOT/scripts/xbox/build_lock.py" -- /bin/sh "$0" "$@"
 fi
 XSDK=$SDK                                         # xcrun's SDK; Mac Catalyst builds with the macOS SDK and UIKit
 CATALYST=""

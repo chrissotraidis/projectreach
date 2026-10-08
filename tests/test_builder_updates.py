@@ -23,6 +23,7 @@ class BuilderUpdateTests(unittest.TestCase):
             hashlib.sha256(b'fixture').hexdigest()).replace('/opt/homebrew/opt/llvm/bin/clang', 'clang')
         self.write('scripts/builder/build.sh', source)
         self.write('scripts/app_version.py', (ROOT / 'scripts/app_version.py').read_text())
+        self.write('scripts/xbox/build_lock.py', (ROOT / 'scripts/xbox/build_lock.py').read_text())
         self.write('input/HaloCESetup.exe', 'fixture')
         self.write('input/product-key.txt', 'inert fixture')
         self.write('ref/inputs/custom-original/haloce.exe', 'fixture')
