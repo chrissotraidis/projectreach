@@ -22,11 +22,8 @@ static NSString *HPXboxUpdateNotice(NSDictionary *build, NSString *tag, NSNumber
     NSNumber *mine = build[@"network_version"];
     NSString *version = [tag stringByReplacingOccurrencesOfString:@"build-" withString:@"build "];
     if ([mine isKindOfClass:NSNumber.class] && network && mine.integerValue != network.integerValue)
-        return [NSString stringWithFormat:@"OpenCE %@ uses a different multiplayer version. Update Xbox to play with players on that version. Your current build remains available.", version];
-    NSString *installed = build[@"release"];
-    if (HPXboxReleaseTag(installed) &&
-        [[tag substringFromIndex:6] longLongValue] > [[installed substringFromIndex:6] longLongValue])
-        return [NSString stringWithFormat:@"OpenCE %@ is available.%@ Choose Update Xbox for instructions.", version,
-            [mine isKindOfClass:NSNumber.class] && network ? @" Its multiplayer version matches yours." : @""];
+        return [NSString stringWithFormat:@"OpenCE %@ uses a different multiplayer version. To join those hosts, rebuild Xbox with PadMint. Your installed game remains available.", version];
+    /* A newer build on the same protocol is not an urgent player update.
+       Only advertise a downloadable HaloPad update once a tested app feed exists. */
     return nil;
 }

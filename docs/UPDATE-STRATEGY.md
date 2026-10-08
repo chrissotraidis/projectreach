@@ -1,6 +1,6 @@
 # HaloPad updates without daily maintainer work
 
-Research and implementation snapshot: 2026-10-07. Build foundations implemented; no shipped updater.
+Research and implementation snapshot: 2026-10-08. Private candidate loop implemented and exercised; no shipped updater or scheduled publisher.
 
 ## Decision
 
@@ -180,6 +180,58 @@ consumer signing route before relaxing requirements.
 
 ### 3. Build the smallest whole-app release pipeline
 
+**Implemented 2026-10-08:** `scripts/xbox/candidate.py` now performs one complete
+private candidate cycle. Run the same command again to pick up the newest release
+or skip unchanged successful/failed work:
+
+```sh
+python3 scripts/xbox/candidate.py --app-version 0.3.8 --first-build 9
+```
+
+`--first-build` seeds a persistent counter in `generated/xbox-candidates/`; retain
+that directory and the initial argument on this worker. A fresh worker/output
+folder must start above every previously distributed build number. Do not use
+multiple independent counters for one distributed app. The script stops at 9999
+instead of reusing a number. `--record FILE` replays an exact record; use
+`--retry-failed` deliberately after investigating an unchanged failed/interrupted
+attempt. A new upstream revision or build-relevant source/toolchain change gets a
+new attempt automatically. Documentation-only commits do not rebuild the engine.
+
+Each cycle resolves once, runs Xbox and builder tests, sequentially builds Mac and
+iOS packages, then inspects the actual archives: app version/build/platform,
+engine commit/release/protocol, guest digest, nonempty broker configuration,
+Xbox-only data inventory and strict code signature. It rejects embedded profiles,
+unsafe paths and unexpected data. These are engineering checks, not a complete
+publication/provenance audit. Private artifacts remain under ignored `generated/`.
+
+Successful metadata is atomically written to `latest-built.json` only after both
+packages pass. Failure leaves that pointer and previous packages intact. Retrying
+allocates a new build number/directory. Runner instances share a lock, including
+child build processes; tests time out after ten minutes and builds after four
+hours. Do not run direct manual engine builds concurrently in this checkout:
+those entry points still share the same engine cache and do not use this lock.
+Use a dedicated worker before scheduling. The runner is a single invocation;
+no recurring scheduler has been installed by this change.
+
+The real first attempt stopped on macOS AppleDouble metadata files. Mac packaging
+now omits resource forks/extended attributes, and archive verification succeeded
+on the extracted package. The second attempt produced private **0.3.8/build 10**,
+OpenCE **148/network 23**, for both platforms. The IPA is **21,899,393 bytes**.
+253 Xbox tests (including ten candidate-loop tests) and 21 builder tests passed.
+Real unchanged-success and unchanged-failure reruns skipped work. CLI concurrency
+and invalid-record checks preserved the counter and candidate pointer. The new Mac
+app reached the Halo menu in an isolated test container; a captured 30-second
+render interval had zero GL errors. This is not campaign or multiplayer acceptance.
+
+`latest-built.json` explicitly records gameplay, consumer-upgrade and publication
+acceptance as false. It is **not** an AltStore source or a player-facing feed.
+Do not expose it as one. The next step remains a proven AltStore in-place upgrade,
+then promotion of the exact accepted package. AltStore 2.3 is present on the test
+iPad; the account type and exclusive device test window remain unanswered.
+Private evidence: `generated/update-loop-20261008/` and
+`generated/xbox-candidates/runs/10-build-148/`.
+
+
 Use one promoted HaloPad release record for the IPA, app update notice and PadMint
 recipe. The normal path should describe the same accepted engine everywhere.
 Offer raw upstream latest only as an explicit experimental choice. This policy is
@@ -211,7 +263,7 @@ The normal builder still selects upstream latest. Once the downloadable route is
 proven, add the promoted HaloPad record/feed and make it the normal selection.
 HaloPad's current notice also checks OpenCE latest and points back to a Mac build;
 then change it to the promoted app update. Do not present an unbuilt upstream
-commit as an available HaloPad app update. No feed or scheduled workflow exists yet.
+commit as an available HaloPad app update. No feed or scheduled workflow exists yet. The native picker now suppresses notices for same-protocol upstream builds and unknown protocol metadata; known mismatches remain visible with explicit PadMint rebuild wording.
 
 Build and test exact revisions, then publish the IPA and update the installer
 feed last. Retain the prior downloadable artifact and player backups; downgrading
@@ -269,10 +321,16 @@ This experiment determines whether the extra policy mechanism earns its complexi
 
 ## Current evidence and next gate
 
+Latest private candidate: **0.3.8/build 10**, OpenCE **148/network 23**,
+commit `ff47e47ad6f54bc533cee2a0fe57232c8f63d614`. Both platform archives audited;
+Mac picker/menu smoke passed. iPad still runs the earlier build described below.
+IPA SHA-256: `4de7f741e73ecdabcef4dc871f084714a477fe8ed82c7ec4ea6cc016e055939a`.
+The candidate loop is working; consumer delivery and automatic publishing are not.
+
 OpenCE published build 145/network 22 after the 144 candidate was built. The
 picker correctly showed an incompatible-multiplayer update notice during design
 QA. Existing 144 artifacts remain reproducible evidence, not the latest network
-release. Record and validate 145 before advertising current-server compatibility.
+release. This intermediate observation is superseded by the 148 candidate above; a same-protocol real match is still required before advertising current-server compatibility.
 
 - Main iPad installation: private 0.3.8/build 5, OpenCE 144/network 21,
   Increased Memory Limit only. In-place installation, data preservation and picker

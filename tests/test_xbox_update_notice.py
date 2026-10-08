@@ -27,12 +27,12 @@ int main(void) { @autoreleasepool {
     assert(!HPXboxUpdateNotice(build, @"build-124", @16));
     assert([HPXboxUpdateNotice(build, @"build-129", @18) containsString:@"different multiplayer version"]);
     assert([HPXboxUpdateNotice(build, @"build-129", @15) containsString:@"different multiplayer version"]);
-    assert([HPXboxUpdateNotice(build, @"build-129", @16) containsString:@"matches yours"]);
-    assert(![HPXboxUpdateNotice(build, @"build-129", nil) containsString:@"matches yours"]);
+    assert(!HPXboxUpdateNotice(build, @"build-129", @16));
+    assert(!HPXboxUpdateNotice(build, @"build-129", nil));
     assert(!HPXboxUpdateNotice(build, @"build-invalid", @18));
     assert(!HPXboxUpdateNotice(@{}, @"build-129", @18));
-    assert(![HPXboxUpdateNotice(@{@"release": @"build-125", @"network_version": @"bad"}, @"build-129", @18)
-             containsString:@"matches yours"]);
+    assert(!HPXboxUpdateNotice(@{@"release": @"build-125", @"network_version": @"bad"}, @"build-129", @18));
+    assert(!HPXboxUpdateNotice(@{@"release": @"build-147", @"network_version": @23}, @"build-148", @23));
 } return 0; }
 '''
         with tempfile.TemporaryDirectory() as folder:

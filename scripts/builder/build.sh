@@ -239,7 +239,7 @@ if [ $PC = 0 ]; then
 	STAGE=$(mktemp -d "$(dirname "$IPA")/.halopad-xbox.XXXXXX")
 	trap 'rm -rf "$STAGE"' EXIT
 	if [ $MAC = 1 ]; then
-		ditto -c -k --keepParent "$APP" "$STAGE/app.zip"
+		ditto -c -k --norsrc --noextattr --keepParent "$APP" "$STAGE/app.zip"
 	else
 		mkdir "$STAGE/Payload"
 		cp -R "$APP" "$STAGE/Payload/"
@@ -280,7 +280,7 @@ trap finish_package EXIT
 mkdir -p "$IPA.data"
 if [ $MAC = 1 ]; then
 	$PY scripts/prepare-game-data.py --app-data "$APP/Contents/Resources/data" --game ref/inputs/custom-original --output "$STAGE/game.zip"
-	ditto -c -k --keepParent "$APP" "$STAGE/app.zip"
+	ditto -c -k --norsrc --noextattr --keepParent "$APP" "$STAGE/app.zip"
 else
 	$PY scripts/prepare-game-data.py --app-data "$APP/data" --game ref/inputs/custom-original --output "$STAGE/game.zip"
 	mkdir "$STAGE/Payload"
