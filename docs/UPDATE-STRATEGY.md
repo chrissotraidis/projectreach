@@ -50,6 +50,58 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
 [TestFlight review](https://developer.apple.com/help/glossary/testflight-app-review/),
 [iOS runtime protections](https://support.apple.com/guide/security/sec15bfe098e/web).
 
+### Hosted TestFlight delivery implementation
+
+`.github/workflows/halopad-testflight.yml` consumes a successful default-branch
+build's private handoff. It downloads the exact packages, checks the producing
+commit, imports scoped signing inputs into a temporary runner keychain, exports
+through Xcode with a team API key, and verifies the distribution profile and both
+memory entitlements. `scripts/xbox/testflight.py` then submits the verified IPA
+through the pinned Fastlane tool in `tools/testflight/`. No engine rebuild or
+manual pin edit is part of delivery. This workflow has no schedule and does not
+control Chris's Mac or iPad.
+
+Delivery remains **disabled** while `HALOPAD_TESTFLIGHT_CHANNEL` is unset. It only
+runs from `main`; fork/branch build events cannot activate credentialed delivery.
+Start with an existing internal TestFlight group for the first signing/upgrade
+proof. External mode selects an existing external group and submits Beta App
+Review; it does not claim approval, installation or gameplay from command success.
+The uploader waits for processing, targets the exact bundle/version/build, keeps
+previous builds, and rejects missing/ambiguous/wrong-audience groups. A previously
+uploaded build requires explicit `resume_uploaded` after inspection, so a rerun
+can finish distribution without compiling or uploading another copy.
+
+One-time setup after the account agreement is resolved:
+
+| Repository setting | Value |
+| --- | --- |
+| `HALOPAD_TESTFLIGHT_CHANNEL` variable | `internal` for acceptance; `external` only after that route is accepted. Empty disables the workflow. |
+| `HALOPAD_TESTFLIGHT_GROUPS` variable | JSON array of existing group names or IDs belonging to the chosen audience. |
+| `HALOPAD_USES_NON_EXEMPT_ENCRYPTION` variable | Reviewed `true` or `false` declaration for the actual app; the script assumes neither. |
+| `HALOPAD_SIGNING_P12_BASE64`, `HALOPAD_SIGNING_P12_PASSWORD` secrets | One exported development signing identity and its password for the archive's initial signature. |
+| `HALOPAD_PROFILE_BASE64`, `HALOPAD_SIGNING_IDENTITY` secrets | Matching HaloPad development profile with both memory entitlements, and the certificate's unique SHA-1. |
+| `HALOPAD_API_KEY_BASE64`, `HALOPAD_API_KEY_ID`, `HALOPAD_API_ISSUER` secrets | App Store Connect team API key with provisioning/cloud-signing and app-management permissions. |
+
+The App Store Connect app record for `dev.halopad.HaloPad`, group membership and
+required beta-review metadata must already exist. The workflow does not invent
+review contact details, create testers or accept legal agreements. Provisioning
+and certificate expiry remain occasional account maintenance, not daily engine
+work. Credentials are installed only on disposable GitHub-hosted runners, removed
+in an `always()` cleanup step, and excluded from uploaded receipts. Fastlane is
+not invoked against the user's personal credential directories during validation.
+
+Manual retry uses **HaloPad TestFlight delivery → Run workflow** on `main`, with
+the existing `halopad-candidate-VERSION-BUILD` tag. Set `resume_uploaded` only after
+confirming that exact version/build is already in App Store Connect. No automatic
+retry of an unchanged failed submission is configured. A failed export or upload
+preserves earlier published builds and cannot produce a successful submission
+receipt. Actual Apple processing/review and the first consumer upgrade remain
+unverified; API fixtures and CI compilation cannot close those gates.
+
+References: [Fastlane TestFlight delivery](https://docs.fastlane.tools/actions/pilot/),
+[team API keys](https://docs.fastlane.tools/app-store-connect-api/), and
+[Apple cloud signing](https://developer.apple.com/videos/play/wwdc2021/10204/).
+
 ### Implemented background-only work
 
 - Normal builds use one fixed engine record; upstream experiments are explicit.
@@ -276,7 +328,8 @@ runner. Prove the first consumer upgrade before enabling automatic promotion.
    check** through its repository variable, or connect upstream release events.
    Resolve once, skip unchanged input, build/test, then distribute complete
    accepted packages and update the feed last. This requires no daily source-pin
-   changes. The prepared check is not yet enabled; public distribution is not wired.
+   changes. The prepared check is not yet enabled. TestFlight submission is implemented
+   behind an unset delivery channel; no live consumer distribution is established.
 4. Keep the normal release channel deliberate and reproducible. Preview can follow
    upstream for players who prioritize public-lobby compatibility. Promote stable
    releases for meaningful fixes, rather than for every upstream commit. Develop a

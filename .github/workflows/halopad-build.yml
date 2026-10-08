@@ -2,7 +2,7 @@ name: HaloPad release build
 on:
   push:
     branches: [main, codex/xbox-update-flow]
-    paths: ['port/**', 'scripts/**', 'config/**', 'tests/**', 'assets/**', '.github/workflows/halopad-build.yml']
+    paths: ['port/**', 'scripts/**', 'config/**', 'tests/**', 'assets/**', 'tools/**', '.github/workflows/halopad-build.yml', '.github/workflows/halopad-testflight.yml']
   workflow_dispatch:
     inputs:
       engine:
@@ -20,6 +20,22 @@ concurrency:
   group: halopad-build-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  delivery-tests:
+    if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: tools/testflight/Gemfile
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_OPT_OUT_USAGE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8
+        with:
+          ruby-version: '3.3.9'
+          bundler-cache: true
+      - run: bundle exec ruby tools/testflight/test_delivery.rb
   select:
     # One-time opt-in stays off until a consumer delivery route is accepted.
     if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'

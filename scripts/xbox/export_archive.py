@@ -10,6 +10,7 @@ import importlib.util
 import json
 from pathlib import Path
 import plistlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -112,6 +113,26 @@ def verify_export(result, directory, team):
     return proof
 
 
+def api_auth(path=None, key_id=None, issuer=None):
+    """Use an explicit team API key on CI; never fall back after partial setup."""
+    if path is None and key_id is None and issuer is None:
+        return []
+    if (path is None or not re.fullmatch(r'[A-Z0-9]{10}', key_id or '')
+            or not re.fullmatch(r'[0-9a-fA-F]{8}-(?:[0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}', issuer or '')
+            or not Path(path).is_file()):
+        raise ValueError('provide a complete App Store Connect team API key, key ID and issuer ID')
+    return ['-authenticationKeyPath', str(Path(path).resolve()),
+            '-authenticationKeyID', key_id, '-authenticationKeyIssuerID', issuer]
+
+
+def export(result, out, profile, identity, auth=()):
+    archive, options = prepare(result, out, profile, identity)
+    subprocess.run(['xcodebuild', '-exportArchive', '-archivePath', str(archive),
+                    '-exportPath', str(out / 'export'), '-exportOptionsPlist', str(options),
+                    '-allowProvisioningUpdates', *auth], check=True)
+    return verify_export(result, out / 'export', plistlib.loads(options.read_bytes())['teamID'])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--candidate', required=True, type=Path)
@@ -119,18 +140,20 @@ def main():
     parser.add_argument('--profile', required=True, type=Path)
     parser.add_argument('--identity', required=True)
     parser.add_argument('--export', action='store_true', help='use the saved Xcode account for local distribution export')
+    parser.add_argument('--api-key-path', type=Path)
+    parser.add_argument('--api-key-id')
+    parser.add_argument('--api-issuer')
     args = parser.parse_args()
     try:
         out = args.out.resolve()
         if not out.is_relative_to(candidate.ROOT / 'generated'):
             raise ValueError('signed archives must stay under ignored generated/')
-        archive, options = prepare(json.loads(args.candidate.read_text()), out, args.profile.resolve(), args.identity)
+        auth = api_auth(args.api_key_path, args.api_key_id, args.api_issuer)
+        result = json.loads(args.candidate.read_text())
         if args.export:
-            subprocess.run(['xcodebuild', '-exportArchive', '-archivePath', str(archive),
-                            '-exportPath', str(out / 'export'), '-exportOptionsPlist', str(options),
-                            '-allowProvisioningUpdates'], check=True)
-            verify_export(json.loads(args.candidate.read_text()), out / 'export',
-                          plistlib.loads(options.read_bytes())['teamID'])
+            export(result, out, args.profile.resolve(), args.identity, auth)
+        else:
+            prepare(result, out, args.profile.resolve(), args.identity)
     except (OSError, ValueError, KeyError, subprocess.SubprocessError, zipfile.BadZipFile) as error:
         parser.exit(1, f'Archive/export stopped: {error}\n')
     print(f'Prepared in {out}; nothing uploaded or submitted.')

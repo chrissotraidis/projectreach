@@ -22,8 +22,20 @@ import your own Xbox disc once, and play with touch controls or a controller.
 This Xbox-only package does not require the Custom Edition PC installer or key.
 The picker explains that Custom Edition is not included; personal combined builds
 remain separate. The small app update preserves the data container, avoiding a
-repeat disc import. Automatic whole-app delivery is the next implementation step,
-not a feature in this candidate; ordinary consumer signing is still unproven.
+repeat disc import. Hosted TestFlight signing/submission now has an opt-in workflow;
+it is disabled, and ordinary consumer signing and automatic upgrades remain unproven.
+
+**TestFlight implementation, 2026-10-08:** the new delivery workflow retrieves the
+exact successful main-branch candidate, prepares credentials on a disposable
+runner, exports with a team API key, verifies the resulting profile/signature and
+memory capabilities, and uses pinned Fastlane to submit the exact version/build
+to an existing internal or external group. External mode requests Beta App Review;
+it does not infer approval. Configuration, export and archive failures stop before
+upload; explicit resume supports a previously uploaded build without recompilation.
+The workflow remains off until the channel and scoped credentials are configured.
+No Apple credentials were exported from this Mac, no repository secrets or variables
+were set, and no upload or review request was made. See the setup and remaining
+real-service gates in [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#hosted-testflight-delivery-implementation).
 
 | Acceptance check | Current evidence |
 | --- | --- |
