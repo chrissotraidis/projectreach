@@ -32,6 +32,7 @@ class XboxOnlyPackageTests(unittest.TestCase):
                         patch.object(builder, 'xbox_parts', return_value=['fixture-engine']), \
                         patch.object(builder, 'xbox_build_folder', return_value=engine), \
                         patch.object(builder, 'xbox_release_tag', return_value='build-132'), \
+                        patch.object(builder.xbox_notices, 'write') as notices, \
                         patch.object(builder, 'compile_icon', return_value={}), \
                         patch.object(builder.run_core, 'IMAGE', root / 'nonexistent-PC-data'), \
                         patch.object(builder, 'create_identity', side_effect=AssertionError('PC identity read')), \
@@ -39,6 +40,8 @@ class XboxOnlyPackageTests(unittest.TestCase):
                     app = builder.package(exe, root / 'out', root, target, pc=False,
                                           app_version='0.3.8', app_build='2')
                 resources = app / 'Contents/Resources' if 'macabi' in target else app
+                self.assertEqual(notices.call_args.args[2], resources / 'Notices')
+                self.assertEqual(notices.call_args.args[3], 'a' * 40)
                 info = plistlib.loads((app / ('Contents/Info.plist' if 'macabi' in target else 'Info.plist')).read_bytes())
                 self.assertEqual(info['CFBundleShortVersionString'], '0.3.8')
                 self.assertEqual(info['CFBundleVersion'], '2')

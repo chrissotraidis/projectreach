@@ -79,6 +79,16 @@ Sources: [Apple TestFlight overview](https://developer.apple.com/help/app-store-
 
 ### Retain the built package instead of rebuilding for delivery
 
+New Xbox packages also collect component notices from the selected engine,
+renderer and header inputs into `Notices/THIRD-PARTY-NOTICES.txt` and a hashed
+inventory. The collector checks the engine/renderer revisions before packaging,
+includes the referenced Chromium notice and Khronos header notices, and fails if
+a known component's notice is missing. The archive audit checks the final notice
+bytes and engine identity. Historical candidates without this inventory remain
+retrievable; every new package declares the inventory schema. This removes manual
+notice copying when the engine changes. It covers known components, not a complete
+embedded-asset provenance or redistribution-rights determination.
+
 `scripts/xbox/draft_release.py` provides the private handoff from build to signing.
 It audits the candidate again, requires its exact source checkout, and stores a
 deterministic archive containing only the two packages and their candidate record.

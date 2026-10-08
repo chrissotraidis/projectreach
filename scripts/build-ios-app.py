@@ -43,6 +43,9 @@ spec.loader.exec_module(run_core)
 spec = importlib.util.spec_from_file_location('xbox_runtime_manifest', ROOT / 'scripts/xbox/runtime_manifest.py')
 xbox_runtime_manifest = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(xbox_runtime_manifest)
+spec = importlib.util.spec_from_file_location('xbox_notices', ROOT / 'scripts/xbox/notices.py')
+xbox_notices = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(xbox_notices)
 
 TARGET = 'arm64-apple-ios17.0-simulator'
 DEVICE_TARGET = 'arm64-apple-ios17.0'
@@ -244,6 +247,16 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
         build['candidate'] = (build['revision'] != pin or build.get('renderer') == 'angle-metal'
                               or build['guest_adaptation']['name'] != 'none')
         build['release'] = xbox_release_tag(build['revision'])
+        angle = None
+        angle_revision = None
+        if build.get('renderer') == 'angle-metal':
+            angle = pathlib.Path(os.environ.get('XBOX_ANGLE_SOURCE', ROOT / 'generated/xbox-angle/WebKit/Source/ThirdParty/ANGLE'))
+            angle_revision = json.loads((ROOT / 'config/xbox-angle.lock.json').read_text())['revision']
+        xbox_notices.write(ROOT / 'ref/xbox-build/vol/engine',
+            ROOT / 'ref/xbox-build/ndk/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include',
+            res / 'Notices', build['revision'], angle=angle, angle_revision=angle_revision,
+            chromium_license=ROOT / 'assets/notices/Chromium-LICENSE.txt')
+        build['notices_schema'] = 1
         (data / 'xbox' / 'build.json').write_text(json.dumps(build, indent=2) + '\n')
     if pc:
         for m in sorted((run_core.IMAGE.parent / 'modules').iterdir()):

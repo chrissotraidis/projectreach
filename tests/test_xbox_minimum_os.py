@@ -68,6 +68,7 @@ class MinimumOSTests(unittest.TestCase):
                             patch.object(builder, 'xbox_parts', return_value=['xbox-library'] if xbox else []), \
                             patch.object(builder, 'xbox_build_folder', return_value=root / 'xbox'), \
                             patch.object(builder, 'xbox_release_tag', return_value='build-132'), \
+                            patch.object(builder.xbox_notices, 'write'), \
                             patch.object(builder, 'create_identity', return_value={}), \
                             patch.object(builder.subprocess, 'run', side_effect=run) as commands:
                         app = builder.package(exe, out, root, target)

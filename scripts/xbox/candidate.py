@@ -20,6 +20,7 @@ import zipfile
 
 import release
 import build_lock
+import notices
 
 ROOT = Path(__file__).resolve().parents[2]
 LOCK_FD = None
@@ -123,6 +124,16 @@ def audit(path, platform, selected, version, build, *, allow_profile=False):
             raise ValueError('packaged guest checksum mismatch')
         if not archive.read(data + 'xbox/brokers.txt').strip():
             raise ValueError('empty multiplayer broker configuration')
+        notice_root = resources + '/Notices/'
+        notice_names = {name for name in names if name.startswith(notice_root) and not name.endswith('/')}
+        # Historical private candidates predate bundled notices and remain retrievable.
+        # Every new package declares the schema, so stripping both files fails too.
+        if engine.get('notices_schema') is not None or notice_names:
+            if engine.get('notices_schema') != 1 or notice_names != {
+                    notice_root + 'manifest.json', notice_root + 'THIRD-PARTY-NOTICES.txt'}:
+                raise ValueError('packaged component notice inventory is incomplete')
+            notices.validate(json.loads(archive.read(notice_root + 'manifest.json')),
+                             archive.read(notice_root + 'THIRD-PARTY-NOTICES.txt'), engine['revision'])
         with tempfile.TemporaryDirectory(prefix='halopad-candidate-audit-') as folder:
             archive.extractall(folder)
             # zipfile does not restore executable permissions, which codesign needs.
