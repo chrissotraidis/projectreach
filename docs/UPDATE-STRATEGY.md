@@ -212,8 +212,11 @@ and the [App Store beta entitlement](https://developer.apple.com/library/archive
 Six focused tests cover the post-export checks, and a real build-18 development
 IPA passed archive/Apple-root signature verification before being rejected for
 its development profile; no success proof was written. A real App Store-signed
-positive result still requires the Apple agreement gate to clear. No new runtime
-candidate was rebuilt solely to add these export checks.
+positive result still requires the Apple agreement gate to clear. Hosted run
+37743259579 passed all 313 tests, both build-1011 archive audits and metadata
+staging; the downloaded report matches the current source fingerprint and exact
+staged archive identities. No new local runtime candidate was rebuilt solely to
+add these export checks.
 
 ```sh
 python3 scripts/xbox/export_archive.py \

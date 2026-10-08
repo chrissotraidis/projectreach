@@ -49,6 +49,21 @@ The exporter now also validates the final exported IPA's identity, signature,
 App Store profile and both memory entitlements. Six focused tests passed; a real
 development-signed build-18 IPA was correctly rejected as a distribution result.
 A successful App Store export remains unproven behind the same agreement response.
+Hosted run [37743259579](https://github.com/chrissotraidis/projectreach/actions/runs/37743259579)
+passed all 313 tests, both build-1011 archive audits and metadata staging at b390fdb.
+The downloaded report matches the current product-source fingerprint and staged
+package identities. That clean build verifies the export-check implementation,
+not an Apple-approved distribution export.
+
+**Notice audit follow-up:** the earlier 16-file inventory omitted the Chromium
+notice explicitly referenced by ANGLE's compiled `compression_utils_portable.cc`
+and notices in the Khronos headers used by the host bridge. Source references and
+exact notice extracts are retained under
+`generated/distribution-export-20261008/notice-audit/`. OpenCE 154's build script
+places miniupnpc in its Android host objects, not the guest reused by HaloPad;
+repository presence alone does not establish a shipped dependency. Package-time
+notice collection from the actual selected inputs remains unfinished, as does
+the broader embedded-asset provenance review. No publication clearance is inferred.
 
 **Upstream maintenance, 2026-10-08:** a real hosted upstream build of OpenCE 154
 failed because it added `host_gl_read_buffer`. The build now generates guest-pointer
