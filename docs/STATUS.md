@@ -21,6 +21,15 @@ the repeated receipt plus GitHub asset digests. The release stayed private.
 The temporary probe was removed. A focused follow-up also checks that historical
 two-component versions cannot evade the downgrade guard.
 
+Final full build [37767010361](https://github.com/chrissotraidis/projectreach/actions/runs/37767010361)
+passed 346 Python tests and both build-1018/OpenCE-150 package audits at 65b9ca5.
+Downloaded reports match the current product-source fingerprint and both staged
+package identities, hashes, sizes, minimum OS versions and network versions.
+The publisher also rejected the actual personal, profile-bearing build-20 IPA
+before staging or any release request. Public latest and publishing variables
+remain unchanged. PadMint v0.4.11 retains the recipe-lookup fallback needed for
+app-only releases; companion input-validation PR #133 is still an open draft.
+
 **Direct IPA clarification, 2026-10-08:** TestFlight is optional and disabled.
 It is not required for HaloPad builds, IPA packaging or existing local signing.
 Private **0.3.8/build 20, OpenCE 155, network 24** has now been signed using the
@@ -292,7 +301,7 @@ Edition remains an optional personal combined build. Accompany the IPA with
 checksums, complete component notices, exact engine/network versions and tested
 installation/upgrade instructions. A Mac download needs its own acceptance and
 signing/notarization checks. The source/PadMint recipe updates are a separate
-deliverable; latest public PadMint 0.4.10 still lacks the draft conditional-tool
+deliverable; latest public PadMint 0.4.11 still lacks the draft conditional-tool
 flow in PadMint PR #133.
 
 Before promoting an IPA: test this exact candidate on hardware, including a

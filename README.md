@@ -105,7 +105,7 @@ Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 ## Build and install
 
 **Available today:** [HaloPad 0.3.7](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.7)
-provides source and a PadMint recipe, not an app or IPA download. With released PadMint 0.4.10,
+provides source and a PadMint recipe, not an app or IPA download. With released PadMint 0.4.11,
 select the original `HaloCESetup.exe` and keep `product-key.txt` beside it. This builds both
 editions; add your Xbox disc inside HaloPad after installation. PadMint handles the build;
 you do not run the source-build commands below afterward.

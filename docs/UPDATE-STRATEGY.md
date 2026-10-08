@@ -107,6 +107,15 @@ The built-in workflow token was sufficient. GitHub's own asset digests also
 matched the receipt, and the release remained a draft. The temporary probe was
 removed after verification. Consumer upgrade acceptance remains separate.
 
+The actual profile-bearing personal build-20 IPA was rejected before staging or
+any GitHub release request. Full build
+[37767010361](https://github.com/chrissotraidis/projectreach/actions/runs/37767010361)
+passed 346 Python tests and both build-1018/OpenCE-150 audits at 65b9ca5.
+Downloaded reports match the current product-source fingerprint and both staged
+package identities, hashes, sizes, minimum OS versions and network versions.
+The public release remains v0.3.7. Released PadMint v0.4.11 also contains the recipe-fallback
+regression; its HaloPad input-validation PR #133 remains an open draft.
+
 ### Hosted TestFlight delivery implementation
 
 `.github/workflows/halopad-testflight.yml` consumes a successful default-branch
