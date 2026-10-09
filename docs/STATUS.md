@@ -2,6 +2,25 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Installer preparation, 2026-10-09:** build 22 now also has a separate personal
+IPA signed with the existing development profile. Independent extraction verified
+the Apple-rooted signature, exact app/engine identity, both memory entitlements,
+profile and component notices. The original candidate hash is unchanged. Evidence:
+`generated/direct-ipa-build22-20261009/personal-signing-proof.json`.
+The staged consumer feed matches the original IPA's version/build, size, minimum
+OS, permissions and download metadata; all five feed tests passed. AltStore's
+documented update format supports changes to build number alone. This was a
+package/metadata check, not an installer test; see `feed-proof.json` in that folder.
+No Apple provisioning request, device action or publication occurred.
+
+**Next release gate:** after device testing is explicitly resumed, verify a
+consumer-signed in-place upgrade and save/resume using independently read-back
+backups. Existing-profile signing does not establish that AltStore can obtain a
+new profile: its previous attempt also encountered Apple's agreement error.
+That account state has not been retested. Public latest is still v0.3.7; the
+app-feed branch and publishing variables remain absent. Exact-artifact
+distribution review and the first public-feed readback also remain outstanding.
+
 **Latest verified private candidate, 2026-10-09:** **0.3.8/build 22** uses
 OpenCE **157**, revision `73dc01d09a21875f14c77b4430f20518d1f5ad09`, network **24**
 on both platforms. At bf73815, all 359 Python tests and both package audits passed,

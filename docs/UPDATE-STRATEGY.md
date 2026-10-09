@@ -61,6 +61,23 @@ that migration is not the smallest solution to this release problem.
 
 ### Delivery choice
 
+**Latest verification, 2026-10-09:** build 22/OpenCE 157 has a separate personal
+IPA signed with the existing profile and independently re-extracted for signature,
+profile, app identity, memory-entitlement and notice verification. The original
+candidate is unchanged. Evidence:
+`generated/direct-ipa-build22-20261009/personal-signing-proof.json`.
+No device or Apple provisioning service was used.
+
+The build-22 staged feed also matches the original candidate's actual metadata
+and permissions. [AltStore's source specification](https://faq.altstore.io/developers/make-a-source)
+defines these fields, and its [update instructions](https://faq.altstore.io/developers/updating-apps)
+explicitly support changing `buildVersion` while keeping `version` unchanged.
+Thus daily engine updates do not need daily marketing-version changes. Evidence:
+`generated/direct-ipa-build22-20261009/feed-proof.json`; five feed tests passed.
+The installed AltServer lacks the documented `altsource` CLI and the documented
+download returned HTTP 403, so no official CLI validation is claimed. Actual
+consumer installation/upgrade remains the decisive check.
+
 **Continue with the existing direct IPA path.** Chris questioned the TestFlight
 detour on October 8. TestFlight is optional and remains disabled; do not make its
 agreement, app-record, API-key or review setup a prerequisite for building HaloPad,
@@ -486,13 +503,27 @@ changed upstream engine reaches an already-installed iPad through the chosen
 consumer route without Chris rebuilding or editing code. The current goal must
 not be marked complete merely because CI passes.
 
-**Remaining work:** accept the exact artifacts and demonstrate an update through
-the consumer's installer before enabling the implemented IPA/feed publisher. Build 20 is already
-signed locally for the existing development profile; it has not been installed.
-Private package retention and successful personal signing do not establish
-automatic player delivery. Keep the optional TestFlight export parked unless
-Chris chooses that route. Preserve player data and the device-control restriction;
-do not restart builds merely because another release appears or recreate the
+**Remaining work, in order:**
+
+1. Finish exact-artifact distribution review. Package checks verify the known
+   notices and exclude private profiles/player data; they are not a complete
+   embedded-asset provenance review.
+2. After Chris explicitly resumes device testing, independently back up/read back
+   Documents and Library. Demonstrate two successive builds through the consumer's
+   installer, preserving data and proving picker, campaign/save/resume and a
+   multiplayer session with a compatible peer. Build 22 is personally signed and
+   ready for that separate development-profile path, but has not been installed.
+   The previous AltStore attempt also encountered `PLA Update available`; current
+   agreement status is unknown. Existing-profile signing does not prove new
+   provisioning will succeed. If it recurs, Chris must accept the terms himself.
+3. Reconcile accepted work into main, publish the accepted package deliberately,
+   and anonymously read back the actual IPA/checksums and both public feeds.
+   Then enable the prepared upstream-check/delivery switches for the chosen
+   preview channel. No public-feed transaction has yet been exercised live.
+
+Private retention and personal signing do not establish automatic player delivery.
+Keep optional TestFlight parked unless Chris chooses it. Preserve the device-control
+restriction; do not rebuild merely because another release appears or recreate the
 deleted Codex schedule.
 
 ## Earlier research and implementation snapshots
