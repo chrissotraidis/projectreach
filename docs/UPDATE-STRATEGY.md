@@ -2,55 +2,50 @@
 
 ## Current decision, 2026-10-09
 
-**Correction after Chris's feedback: the daily-maintenance request is not solved.**
-Automated IPA production removes routine compiling; it does not let an already
-installed iPad app follow compatible upstream network changes. AltStore is not the
-chosen release route and its account error is not a prerequisite for this work.
-Do not describe the build pipeline or the build-22 device test as completing this
-request. The whole-app-first decision below is historical and superseded here.
+**Plan of record, 2026-10-09 (replaces the earlier correction note).**
+Research findings that drive it:
 
-The next engineering experiment is **one frozen HaloPad engine with compatibility
-updates delivered as data**. Do not rebuild the app between the before/after test.
-Keep whole-app releases for actual engine/behavior changes. No mechanism can
-promise compatibility with arbitrary future protocol changes without new code.
+- OpenCE builds change often; its **network version** rarely matters. It was added
+  September 28, rose 14 -> 24 between October 5 and 8, and has stayed 24 from
+  build 149 through build 160. Build 22 (OpenCE 157) is current for multiplayer.
+  Public releases need not chase OpenCE build numbers.
+- ChupathingyCE's cross-play-tested classification marks every OpenCE raise from
+  12 through 24 as additive: older machines drop newer messages and still play.
+  OpenCE's exact-match rule causes the split.
+- Only four OpenCE sites use the number (build 157): p2p_lobby.c's listing and
+  browser filter, network_server_message_handler.c's LAN advertisement and
+  network_client_manager.c's join check. A narrow hook is feasible.
+- The public v0.3.7 PadMint recipe still resolves OpenCE releases/latest for
+  every build. This is why builds break when maintenance stops. OpenCE deletes
+  old tags/releases (five remain), but pinned commits stay on its linear main;
+  OpenCE is CC0, so a fork/mirror is cheap insurance.
+- brokers.txt (online lobby servers) has not changed since October 4.
+- The engine is OpenCE's arm64_32 Android guest, translated ahead of time into
+  the signed app. Re-signed sideloaded apps cannot load new native code, so an
+  updatable engine would require an AArch64 interpreter (major work, unmeasured
+  speed). Not recommended now.
 
-Fresh comparison: ChupathingyCE at
-[`b78e6cfa`](https://github.com/ChupathingyCE/chupathingyce/tree/b78e6cfa00d007592a21b12363b2cbc1b5217997)
-implements a bounded, signed compatibility table keyed by its engine's wire ID.
-Its published table at
-[`c1dde172`](https://github.com/ChupathingyCE/chupathingyce/blob/c1dde1728f2783fbd8ee8fffaa6b77949daf5e54/legacy.json)
-has serial 4: `chupa-20a` follows build 147/network 23 and `chupa-24a` follows
-build 154/network 24. Independent Ed25519 verification against the public key in
-that source passed. The source now includes `tools/crossplay_test.py`; its loader
-rejects invalid signatures and stale serials. This updates the older comparison
-below. Signature verification proves who approved the table, not gameplay or
-compatibility with HaloPad. Do not apply either row to our different engine.
-Local research evidence: `generated/chupathingy-compat-review-20261009/published-table-proof.json`.
+Steps:
 
-Work order and acceptance:
+1. **Stop builds from following upstream.** Release HaloPad source with the
+   tested pinned engine (config/xbox-release.json, currently on PR #20).
+2. **Network policy as signed data.** Patch the four sites to call two new
+   HaloPad host imports (announce number; accepted host range). The host verifies
+   a small Ed25519-signed policy fetched from halopad-updates, caches it, and
+   applies it at launch. The built-in default stays exact-match. Policies may only
+   widen the engine's own number; newer serials can revoke. Bad or missing data
+   falls back to cache or built-in. Optionally carry brokers.txt too.
+3. **Automatic approval.** A scheduled public GitHub Action (Linux, no game data)
+   watches OpenCE's network number. If a raise is marked additive by ChupathingyCE's
+   tested classification, it signs and publishes the widened policy. Otherwise it
+   opens an issue and the existing IPA candidate pipeline handles the engine
+   change. Compatible raises need no maintainer action.
+4. **Proof before shipping.** A Mac build announcing 25 is refused by the frozen
+   iPad build, then joined and played after only a policy refresh. Test both
+   directions, rejoin, match end, invalid/stale signatures and offline fallback.
 
-1. Establish real same-version HaloPad multiplayer, then test one frozen HaloPad
-   engine against a newer peer in both host/client directions using private data.
-   Adapt the existing network test hooks; a stand-in join bot is insufficient.
-   Keep failed baseline scenarios inconclusive, not accepted cross-play.
-2. Prototype only the compatibility boundary: advertisements, browser filtering
-   and join validation must all use one policy for that exact engine. Reuse the
-   reviewed upstream design where practical; do not import unrelated Delta
-   accounts, stats, moderation or services. Start private, with no widened public
-   compatibility claims. Follow the detailed mixed-version cases in section 4.
-3. Prove on the physical iPad that a tested peer initially refused is accepted
-   after only a policy refresh, with the installed executable unchanged. Verify
-   join, movement, damage/death, scoring, respawn, rejoin and match completion;
-   co-op remains separate. Test invalid/stale policy and offline fallback too.
-4. Only after that succeeds, automate testing new upstream versions and publish
-   signed approvals for successful cases. A failed test must retain the previous
-   policy and report that new engine code is needed. Use an existing approved
-   runner; compute and access to private test maps are explicit prerequisites,
-   not assumed free hosted resources. Do not upload private maps to public CI.
-
-This experiment is now the priority, not something blocked on an installer choice.
-It reduces updates for compatible changes; it does not download replacement native
-code or eliminate occasional maintenance when networking behavior really changes.
+Whole IPA releases remain for real engine changes and fixes Chris chooses to
+ship. They are no longer the routine compatibility mechanism.
 
 **Physical-device result:** Chris resumed iPad testing. Build 22/OpenCE 157 was
 installed over build 10 using the existing development profile after independently
