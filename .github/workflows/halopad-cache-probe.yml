@@ -1,0 +1,54 @@
+name: HaloPad cache probe
+'on':
+  push:
+    branches:
+    - codex/xbox-update-flow
+    paths:
+    - .github/workflows/halopad-cache-probe.yml
+permissions:
+  contents: read
+jobs:
+  mac-save:
+    runs-on: macos-15
+    steps:
+    - run: 'mkdir -p generated
+
+        echo fixture > generated/halopad-build-failure.txt'
+    - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: generated/halopad-build-failure.txt
+        key: halopad-cache-probe-${{ github.run_id }}
+        enableCrossOsArchive: true
+  linux-lookup:
+    needs: mac-save
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      with:
+        persist-credentials: false
+    - id: hit
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: generated/halopad-build-failure.txt
+        key: halopad-cache-probe-${{ github.run_id }}
+        lookup-only: true
+        enableCrossOsArchive: true
+    - name: Verify exact cross-platform hit
+      env:
+        HIT: ${{ steps.hit.outputs.cache-hit }}
+      run: test "$HIT" = true
+    - id: miss
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830
+      with:
+        path: generated/halopad-build-failure.txt
+        key: halopad-cache-probe-${{ github.run_id }}-changed
+        lookup-only: true
+        enableCrossOsArchive: true
+    - name: Verify changed input misses
+      env:
+        HIT: ${{ steps.miss.outputs.cache-hit }}
+      run: test "$HIT" != true
+    - name: Execute production build-decision and delivery regressions
+      run: 'python3 -m unittest discover -s tests -p ''test_xbox_build_decision.py''
+
+        python3 -m unittest discover -s tests -p ''test_xbox_select_delivery.py'''

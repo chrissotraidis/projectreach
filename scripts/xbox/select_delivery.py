@@ -40,6 +40,10 @@ def select(event_name, event, tag, out, *, resume_retained=False, publish=False)
                             '--name', f'halopad-selection-{number}-{attempt}', '--dir', str(out)],
                            check=True, timeout=120)
             selection = json.loads((out / 'selection.json').read_text())
+            if selection.get('reason') == 'previous-build-failure':
+                if selection['build'] is not False or selection['candidate'] or selection['commit']:
+                    raise ValueError('invalid failed-build selection')
+                return {'ready': 'false', 'tag': '', 'commit': commit}
             tag, commit = selection['candidate'], selection['commit']
             if selection['build'] is not False or not re.fullmatch(r'[0-9a-f]{40}', commit):
                 raise ValueError('invalid retained-candidate selection')

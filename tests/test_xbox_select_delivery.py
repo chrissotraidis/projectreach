@@ -72,6 +72,22 @@ class SelectionTests(unittest.TestCase):
                 patch.object(select_delivery.subprocess,'run'), self.assertRaises(ValueError):
             select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
 
+    def test_unchanged_failed_build_does_not_start_delivery(self):
+        selection = {'build':False,'candidate':'','commit':'','reason':'previous-build-failure'}
+        (self.out/'selection.json').write_text(json.dumps(selection))
+        with patch.object(select_delivery.subprocess,'check_output',return_value=self.jobs('skipped')), \
+                patch.object(select_delivery.subprocess,'run'), \
+                patch.object(select_delivery.publish_ipa,'completed') as completion:
+            result=select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
+            self.assertEqual(result,{'ready':'false','tag':'','commit':'a'*40})
+            completion.assert_not_called()
+        for change in ({'build':True}, {'candidate':self.tag}, {'commit':'b'*40}):
+            (self.out/'selection.json').write_text(json.dumps({**selection,**change}))
+            with self.subTest(change=change), \
+                    patch.object(select_delivery.subprocess,'check_output',return_value=self.jobs('skipped')), \
+                    patch.object(select_delivery.subprocess,'run'), self.assertRaises(ValueError):
+                select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
+
     def test_failed_incomplete_missing_or_ambiguous_build_cannot_deliver(self):
         data = json.loads(self.jobs())
         data[-1]['jobs'] *= 2
