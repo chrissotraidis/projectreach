@@ -22,6 +22,8 @@
 #import "HaloPadOverlay.h"
 #import "HaloPadXboxSaveIdentity.h"
 #import "HaloPadXboxQuality.h"
+#import "HaloPadXboxUpdate.h"
+#import "HaloPadXboxNetworkPolicy.h"
 #include "xg_overlay_input.h"
 #include "../runtime/halopad_log.h"
 
@@ -131,6 +133,30 @@ static NSString *xbox_release(NSDictionary *build)
 static NSString *xbox_graphics_name(void)
 {
 	return HPXboxSharperSelected(NSUserDefaults.standardUserDefaults) ? @"Sharper (Preview)" : @"Original";
+}
+
+/* this build's OpenCE network version (build.json), 0 if unknown */
+static unsigned int xbox_network_version(void)
+{
+	NSNumber *version = HPNetworkPolicyInteger(xbox_build()[@"network_version"], 1, 65535);
+	return version ? version.unsignedIntValue : 0;
+}
+
+/* The verified cached compatibility policy for this engine, applied once per launch. */
+static void xbox_apply_network_policy(void)
+{
+	unsigned int engine = xbox_network_version();
+	NSDictionary *policy = engine ? HPNetworkPolicyCached(engine) : nil;
+	NSDictionary *row = policy[@"row"];
+	if (row && xg_ios_set_network_policy(engine, [row[@"announce"] unsignedIntValue],
+			[row[@"minimum"] unsignedIntValue], [row[@"maximum"] unsignedIntValue]))
+		HP_LOG("Xbox: network policy %lld: version %u announces %u and joins %u to %u (follows %s)",
+			[policy[@"serial"] longLongValue], engine, [row[@"announce"] unsignedIntValue],
+			[row[@"minimum"] unsignedIntValue], [row[@"maximum"] unsignedIntValue], [row[@"follows"] UTF8String]);
+	else
+		HP_LOG("Xbox: network policy: exact network version %u%s", engine, policy ? "" : " (no verified policy)");
+	/* a newer policy, if any, applies at the next start */
+	HPNetworkPolicyRefresh(engine, nil);
 }
 
 /* Preserve a copy before a different guest opens snapshot saves. */
@@ -352,6 +378,7 @@ static BOOL xbox_backup_saves(NSError **error)
 	if (getenv("XG_FRAME_DUMP_DOCUMENTS"))
 		setenv("XG_FRAME_DUMP", [xbox_root().stringByDeletingLastPathComponent stringByAppendingPathComponent:@"xbox-frame.ppm"].fileSystemRepresentation, 1);
 	HPXboxApplyQuality(xbox_build(), NSUserDefaults.standardUserDefaults);
+	xbox_apply_network_policy();
 	{
 		NSDictionary *build = xbox_build();
 		xg_log_sink = xbox_log_sink;
@@ -372,7 +399,7 @@ static BOOL xbox_backup_saves(NSError **error)
 {
 	NSString *adaptation = xbox_build()[@"guest_adaptation"][@"name"];
 	BOOL profileBridge = [adaptation isEqual:@"shared-input-v1"] || [adaptation isEqual:@"render-present-v1"] ||
-		[adaptation isEqual:@"render-camera-v1"];
+		[adaptation isEqual:@"render-camera-v1"] || [adaptation isEqual:@"network-policy-v1"];
 	pad.controllerGuideIntro = @"Touch: MOVE highlights menu items, A (Jump) selects and B (Melee) goes back. In play, drag the screen to aim or drag FIRE while shooting. Hold Scoreboard and drag to scroll its roster.";
 	pad.controllerGuideSections = @[
 		@[@"Movement & View", @[@"Left stick", @"Move"], @[@"Right stick", @"Look"],
@@ -607,35 +634,32 @@ static NSString *const HPProjectURL = @"https://github.com/chrissotraidis/projec
 
 @implementation HPEngineChooser
 {
-	UIStackView *cards;
+	UIStackView *cards, *footer;
+	BOOL appeared;
 	UIButton *pc_play, *xbox_play;
 	BOOL choosing;
 }
 
-/* Online, OpenCE players must share its network version (not its build). When OpenCE's latest
-   release needs a newer one than this app's engine, say so: only a rebuild can update the engine. */
-static void xbox_check_upstream(NSDictionary *build, void (^notice)(NSString *message))
+/* The app channel is independent of source-only/PadMint releases. */
+static void halopad_check_release(void (^notice)(NSString *message))
 {
-	NSNumber *mine = build[@"network_version"];
-	if (![mine isKindOfClass:NSNumber.class]) return;
-	NSString *repo = @"OpenCommunityEdition/OpenCE";
-	NSURL *latest = [NSURL URLWithString:[NSString stringWithFormat:@"https://api.github.com/repos/%@/releases/latest", repo]];
-	[[NSURLSession.sharedSession dataTaskWithURL:latest completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
-		NSDictionary *release = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-		NSString *tag = [release isKindOfClass:NSDictionary.class] ? release[@"tag_name"] : nil;
-		if (![tag isKindOfClass:NSString.class] || ![tag hasPrefix:@"build-"]) return;
-		NSURL *limits = [NSURL URLWithString:[NSString stringWithFormat:
-			@"https://raw.githubusercontent.com/%@/%@/port/linux/include/halo_port_limits.h", repo, tag]];
-		[[NSURLSession.sharedSession dataTaskWithURL:limits completionHandler:^(NSData *header, NSURLResponse *r2, NSError *e2) {
-			NSString *text = header ? [[NSString alloc] initWithData:header encoding:NSUTF8StringEncoding] : nil;
-			NSRange at = text ? [text rangeOfString:@"#define HALO_PORT_NETWORK_VERSION "] : NSMakeRange(NSNotFound, 0);
-			if (at.location == NSNotFound || [text substringFromIndex:NSMaxRange(at)].intValue <= mine.intValue) return;
-			NSString *message = [NSString stringWithFormat:@"OpenCE %@ is out, and online Xbox games now need it. Build HaloPad again with "
-				@"PadMint to keep playing online with everyone; your saves and settings stay.",
-				[tag stringByReplacingOccurrencesOfString:@"build-" withString:@"build "]];
-			dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
-		}] resume];
-	}] resume];
+    NSURL *url = [NSURL URLWithString:HPHaloPadUpdateFeedURL];
+    NSURLRequest *request = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
+    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *body, NSURLResponse *response, NSError *error) {
+        if (error || ![response isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)response).statusCode != 200 || body.length > 64 * 1024) return;
+        NSDictionary *manifest = body ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+        NSDictionary *info = NSBundle.mainBundle.infoDictionary;
+        NSOperatingSystemVersion os = NSProcessInfo.processInfo.operatingSystemVersion;
+        NSString *osVersion = [NSString stringWithFormat:@"%ld.%ld.%ld", (long)os.majorVersion, (long)os.minorVersion, (long)os.patchVersion];
+        NSString *message = HPHaloPadUpdateNotice(manifest, info[@"CFBundleShortVersionString"], info[@"CFBundleVersion"],
+#if TARGET_OS_MACCATALYST
+            @"mac", osVersion
+#else
+            @"ios", osVersion
+#endif
+        );
+        if (message) dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
+    }] resume];
 }
 
 static UILabel *chooser_label(NSString *text, UIFontTextStyle style, UIFontWeight weight, UIColor *color)
@@ -683,10 +707,10 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	UIColor *statusColor = ready ? [UIColor colorWithRed:0.38 green:0.85 blue:0.45 alpha:1] : [UIColor colorWithRed:1 green:0.74 blue:0.28 alpha:1];
 	UIButtonConfiguration *configuration = [UIButtonConfiguration filledButtonConfiguration];
 
-	card.backgroundColor = [UIColor colorWithRed:0.06 green:0.095 blue:0.135 alpha:0.96];
+	card.backgroundColor = [UIColor colorWithRed:0.06 green:0.095 blue:0.135 alpha:0.88];
 	card.layer.cornerRadius = 22;
 	card.layer.borderWidth = 1;
-	card.layer.borderColor = [accent colorWithAlphaComponent:last ? 0.75 : 0.28].CGColor;
+	card.layer.borderColor = [accent colorWithAlphaComponent:last ? 0.85 : 0.48].CGColor;
 	icon.tintColor = accent;
 	icon.contentMode = UIViewContentModeScaleAspectFit;
 	[spacer setContentHuggingPriority:UILayoutPriorityDefaultLow forAxis:UILayoutConstraintAxisHorizontal];
@@ -731,6 +755,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 		return out;
 	};
 	*button = [UIButton buttonWithConfiguration:configuration primaryAction:nil];
+	(*button).pointerInteractionEnabled = YES;
 	(*button).accessibilityIdentifier = identifier;
 	(*button).accessibilityHint = @"Opens this edition of Halo";
 	[*button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
@@ -770,12 +795,12 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	UISegmentedControl *choice = [[UISegmentedControl alloc] initWithItems:@[ @"Original", @"Sharper (Preview)" ]];
 	UILabel *caption = chooser_label(@"Graphics", UIFontTextStyleFootnote, UIFontWeightSemibold, [UIColor colorWithWhite:0.72 alpha:1]);
 	UILabel *note = chooser_label(@"Sharper renders at twice the resolution with 4× texture filtering and needs more GPU power.",
-		UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.58 alpha:1]);
+		UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.72 alpha:1]);
 	UIStackView *stack;
 	choice.selectedSegmentIndex = HPXboxSharperSelected(NSUserDefaults.standardUserDefaults) ? 1 : 0;
 	choice.accessibilityIdentifier = @"engine.xbox.quality";
 	choice.accessibilityLabel = @"Xbox graphics";
-	choice.selectedSegmentTintColor = [UIColor colorWithRed:0.42 green:0.8 blue:0.36 alpha:1];
+	choice.selectedSegmentTintColor = [UIColor colorWithRed:0.19 green:0.86 blue:0.94 alpha:1];
 	[choice setTitleTextAttributes:@{ NSForegroundColorAttributeName: UIColor.blackColor } forState:UIControlStateSelected];
 	[choice setTitleTextAttributes:@{ NSForegroundColorAttributeName: UIColor.whiteColor } forState:UIControlStateNormal];
 	[choice addAction:[UIAction actionWithHandler:^(__kindof UIAction *action) {
@@ -797,6 +822,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	configuration.imagePadding = 6;
 	configuration.baseForegroundColor = [UIColor colorWithRed:0.6 green:0.78 blue:0.95 alpha:1];
 	button = [UIButton buttonWithConfiguration:configuration primaryAction:nil];
+	button.pointerInteractionEnabled = YES;
 	button.accessibilityIdentifier = identifier;
 	[button.heightAnchor constraintGreaterThanOrEqualToConstant:44].active = YES;
 	[button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
@@ -809,29 +835,34 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	NSDictionary *build = xbox_build();
 	NSString *last = [NSUserDefaults.standardUserDefaults stringForKey:@"HaloPadLastEngine"];
 	NSString *app = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"?";
-	BOOL pc_ready = pc_has_files(), xbox_ready = xbox_has_maps();
-	UIColor *blue = [UIColor colorWithRed:0.42 green:0.7 blue:1 alpha:1], *green = [UIColor colorWithRed:0.42 green:0.8 blue:0.36 alpha:1];
-	UILabel *brand = chooser_label(@"HALOPAD  ·  PROJECT REACH", UIFontTextStyleFootnote, UIFontWeightBold, [UIColor colorWithRed:0.55 green:0.77 blue:0.94 alpha:1]);
+	BOOL pc_ready = self.makePC && pc_has_files(), xbox_ready = xbox_has_maps();
+	UIColor *blue = [UIColor colorWithRed:0.42 green:0.7 blue:1 alpha:1], *cyan = [UIColor colorWithRed:0.19 green:0.86 blue:0.94 alpha:1];
+	UILabel *brand = chooser_label(@"HALOPAD", UIFontTextStyleFootnote, UIFontWeightBold, [UIColor colorWithRed:0.55 green:0.77 blue:0.94 alpha:1]);
 	UILabel *title = chooser_label(@"Choose your edition", UIFontTextStyleLargeTitle, UIFontWeightBold, UIColor.whiteColor);
 	UILabel *subtitle = chooser_label(@"Each edition keeps its own saves, settings and multiplayer. You can switch later from ⋯ › Switch Edition.",
 		UIFontTextStyleSubheadline, UIFontWeightRegular, [UIColor colorWithWhite:0.7 alpha:1]);
 	UIView *pc, *xbox;
-	UIStackView *heading, *footer, *stack;
-	CAGradientLayer *gradient = [CAGradientLayer layer];
-
-	gradient.colors = @[ (id)[UIColor colorWithRed:0.04 green:0.085 blue:0.13 alpha:1].CGColor,
-		(id)[UIColor colorWithRed:0.008 green:0.02 blue:0.035 alpha:1].CGColor ];
+	UIStackView *heading, *stack;
+	UIImageView *background = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"ChooserBackground"]];
+	background.contentMode = UIViewContentModeScaleAspectFill;
+	background.clipsToBounds = YES;
+	background.isAccessibilityElement = NO;
+	background.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+	background.frame = root.bounds;
 	root.backgroundColor = [UIColor colorWithRed:0.008 green:0.02 blue:0.035 alpha:1];
-	[root.layer insertSublayer:gradient atIndex:0];
+	[root addSubview:background];
+	brand.attributedText = [[NSAttributedString alloc] initWithString:@"HALOPAD"
+		attributes:@{ NSKernAttributeName: @5 }];
 
 	pc = [self cardTitle:@"Halo Custom Edition" platform:@"WINDOWS" symbol:@"desktopcomputer" accent:blue
 		version:@"Version 1.10 · runs natively on Apple silicon"
 		about:@"Online multiplayer on community servers, custom maps and the PC game's own menus."
-		ready:pc_ready status:pc_ready ? @"Ready to play" : @"Add your game files first"
-		play:pc_ready ? @"Play Custom Edition" : @"Set Up Custom Edition" identifier:@"engine.pc" action:@selector(choosePC)
-		last:[last isEqual:@"pc"] extra:nil button:&pc_play];
+		ready:pc_ready status:!self.makePC ? @"Not included in this build" : pc_ready ? @"Ready to play" : @"Add your game files first"
+		play:!self.makePC ? @"Add Custom Edition…" : pc_ready ? @"Play Custom Edition" : @"Set Up Custom Edition" identifier:@"engine.pc" action:@selector(choosePC)
+		last:self.makePC && [last isEqual:@"pc"] extra:nil button:&pc_play];
+	if (!self.makePC) pc_play.accessibilityHint = @"Explains how to add Custom Edition with PadMint";
 	xbox = [self cardTitle:@"Halo: Combat Evolved" platform:[build[@"candidate"] boolValue] ? @"XBOX · PREVIEW" : @"XBOX · EXPERIMENTAL"
-		symbol:@"gamecontroller" accent:green
+		symbol:@"gamecontroller" accent:cyan
 		version:[NSString stringWithFormat:@"OpenCE %@ · Metal", xbox_release(build)]
 		about:@"The original Xbox campaign and system link, from your own disc."
 		ready:xbox_ready status:xbox_ready ? @"Ready to play" : @"Add your Xbox disc image first"
@@ -845,21 +876,34 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	heading = [[UIStackView alloc] initWithArrangedSubviews:@[ brand, title, subtitle ]];
 	heading.axis = UILayoutConstraintAxisVertical;
 	heading.spacing = 6;
+	[heading setCustomSpacing:26 afterView:brand];
 	footer = [[UIStackView alloc] initWithArrangedSubviews:@[
+		[self footerButton:@"Updates…" symbol:@"arrow.triangle.2.circlepath" identifier:@"engine.update" action:@selector(showUpdate)],
 		[self footerButton:@"About These Builds" symbol:@"info.circle" identifier:@"engine.builds" action:@selector(showBuilds)],
 		[self footerButton:@"Project Reach on GitHub" symbol:@"arrow.up.right.square" identifier:@"engine.github" action:@selector(openProject)],
 		[UIView new],
 		chooser_label([NSString stringWithFormat:@"HaloPad %@ · Bring your own copy of Halo; no game data is included.", app],
-			UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.5 alpha:1]) ]];
+			UIFontTextStyleCaption1, UIFontWeightRegular, [UIColor colorWithWhite:0.72 alpha:1]) ]];
 	footer.spacing = 8;
+	footer.backgroundColor = [UIColor colorWithRed:0.02 green:0.04 blue:0.06 alpha:0.82];
+	footer.layer.cornerRadius = 12;
+	footer.layoutMargins = UIEdgeInsetsMake(8, 8, 8, 8);
+	footer.layoutMarginsRelativeArrangement = YES;
 	footer.alignment = UIStackViewAlignmentCenter;
 	((UILabel *)footer.arrangedSubviews.lastObject).textAlignment = NSTextAlignmentRight;
 
 	UILabel *update = chooser_label(@"", UIFontTextStyleFootnote, UIFontWeightSemibold, [UIColor colorWithRed:1 green:0.72 blue:0.3 alpha:1]);
-	update.hidden = YES;
+	UIStackView *notice = [[UIStackView alloc] initWithArrangedSubviews:@[ update ]];
+	notice.backgroundColor = [UIColor colorWithRed:0.02 green:0.04 blue:0.06 alpha:0.9];
+	notice.layer.cornerRadius = 12;
+	notice.layoutMargins = UIEdgeInsetsMake(12, 14, 12, 14);
+	notice.layoutMarginsRelativeArrangement = YES;
+	notice.hidden = YES;
 	__weak UILabel *weak_update = update;
-	xbox_check_upstream(build, ^(NSString *message) { weak_update.text = message; weak_update.hidden = NO; });
-	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, update, footer ]];
+	__weak UIView *weak_notice = notice;
+	halopad_check_release(^(NSString *message) { weak_update.text = message; weak_notice.hidden = NO; });
+	HPNetworkPolicyRefresh(xbox_network_version(), nil);
+	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, notice, footer ]];
 	stack.axis = UILayoutConstraintAxisVertical;
 	stack.spacing = 24;
 	stack.translatesAutoresizingMaskIntoConstraints = NO;
@@ -909,9 +953,26 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 - (void)viewDidLayoutSubviews
 {
 	[super viewDidLayoutSubviews];
-	self.view.layer.sublayers.firstObject.frame = self.view.bounds;
 	BOOL narrow = self.view.bounds.size.width < 700 || UIContentSizeCategoryIsAccessibilityCategory(self.traitCollection.preferredContentSizeCategory);
+	cards.distribution = narrow ? UIStackViewDistributionFill : UIStackViewDistributionFillEqually;
 	cards.axis = narrow ? UILayoutConstraintAxisVertical : UILayoutConstraintAxisHorizontal;
+	footer.alignment = narrow ? UIStackViewAlignmentFill : UIStackViewAlignmentCenter;
+	footer.axis = narrow ? UILayoutConstraintAxisVertical : UILayoutConstraintAxisHorizontal;
+	((UILabel *)footer.arrangedSubviews.lastObject).textAlignment = narrow ? NSTextAlignmentCenter : NSTextAlignmentRight;
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+	[super viewDidAppear:animated];
+	if (appeared) return;
+	appeared = YES;
+	if (UIAccessibilityIsReduceMotionEnabled()) return;
+	cards.alpha = 0;
+	cards.transform = CGAffineTransformMakeTranslation(0, 10);
+	[UIView animateWithDuration:0.25 delay:0 options:UIViewAnimationOptionAllowUserInteraction | UIViewAnimationOptionCurveEaseOut animations:^{
+		self->cards.alpha = 1;
+		self->cards.transform = CGAffineTransformIdentity;
+	} completion:nil];
 }
 
 - (void)openProject
@@ -919,13 +980,30 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	[UIApplication.sharedApplication openURL:[NSURL URLWithString:HPProjectURL] options:@{} completionHandler:nil];
 }
 
+- (void)showUpdate
+{
+    unsigned int engine = xbox_network_version();
+    NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\n%@ HaloPad downloads tested online compatibility updates by itself, so most new OpenCE builds need no app update. New OpenCE builds never expire your game.\n\nWhen OpenCE changes how online play works, HaloPad needs a new release. Get it from Releases and install it over the existing app with the same signing identity; do not delete HaloPad. Your imported disc and profiles stay, though an engine change may require restarting a level.\n\nIf you build with PadMint, each HaloPad release builds its own tested engine.",
+        xbox_release(xbox_build()), HPNetworkPolicySummary(engine, engine ? HPNetworkPolicyCached(engine) : nil)];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"HaloPad Updates" message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"HaloPad Releases" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+        [UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"/releases"]] options:@{} completionHandler:nil];
+    }]];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Update Guide" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+		[UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"#updating-halopad"]] options:@{} completionHandler:nil];
+	}]];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
+}
+
 - (void)showBuilds
 {
 	NSDictionary *build = xbox_build();
 	NSString *revision = build[@"revision"] ?: @"unknown";
-	NSString *message = [NSString stringWithFormat:@"Windows: Halo Custom Edition 1.10, translated to run natively on Apple silicon with Metal.\n\n"
+	NSString *message = [NSString stringWithFormat:@"Windows: %@\n\n"
 		@"Xbox: Halo: Combat Evolved on OpenCE %@ (%@, built %@), drawn through Metal.%@ The Xbox edition is experimental; full campaign progression and every system link setup are not yet verified on iPad.\n\n"
 		@"The two editions cannot play together. Each keeps its own saves; Xbox saves are backed up whenever its engine changes.\n\nProject Reach: %@",
+		self.makePC ? @"Halo Custom Edition 1.10, translated to run natively on Apple silicon with Metal." : @"Not included. Build with your PC installer in PadMint to add Custom Edition; your Xbox files stay in place.",
 		xbox_release(build), [revision substringToIndex:MIN((NSUInteger)8, revision.length)], build[@"built"] ?: @"locally",
 		[build[@"candidate"] boolValue] ? @" This is a preview build." : @"", HPProjectURL];
 	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"About These Builds" message:message preferredStyle:UIAlertControllerStyleAlert];
@@ -944,7 +1022,16 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	window.rootViewController = controller;
 }
 
-- (void)choosePC { [self show:self.makePC()]; }
+- (void)choosePC
+{
+	if (self.makePC) { [self show:self.makePC()]; return; }
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Add Custom Edition"
+		message:@"In PadMint on your Mac, select HaloPad and your original HaloCESetup.exe, with product-key.txt beside it. This builds both editions. Install over this app with the same signing identity to keep your Xbox maps, saves and settings. Do not delete HaloPad."
+		preferredStyle:UIAlertControllerStyleAlert];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Build Guide" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { [self openProject]; }]];
+	[alert addAction:[UIAlertAction actionWithTitle:@"Done" style:UIAlertActionStyleCancel handler:nil]];
+	[self presentViewController:alert animated:YES completion:nil];
+}
 - (void)chooseXbox
 {
 	HPXboxViewController *controller = [HPXboxViewController new];
@@ -964,7 +1051,7 @@ UIViewController *HPEngineChooserMake(UIViewController *(^makePC)(void))
 {
 	const char *engine = getenv("HALOPAD_ENGINE");
 	HPEngineChooser *chooser;
-	if (engine && !strcmp(engine, "pc"))
+	if (makePC && engine && !strcmp(engine, "pc"))
 		return makePC();
 	if (engine && !strcmp(engine, "xbox"))
 		return [HPXboxViewController new];

@@ -1,12 +1,22 @@
 # Xbox engine (second HaloPad engine)
 
+**Current build policy, 2026-10-09:** normal builds replay
+`config/xbox-release.json` (OpenCE 157, network version 24) with the
+`network-policy-v1` adaptation: the installed app follows compatible OpenCE network
+raises through a signed policy ([UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy)).
+`--xbox-latest` explicitly selects upstream; the prepared hosted app-update
+workflow handles that selection separately. Public app delivery is not enabled.
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) and [STATUS.md](STATUS.md) for current
+candidate and acceptance evidence. The dated engine investigations below are
+historical and do not change the current default.
+
 Status, 2026-10-03: **HaloPad offers Windows Custom Edition or Xbox Combat Evolved at launch.**
 The accepted **experimental development pin** in `config/xbox-engine.lock.json`
 is upstream OpenCE (formerly halo-ce-universal) **build 125, `13c14df9`**, network version 16
 (accepted 2026-10-05 with `scripts/xbox/update-pin.sh`: Mac and Simulator menu/a10/match pass;
-build 119 `a38ede07`, build 85 `c3adcfe5` and build 74 `80d30410` before). The pin is now the
-**fallback**: `scripts/builder/build.sh` (PadMint) first tries OpenCE's newest release with
-`HALOPAD_XBOX_LATEST=1` (see "Updating the engine"). Build 64 expanded the high-resolution HUD/scopes and fixed meter
+build 119 `a38ede07`, build 85 `c3adcfe5` and build 74 `80d30410` before). The pin is an
+**explicit tested option** (`HALOPAD_XBOX_PINNED=1`), separate from the bundled
+release record and explicit latest mode (see "Updating the engine"). Build 64 expanded the high-resolution HUD/scopes and fixed meter
 alpha and flat menu fills; the following paragraphs retain that earlier evidence.
 Save-backed candidate and acceptance Mac/ANGLE iPad Simulator menu/a10/scripted-match
 gates pass. A copied build-61 a30 checkpoint loads through normal menus; actual
@@ -171,6 +181,12 @@ picker appears at every launch.
 
 ## Personal-build boundary (Chris's decision, 2026-09-30)
 
+Historical design record: current source can create a personal Xbox-only IPA
+with `scripts/builder/build.sh --xbox-only --ipa HaloPad-Xbox.ipa`; normal builds
+replay the bundled release record. The older no-IPA/pinned-only statements
+below describe September 30, not today's builder. Public app distribution remains
+under review; see [installation delivery](STATUS.md#installation-delivery).
+
 - The upstream engine is **fetched and built on the player's own Mac** at the revision in
   [config/xbox-engine.lock.json](../config/xbox-engine.lock.json). Its sources, its guest image, the
   translation and the engine library live only under the ignored `ref/xbox-build/`.
@@ -247,7 +263,10 @@ HALOPAD_XBOX_RENDERER=angle-metal .venv/bin/python scripts/build-ios-app.py --ip
 This produces an ad-hoc signed personal `.app`, no Xbox IPA. It is not installed
 or device-installable merely because signature verification passes: proper
 provisioning with both memory entitlements and a coordinated device window are
-still required. The standalone host and combined app now target iOS 17.0.
+still required. The standalone host and combined apps containing Xbox require iOS/iPadOS 17.4
+or macOS 14.4. The futex bridge uses Apple’s `os_sync_*` APIs, introduced in those
+versions; compile targets and package minimums match. Custom Edition-only builds
+retain iOS 17/macOS 14 support.
 `--launch` remains Simulator-only. Simulator depth/replay diagnostics are not
 enabled on hardware. No physical graphics/audio/controller claim follows from
 compilation; the reported shading/focus issue is still open.
@@ -255,7 +274,7 @@ compilation; the reported shading/focus issue is still open.
 Run the asset-free probe before accepting this backend on another Simulator:
 
 ```sh
-xcrun --sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator \
+xcrun --sdk iphonesimulator clang -target arm64-apple-ios17.4-simulator \
   -fobjc-arc -I"$XBOX_ANGLE_SOURCE/include" tests/xbox_angle_probe.m \
   ref/xbox-build/out/angle-simulator/libhalopad-angle.a -lc++ -lz \
   -framework Foundation -framework CoreGraphics -framework IOSurface \
@@ -478,13 +497,29 @@ rerunning the water/shadow comparisons. Evidence is linked above.
 
 ## Updating the engine
 
-**Players' builds track OpenCE by themselves.** OpenCE moves its network version (which online
-players must share) several times a day, faster than a reviewed pin can follow. `scripts/builder/build.sh`
-therefore resolves OpenCE's latest release and builds it with `XBOX_REV=<its commit>` and
+**Normal builds are reproducible; latest is explicit.** OpenCE frequently changes
+its network version (which online players must share). `scripts/builder/build.sh`
+uses `config/xbox-release.json` by default. With `--xbox-latest`, it resolves
+OpenCE's latest release once, before expensive build steps, and builds it with `XBOX_REV=<its commit>` and
 `HALOPAD_XBOX_LATEST=1`: HaloPad's edits must still find every anchor exactly once (only the
 reviewed file hashes are waived, and the identity records `"reviewed": false`). If that guest or
-library does not build, the builder falls back to the pin below. `HALOPAD_XBOX_PINNED=1` skips the
-attempt. The pin is still moved with the reviewed workflow below, so the fallback stays recent.
+library does not build, or release lookup fails, the builder stops without an automatic downgrade.
+`HALOPAD_XBOX_PINNED=1` explicitly chooses the tested pin without contacting the release API. This
+is not necessarily compatible with current online players. The pin is still moved with the reviewed
+workflow below. `scripts/xbox/release.py` handles lightweight and annotated Git tags and records the
+selected release/commit in the builder's `xbox-release.json`; the app retains that release label even
+if upstream later deletes the tag.
+
+`scripts/builder/pc_cache.py` records the completed PC translation under ignored `generated/builder/`.
+Repeat builds verify PC source/configuration, accepted input hashes, toolchain, generated IR/images
+and any compiled objects before reuse. Xbox-only changes leave that cache valid. A damaged or stale
+cache triggers normal translation. The receipt stays with the checkout; it is not a portable cache
+or an executable updater. Packages are staged before replacing prior output archives. The installed
+app and player containers are never modified by the builder.
+
+The ordinary picker remains the default regardless of the last-played edition. Its **Update Xbox…**
+action opens the PadMint update instructions, and its notice distinguishes a newer compatible build
+from a different network version. Unknown/offline metadata is never presented as proof of compatibility.
 
 Check upstream releases on a regular maintenance pass (weekly is the proposed cadence), then
 freeze an exact commit for validation. Do not chase changing HEAD during a pass. This is a

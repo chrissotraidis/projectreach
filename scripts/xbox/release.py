@@ -1,0 +1,89 @@
+"""Use HaloPad's bundled engine record; upstream latest is an explicit experiment.
+
+Failure is an update failure, never permission to silently ship an older engine.
+The reviewed pin remains an explicit offline choice (HALOPAD_XBOX_PINNED=1).
+"""
+import argparse
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import urllib.request
+
+LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
+BUNDLED = LOCK.with_name('xbox-release.json')
+
+
+def read_record(path):
+    """Replay a previously resolved commit without consulting a moving tag."""
+    record = json.loads(path.read_text())
+    if not isinstance(record, dict):
+        raise ValueError('Xbox release record must be an object')
+    revision, tag = record.get('revision'), record.get('release')
+    if not isinstance(revision, str) or not re.fullmatch(r'[0-9a-f]{40}', revision):
+        raise ValueError('Xbox release record needs a full lowercase commit SHA')
+    if not isinstance(tag, str) or not re.fullmatch(r'build-[0-9]+', tag):
+        raise ValueError('Xbox release record needs a build-N release label')
+    # The configured upstream URL remains authoritative. A record selects code,
+    # not a different repository or a claim of gameplay/release acceptance.
+    return {'revision': revision, 'release': tag, 'channel': 'record'}
+
+
+def resolve(lock, pinned=False):
+    if pinned:
+        return {**{k: lock[k] for k in ('revision', 'release')}, 'channel': 'pinned'}
+    match = re.fullmatch(r'https://github\.com/([\w.-]+/[\w.-]+)\.git', lock['url'])
+    if not match:
+        raise ValueError('OpenCE source must be a GitHub repository URL')
+    request = urllib.request.Request(
+        f'https://api.github.com/repos/{match[1]}/releases/latest',
+        headers={'Accept': 'application/vnd.github+json', 'User-Agent': 'HaloPad-builder'})
+    with urllib.request.urlopen(request, timeout=20) as response:
+        release = json.load(response)
+    if not isinstance(release, dict):
+        raise ValueError('OpenCE returned invalid release metadata')
+    tag = release.get('tag_name')
+    if not isinstance(tag, str) or not re.fullmatch(r'build-[0-9]+', tag):
+        raise ValueError('OpenCE returned an unexpected release tag')
+    # Annotated tags name a tag object, not a commit. Prefer the peeled ref.
+    ref = f'refs/tags/{tag}'
+    result = subprocess.run(['git', 'ls-remote', '--exit-code', lock['url'], ref, ref + '^{}'],
+                            check=True, capture_output=True, text=True, timeout=30)
+    refs = dict((name, sha) for sha, name in (line.split() for line in result.stdout.splitlines()))
+    revision = refs.get(ref + '^{}', refs.get(ref, ''))
+    if not re.fullmatch(r'[0-9a-f]{40}', revision):
+        raise ValueError('OpenCE release no longer resolves to a commit; retry the update')
+    return {'revision': revision, 'release': tag, 'channel': 'latest'}
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument('--pinned', action='store_true')
+    selection.add_argument('--latest', action='store_true', help='experiment with the newest upstream release')
+    selection.add_argument('--record', type=pathlib.Path, help='rebuild the commit in a saved xbox-release.json, without resolving latest')
+    args = parser.parse_args()
+    try:
+        if args.record:
+            selected = read_record(args.record)
+        elif args.latest or args.pinned:
+            selected = resolve(json.loads(LOCK.read_text()), args.pinned)
+        else:
+            selected = {**read_record(BUNDLED), 'channel': 'release'}
+        print(json.dumps(selected))
+    except (OSError, ValueError, subprocess.SubprocessError) as error:
+        if args.record:
+            print(f'Cannot read the Xbox release record: {error}. Correct the record; no other release was selected.', file=sys.stderr)
+            return 1
+        if not args.latest and not args.pinned:
+            print(f'Cannot read this HaloPad release\'s engine record: {error}. Restore config/xbox-release.json; no upstream release was substituted.', file=sys.stderr)
+            return 1
+        print(f'Cannot resolve the Xbox update: {error}. Retry when online. '
+              'HALOPAD_XBOX_PINNED=1 explicitly builds the tested older engine instead.', file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

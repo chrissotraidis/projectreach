@@ -22,11 +22,13 @@ static NSArray *fixture_search_paths(NSSearchPathDirectory directory, NSSearchPa
 @interface HPFixtureBundle : NSObject
 + (instancetype)mainBundle;
 - (NSString *)bundlePath;
+- (NSString *)resourcePath;
 - (id)objectForInfoDictionaryKey:(NSString *)key;
 @end
 @implementation HPFixtureBundle
 + (instancetype)mainBundle { return [self new]; }
 - (NSString *)bundlePath { return [fixture_root stringByAppendingPathComponent:@"Bundle"]; }
+- (NSString *)resourcePath { return self.bundlePath; }
 - (id)objectForInfoDictionaryKey:(NSString *)key { (void)key; return nil; }
 @end
 @interface HPFixtureDefaults : NSObject
@@ -221,6 +223,13 @@ int main(int argc, char **argv)
         check("Original selection is reversible on a fresh launch", !strcmp(getenv("HALO_TEST_RENDER_SCALE"), "1") &&
             !strcmp(getenv("HALO_TEST_ANISOTROPY"), "1"));
         unsetenv("HALO_TEST_RENDER_SCALE"); unsetenv("HALO_TEST_ANISOTROPY");
+        unsetenv("HALOPAD_ENGINE"); unsetenv("HALOPAD_CHOOSE");
+        [fixture_defaults removeObjectForKey:@"HaloPadLastEngine"];
+        check("first launch opens the edition picker", [HPEngineChooserMake(^UIViewController *{ abort(); }) isKindOfClass:HPEngineChooser.class]);
+        [fixture_defaults setObject:@"xbox" forKey:@"HaloPadLastEngine"];
+        check("last played Xbox does not bypass the picker", [HPEngineChooserMake(^UIViewController *{ abort(); }) isKindOfClass:HPEngineChooser.class]);
+        [fixture_defaults setObject:@"pc" forKey:@"HaloPadLastEngine"];
+        check("last played PC does not bypass the picker", [HPEngineChooserMake(^UIViewController *{ abort(); }) isKindOfClass:HPEngineChooser.class]);
         printf("%d checks, %d failures\n",checks,failures);
     }
     return failures != 0;

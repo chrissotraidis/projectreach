@@ -1,6 +1,614 @@
 # HaloPad status
 
-**PAUSED by Chris on 2026-10-03.** No further goal execution in this chat.
+## Current release candidate: 0.3.8 Xbox-only beta
+
+**Install-once online compatibility, 2026-10-09: implemented and proven on hardware.**
+Build 23 (OpenCE 157, network 24, adaptation `network-policy-v1`) lets an installed app
+follow compatible OpenCE network raises through a downloaded signed policy, with no new
+app. On the physical iPad, upgraded in place from build 22 after a verified 11.6 GB backup,
+the app refused a Mac host announcing a simulated version 25, then joined and played it
+after only downloading the policy; the reverse direction also played. All 53 saves were
+unchanged afterwards. The production policy (exact 24, since OpenCE is still on 24) is
+published on `halopad-network`. Details:
+[UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy) and
+`generated/network-policy-test-20261009/acceptance.json`. The engine record moves to
+OpenCE 157, the build tested on iPad.
+
+**Scope correction, 2026-10-09:** the daily-maintenance requirement remains
+unsolved. Chris is not releasing through AltStore; that installer-specific Apple
+agreement error is not a release prerequisite. The build-22 iPad results below
+prove an in-place installation and bounded gameplay, not install-once compatibility
+with future OpenCE versions. The next priority is the frozen-engine compatibility
+experiment in [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#current-decision-2026-10-09).
+Automatic IPA production is a fallback for changes requiring new engine code,
+not acceptance of this requirement. No compatibility policy is implemented in
+the installed HaloPad build yet.
+
+**Physical iPad test, 2026-10-09: build 22 installed and playable; public release
+still gated.** Chris explicitly resumed device testing. An in-place upgrade from
+build 10 to **0.3.8/build 22, OpenCE 157, network 24** passed on the M2 iPad Pro
+running iPadOS 27.0.1 using the existing development profile. No uninstall occurred.
+
+- Before installation, independent copies of accessible Documents and Library
+  contained 642 files / 10,755,955,239 bytes. All 641 non-log files matched; the
+  sole difference was a verified 67-byte diagnostic-log append. A post-install,
+  pre-launch readback matched all 114 checked save/Library files.
+- The picker opened normally and recognized the retained Xbox disc. Campaign
+  Continue loaded Pillar of Autumn; movement, strafing, looking, Use, pause and
+  Save and Quit responded. Closing HaloPad through Switch Edition and launching
+  again returned to the picker; Continue loaded the cryo tutorial checkpoint.
+  A later checkpoint was not reached. Exact pre-upgrade checkpoint migration,
+  combat, controller input, audio quality and multiplayer are not accepted by
+  this test. PC gameplay was not tested by this Xbox-only package.
+- The app's automatic engine-change backup was independently copied back:
+  **all 53 files / 868,254,711 bytes exactly match the pre-upgrade Xbox saves**.
+  Post-game readback retained all 53 paths, with save/cache writes recorded.
+- AltStore was retried on the real iPad and returned **Apple.APIError 403,
+  “Unable to process request - PLA Update available (403)”**. This is a fresh
+  provisioning failure, without TestFlight involvement. Existing-profile
+  installation succeeded; consumer AltStore installation/update remains open.
+
+Private evidence, including the 23m19s recording, manifests and device logs, is in
+`generated/ipad-acceptance-20261009/acceptance.json`. The app was left paused in
+the campaign; the temporary local source server and recording were stopped.
+For public release: complete the selected direct-IPA update/save-resume test and
+resolve exact-package distribution findings
+in [RELEASE-CONTENT-REVIEW.md](RELEASE-CONTENT-REVIEW.md). Public delivery stays off.
+The earlier audit entries below describe their own test-time state.
+
+**Background audit conclusion, 2026-10-09: not ready for public release.**
+The requested background audit is complete: exact package/resource inventories,
+upstream provenance findings, demonstrated delivery repairs, focused tests, hosted
+package reports and installer preflight are recorded below. A final readback
+confirmed the current product-source fingerprint, all 364 hosted tests, every
+archive-member hash, all 313 embedded-resource hashes in both packages, the
+preserved personal IPA and unchanged local build counter. PR #20 remains a draft;
+the publishing variables and app-feed branch remain absent.
+
+This completes the background audit, not consumer delivery or distribution
+acceptance. Device testing was subsequently resumed as recorded above. The next
+release steps remain a consumer-signed upgrade test, fuller gameplay acceptance
+and resolution of the documented provenance findings. Do not infer these from the
+completed audit or start another engine build simply to restate these results.
+
+**Hosted retry repair, 2026-10-09:** unchanged failed automatic candidate builds
+now have a cache guard before allocating a Mac runner. Manual upstream retries
+bypass it; changed source/engine is tried normally; retained successful packages
+keep their delivery path. Local tests pass **341 Xbox + 23 builder tests**.
+[Hosted cache probe 37870955353](https://github.com/chrissotraidis/projectreach/actions/runs/37870955353)
+passed a real Mac save/Linux lookup, changed-key miss, and the production decision
+and delivery regression scripts. The temporary probe was removed after saving its
+logs. Cache eviction can permit another attempt; this is not permanent failure
+storage. [Final hosted run 37870955485](https://github.com/chrissotraidis/projectreach/actions/runs/37870955485)
+at 62c21cb passed all **364 Python tests**, delivery tests, both
+build-1021/OpenCE-150 package audits and feed staging. Downloaded reports match
+the current product-source fingerprint and both staged package identities,
+hashes, sizes, minimum OS and network versions. Evidence:
+`generated/failure-cooldown-20261009/hosted-proof.json`.
+
+**Package-content review, 2026-10-09:** both build-22 archives were inventoried,
+their icon catalogs inspected, and all **313** selected embedded resources matched
+byte-for-byte to the exact upstream checkout. See
+[RELEASE-CONTENT-REVIEW.md](RELEASE-CONTENT-REVIEW.md). One specific distribution
+finding is that upstream's optional title-texture generator has a path
+that retains processed game-map backgrounds. No graphics were removed or replaced,
+and no package was published. The older source-origin concerns are not resolved
+by this asset inventory. The consumer iPad upgrade test also remains pending.
+
+The real `install-device.sh --check-only` path also passed for the personal build-22
+IPA and the historical registered-iPad identifier. A temporary `xcrun` trap
+ensured the check could not contact a device; the IPA hash stayed unchanged.
+Evidence: `generated/failure-cooldown-20261009/offline-installer-proof.json`.
+This verifies archive/profile preflight, not current connectivity or installation.
+
+**Installer preparation, 2026-10-09:** build 22 now also has a separate personal
+IPA signed with the existing development profile. Independent extraction verified
+the Apple-rooted signature, exact app/engine identity, both memory entitlements,
+profile and component notices. The original candidate hash is unchanged. Evidence:
+`generated/direct-ipa-build22-20261009/personal-signing-proof.json`.
+The staged consumer feed matches the original IPA's version/build, size, minimum
+OS, permissions and download metadata; all five feed tests passed. AltStore's
+documented update format supports changes to build number alone. This was a
+package/metadata check, not an installer test; see `feed-proof.json` in that folder.
+No Apple provisioning request, device action or publication occurred.
+
+**Direct-IPA release gate (separate from the maintenance experiment):** verify a
+consumer-signed in-place upgrade and save/resume using independently read-back
+backups. Existing-profile signing does not establish that AltStore can obtain a
+new profile: its previous attempt also encountered Apple's agreement error.
+The October 9 retry reproduced that account error, as recorded above. Public latest
+was v0.3.7 at the background audit; the app-feed branch and publishing variables
+remain absent. Exact-artifact
+distribution review and the first public-feed readback also remain outstanding.
+
+**Latest verified private candidate, 2026-10-09:** **0.3.8/build 22** uses
+OpenCE **157**, revision `73dc01d09a21875f14c77b4430f20518d1f5ad09`, network **24**
+on both platforms. At bf73815, all 359 Python tests and both package audits passed,
+including independent notice/signature/hash/source verification. The subsequent
+8a5ec96 fix changes only workflow/selector/test code, not the app runtime. Candidates
+20, 21 and 22 retain their recorded hashes; the persistent next-build counter is 23.
+Evidence: `generated/xbox-candidates/runs/22-build-157/result.json`. No device
+install, gameplay test or publication was performed.
+
+**Update repair loop, 2026-10-09:** the three integration-audit defects are now
+repaired and verified in source, package builds and private delivery. Main-branch
+app builds follow upstream while pinned recipe checks stay separate; publication rejects engine
+regressions and retagged revisions, even after a recipe-only release. Retained
+candidates carry their original identity into delivery retries, and complete
+uploads skip another Mac runner. Both app feeds move together on the dedicated
+`halopad-updates` branch only after verified public assets exist. Source/recipe
+releases cannot change that endpoint. Interrupted feed commits preserve the old
+feed, and retries finish an already published package without republishing it.
+Final clean hosted run
+[37866853501](https://github.com/chrissotraidis/projectreach/actions/runs/37866853501)
+at 8a5ec96 passed **360 Python tests**, both build-1020/OpenCE-150 package audits,
+feed staging and the delivery-test job. Downloaded reports match the current
+product-source fingerprint and all staged package metadata. Disposable real-Git
+transaction tests cover interrupted commits, lost responses and competing writers.
+The superseded bf73815 hosted run was canceled, not counted as a pass.
+
+Real private build-22 retention and delivery also passed: missing delivery was
+selected for retry; all six files matched on download; completed private delivery
+skipped another Mac runner; the private draft was not mistaken for publication;
+and repeat delivery kept the same release and hashes. Evidence is under
+`generated/update-repairs-20261009/`. The channel branch has not been created;
+publishing remains off; device testing was subsequently resumed above. The earlier audit
+reproductions remain in `generated/update-plan-audit-20261008/` as historical evidence.
+
+**Direct IPA publisher implemented, 2026-10-08:** the new main-branch delivery
+workflow retrieves an existing candidate, verifies both packages and prepares a
+private draft with the IPA, Mac app, update feeds, icon and checksums. All assets
+must pass download/hash readback before the optional final public release update.
+Retries preserve identical assets; changed bytes and downgrades stop. No Apple
+service is used. Public promotion stays off while `HALOPAD_IPA_PUBLISH_ENABLED`
+is unset; the upstream check also remains off. Local verification passes all 322
+Xbox tests. Real build 20's six draft assets passed readback, while public latest
+remained v0.3.7. Consumer installation/upgrade and public distribution are unproven.
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#direct-ipa-publishing).
+
+Clean hosted private-delivery verification
+[37766384899](https://github.com/chrissotraidis/projectreach/actions/runs/37766384899)
+passed using the workflow token: retrieve retained build 19, upload all six
+release assets, verify download hashes, retry without rebuilding, and compare
+the repeated receipt plus GitHub asset digests. The release stayed private.
+The temporary probe was removed. A focused follow-up also checks that historical
+two-component versions cannot evade the downgrade guard.
+
+Final full build [37767010361](https://github.com/chrissotraidis/projectreach/actions/runs/37767010361)
+passed 346 Python tests and both build-1018/OpenCE-150 package audits at 65b9ca5.
+Downloaded reports match the current product-source fingerprint and both staged
+package identities, hashes, sizes, minimum OS versions and network versions.
+The publisher also rejected the actual personal, profile-bearing build-20 IPA
+before staging or any release request. Public latest and publishing variables
+remain unchanged. PadMint v0.4.11 retains the recipe-lookup fallback needed for
+app-only releases; companion input-validation PR #133 is still an open draft.
+
+**Direct IPA clarification, 2026-10-08:** TestFlight is optional and disabled.
+It is not required for HaloPad builds, IPA packaging or existing local signing.
+Private **0.3.8/build 20, OpenCE 155, network 24** has now been signed using the
+existing paid development profile, without a new Apple provisioning request.
+Its final IPA passes archive, Apple-rooted signature, identity, component-notice
+and memory-entitlement checks; the original candidate is unchanged. The profile
+expires September 29, 2027 and is limited to its registered devices. Evidence:
+`generated/direct-ipa-20261008T101049Z/personal-signing-proof.json`.
+It has not been installed or gameplay-tested. Public IPA/feed promotion and a
+consumer upgrade remain unfinished; the Apple agreement denial below concerns
+the optional App Store Connect export, not this successful local signing.
+
+**2026-10-08, fixed release recipe and hosted-build work implemented. Not released.** Public HaloPad
+remains v0.3.7 (source/recipe assets, no public IPA). New Mac/iOS candidate
+**0.3.8/build 19** uses OpenCE **154**, commit
+`544ee497b6c1da195fa4dd9363851074edc63cbb`, network **24**. It was produced by
+`scripts/xbox/candidate.py`, which resolves once, tests, builds and audits both
+platforms, skips unchanged work and retains previous packages on failure.
+Chris removed the local maintenance heartbeat. No public player update feed
+is live. Normal source builds now use a bundled engine record; upstream latest is
+explicitly experimental. The fixed recipe remains OpenCE 150. Hosted build/feed
+verification passed on GitHub for both engine selections: build 1007/OpenCE 150
+and build 1008/OpenCE 154 use the same HaloPad product-source fingerprint.
+No upstream event sender or publisher is enabled. The physical iPad has private build 10/OpenCE 148/network 23, installed
+with both required memory entitlements. Build 19 passed package checks on both
+platforms; it has not been installed or gameplay-tested.
+
+The intended player-facing description is: install HaloPad, choose Xbox Halo,
+import your own Xbox disc once, and play with touch controls or a controller.
+This Xbox-only package does not require the Custom Edition PC installer or key.
+The picker explains that Custom Edition is not included; personal combined builds
+remain separate. The small app update preserves the data container, avoiding a
+repeat disc import. Hosted TestFlight signing/submission now has an opt-in workflow;
+it is disabled, and ordinary consumer signing and automatic upgrades remain unproven.
+
+**TestFlight implementation, 2026-10-08:** the new delivery workflow retrieves the
+exact successful main-branch candidate, prepares credentials on a disposable
+runner, exports with a team API key, verifies the resulting profile/signature and
+memory capabilities, and uses pinned Fastlane to submit the exact version/build
+to an existing internal or external group. External mode requests Beta App Review;
+it does not infer approval. Configuration, export and archive failures stop before
+upload; explicit resume supports a previously uploaded build without recompilation.
+The workflow remains off until the channel and scoped credentials are configured.
+No Apple credentials were exported from this Mac, no repository secrets or variables
+were set, and no upload or review request was made. See the setup and remaining
+real-service gates in [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#hosted-testflight-delivery-implementation).
+Clean hosted run [37755072408](https://github.com/chrissotraidis/projectreach/actions/runs/37755072408)
+passed 330 Python tests, seven Fastlane tests (42 assertions), the real Mac
+keychain setup/cleanup fixture, both build-1014 archives and feed staging at
+0d5c98c. Downloaded reports match the source fingerprint and staged package
+identities. The latest saved-account export retry, at 18:05 JST, still received
+Apple's agreement denial; no success proof or TestFlight submission was produced.
+
+The delivery handoff now skips a deliberately unchanged build before allocating
+a signing runner. Missing artifacts from a successful build still fail visibly.
+All 313 Xbox tests, workflow lint and repository safety checks passed locally
+after this repair; it does not change the disabled delivery or device-acceptance gates.
+
+A real hosted-token check exposed a second handoff issue: read-only release
+listing hid every private candidate. Build selection and delivery now have the
+job-scoped permission needed to see drafts. The download-only confirmation
+[37759064649](https://github.com/chrissotraidis/projectreach/actions/runs/37759064649)
+retrieved build 20 with matching receipt and GitHub archive hashes. This verifies
+private package access, not Apple signing or delivery. The temporary probe was
+removed; existing private releases were preserved.
+
+Final full run [37758513718](https://github.com/chrissotraidis/projectreach/actions/runs/37758513718)
+passed 336 Python tests, seven Fastlane tests (42 assertions), real keychain
+setup/cleanup, both build-1015/OpenCE-150 package audits and feed staging.
+Downloaded reports match the current product-source fingerprint and staged
+package identities. The later permission-only change passed the independent
+hosted download probe above; its duplicate queued build was canceled before
+starting. Automatic delivery, Apple acceptance and a consumer upgrade remain
+unverified. Both HaloPad PR #20 and companion PadMint PR #133 remain open drafts.
+
+| Acceptance check | Current evidence |
+| --- | --- |
+| Reproducible candidate | Real iOS and Mac build-19 archives replay OpenCE 154, pass identity/digest/data/signature checks, and share network 24. 295 Xbox and 23 builder tests passed. Both packages contain 27 source-linked notice entries and were privately retained, downloaded and re-audited. A real build-17 upload retry retained the same release and bytes. Concurrent local builders share a tested cache lock. Build 10 remains retained; gameplay, consumer upgrade and publication acceptance remain false. |
+| Hosted build | Latest clean run [37758513718](https://github.com/chrissotraidis/projectreach/actions/runs/37758513718) passed all 336 Python tests, seven Fastlane tests, the real keychain fixture, both build-1015/OpenCE-150 archive audits and metadata staging at 4eb61fb. Downloaded reports match the current product-source fingerprint and both staged package identities. Branch runs upload reports only; consumer delivery and gameplay remain unproven. |
+| iPad upgrade and picker | Main app upgraded in place from build 5 to 0.3.8/build 10, engine 148, using the existing paid development profile with both shipping memory entitlements. The themed picker and existing maps were observed; Play Xbox started menu rendering. This is not consumer signing or campaign acceptance. |
+| Player data preservation | Fresh pre-install Documents/Library backup and independent readback matched 608 files (9,962,453,249 bytes). Full post-install readback found no changed retained files; only four OS-managed SplashBoard snapshots were replaced. This proves file preservation, not checkpoint compatibility. |
+| Memory without extra entitlements | Build 4 reached the menu but crashed in the Normal campaign opening cinematic. GL out-of-memory errors preceded an ANGLE shader-link worker allocation failure (SIGABRT). No free-account gameplay claim is supported. |
+| Increased Memory Limit only | Build 5's actual signature requests Increased Memory Limit, without Extended Virtual Addressing. Opening cinematics progressed farther with zero GL errors in the captured segment. Shared-iPad testing interrupted the run; campaign/save acceptance remains open. Paid development signing was used. |
+| New Mac candidate | Build 10 picker and Halo main menu observed in an isolated test container with independent map copies. Captured render interval: zero GL errors. Campaign/multiplayer not accepted. Same-protocol releases no longer trigger picker update warnings. |
+| Earlier Mac host | Fresh disc import, profile creation and a one-player Battle Creek/Slayer LAN lobby observed on engine 144. Two isolated same-Mac peers did not discover/join in the bounded test. A completed match remains unverified; a real Mac–iPad test is still required. |
+| Themed picker | Private Mac build 7 implements the selected two-card layout over original space artwork. Wide/narrow visual checks, setup/back navigation, graphics selection and informational dialogs passed. Five packaging/minimum-OS tests passed. Build 10 now displays the themed picker on the physical iPad. See `design-qa.md`. |
+| Distribution | Private IPA passes strict signature/archive checks. Build 19 bundles 27 known notice entries with source hashes; compiled-in asset provenance, complete transitive notices and exact-artifact publication decision remain open. Mac notarization is untested. |
+
+**Distribution export, 2026-10-08:** the saved Xcode developer account provides an
+existing provisioning path. A missing local distribution certificate does not
+establish that automatic export is unavailable. Build 14 includes the iOS platform
+metadata Xcode needs; the reusable `scripts/xbox/export_archive.py` prepared its
+signed archive and reached Apple's live membership check. Apple returned
+`PLA Update available` and could not obtain an App Store profile. The original IPA
+remains unchanged. No upload, account agreement acceptance or device action occurred.
+The exporter now also validates the final exported IPA's identity, signature,
+App Store profile and both memory entitlements. Six focused tests passed; a real
+development-signed build-18 IPA was correctly rejected as a distribution result.
+A successful App Store export remains unproven behind the same agreement response.
+Hosted run [37743259579](https://github.com/chrissotraidis/projectreach/actions/runs/37743259579)
+passed all 313 tests, both build-1011 archive audits and metadata staging at b390fdb.
+The downloaded report matches b390fdb's product-source fingerprint and staged
+package identities. That clean build verifies the export-check implementation,
+not an Apple-approved distribution export.
+
+**Notice audit follow-up:** the earlier 16-file inventory omitted the Chromium
+notice explicitly referenced by ANGLE's compiled `compression_utils_portable.cc`
+and notices in the Khronos headers used by the host bridge. Source references and
+exact notice extracts are retained under
+`generated/distribution-export-20261008/notice-audit/`. OpenCE 154's build script
+places miniupnpc in its Android host objects, not the guest reused by HaloPad;
+repository presence alone does not establish a shipped dependency. Package-time
+notice collection is now implemented: build 19 packages 27 notice entries from
+its actual engine, renderer and header inputs in both apps. Both archives contain
+identical verified notice bytes; the inventory records source hashes and engine/
+renderer revisions. Five new tests cover complete license text, source mismatches,
+missing licenses and corrupted/incomplete archives. All 295 Xbox and 23 builder
+tests passed, as did both real package audits. The broader embedded-asset
+provenance review remains open. No publication clearance is inferred.
+
+**Upstream maintenance, 2026-10-08:** a real hosted upstream build of OpenCE 154
+failed because it added `host_gl_read_buffer`. The build now generates guest-pointer
+bridges around new self-contained upstream GL helpers instead of requiring a copied
+Apple implementation for each addition. Existing HaloPad overrides stay in place;
+unsupported signatures and dependent/stateful helpers fail before expensive builds.
+Tests execute the generated readback wrapper, including mapping failure and buffer
+cleanup. Build 16 verifies both archives with this final implementation. This removes
+one source of routine port edits, not the need to engineer arbitrary future host APIs.
+
+**Private delivery handoff, 2026-10-08:** `draft_release.py` now retains audited
+packages in unpublished GitHub drafts, verifies remote bytes, and retrieves them
+for signing without rebuilding. Build 17 completed that real round trip. Anonymous
+access to its draft, asset API and download URL returned 404; no player feed was
+published. The workflow enables retention on the default branch after merge;
+branch builds retain reports only. Clean hosted run 37739072112 passed. The final
+build-18 handoff adds a small receipt: a live upstream check correctly returned
+`build: false` for the already retained OpenCE 154/product-source pair. Real
+changed-engine and changed-version probes required a build. The prepared six-hour
+GitHub check remains disabled; `HALOPAD_PREVIEW_ENABLED` is unset. A fresh build-16
+distribution export still returned Apple's agreement denial; the downloaded build-19 export confirmed the same live denial at 17:00 JST. Both package hashes and acceptance flags survived retention/retrieval; the signing archive contains the verified notice inventory. A live receipt check skips this exact engine/source pair and requires a build for a changed engine.
+
+Read-only USB queries reconfirmed the iPad is connected with HaloPad 0.3.8/build 10
+installed and a HaloPad process running. No process was stopped, app installed or
+input sent. Existing backups remain preserved; no new point-in-time save snapshot
+or gameplay acceptance is claimed from those queries.
+
+**Next acceptance session:** Chris has stopped keyboard control. Do not disrupt
+his computer. These passes used commands/APIs and read-only device queries; they
+did not install or launch a new app. Campaign/save/resume and a matching Mac-iPad
+match remain unverified; use methods that preserve keyboard availability and data.
+AltStore 2.3 accepted the private source and recognized build 10, but new signing
+failed with `Apple.APIError 403: PLA Update available`. The signed-in account is
+Developer; a paid account does not bypass the pending Program License Agreement.
+Chris was asked to accept that agreement. Consumer install/upgrade and its actual
+entitlements remain unverified; the successful development-profile install above
+is separate evidence.
+
+Private evidence: `generated/device-update-20261008/`, `generated/update-loop-20261008/`, `generated/xbox-candidates/`, and `generated/release-acceptance-20261007/`, including backup/readback
+audits, the build-4 crash report, build-5 signature and campaign logs, and Mac
+artifact audit. The release plan and exact private IPA identity are in
+[UPDATE-STRATEGY.md](UPDATE-STRATEGY.md). Shipping entitlement requirements remain
+unchanged. No public binary, update feed or automatic publisher exists.
+
+## Earlier investigation log
+
+The entries below are chronological investigation snapshots. Statements about
+what was installed or untested describe their own step; the current table above
+supersedes them.
+
+## Reducing update maintenance
+
+**2026-10-07: implementation and physical memory test supersede the planning notes below.**
+The builder now accepts `--xbox-release-record`, `--app-version` and `--app-build`.
+Real private builds 2 and 3 replayed the same OpenCE 144 commit and packaged the
+requested version/build identity. Invalid inputs stop before expensive work.
+The saved record does not imply gameplay acceptance; default latest selection and
+the existing app update notice are unchanged. No publishing workflow/feed exists.
+
+The Xbox allocator now directly reserves an aligned 4 GiB region with `vm_map`,
+avoiding the temporary 8 GiB reservation. On the connected M2 iPad, the old
+allocation failed without extra memory entitlements while the new one succeeded.
+Two fresh diagnostic launches exercised the production allocator. A separate full
+HaloPad test app with neither Extended Virtual Addressing nor Increased Memory
+Limit then reached the edition picker and the actual Halo main menu. Its log
+confirms OpenCE 144 and the aligned guest region. This used a paid development
+identity; free-account signing, campaign memory pressure and multiplayer remain
+unverified. Shipping entitlement/profile requirements were not relaxed.
+
+The main HaloPad build-138 installation and player data remain preserved. The
+separate `dev.halopad.MemoryProbe` app, displayed as HaloPad Test, has its own map
+copies. Evidence and the private 0.3.8/build-3 IPA are under
+`generated/ipa-update-pipeline-20261007/`; memory diagnostics are under
+`generated/update-research-20261007/memory-probe/`. The build-3 archive passed
+strict signature verification and contains no maps/discs, PC identity or profile.
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) for exact artifact identity, tests,
+remaining consumer-install/upgrade/gameplay gates and the whole-IPA release plan.
+No public binary was published.
+
+**2026-10-07: second-pass decision simplifies delivery.**
+Whole-IPA updates are the primary plan; a custom compatibility-policy service is
+deferred until there is evidence it is needed. The private IPA is about 20 MB;
+maps stay in the app's data container. Source inspection found two concrete
+release-pipeline gaps: the top-level builder re-resolves latest instead of accepting
+an immutable candidate input, and packaging hardcodes app version `0.3`, build `1`
+(also confirmed inside the private IPA). Neither gap was changed in this planning
+pass. A promoted HaloPad release should eventually drive both app updates and
+normal PadMint builds, with raw upstream latest an explicit experiment.
+
+Consumer installation comes first: Apple's current capability table marks Extended
+Virtual Addressing for paid memberships, not free accounts, and HaloPad currently
+requires it. The Xbox allocator temporarily reserves 8 GiB of virtual address
+space to retain an aligned 4 GiB region. Investigate that constraint with a bounded
+diagnostic before promising free-account SideStore installation; no allocator or
+profile check was weakened. See the revised [plan](UPDATE-STRATEGY.md) and local
+`generated/update-research-20261007/second-pass-evidence.json`. No runtime code,
+signing account, installed app or release changed during this second pass.
+
+**2026-10-07: deeper update plan and a bounded build fix, local changes.**
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) for the source-backed decision:
+keep the native engine and prove an on-device IPA upgrade through an existing
+signing client. The initial compatibility-data proposal below is now deferred
+by the second-pass decision. ChupathingyCE implements a useful
+compatibility-table design, but its documented cross-play automation is incomplete;
+its published network range is not evidence that HaloPad can join those peers.
+No network-version override or update service has been enabled.
+
+The latest-mode sampler adapter now recognizes the required cache layout after
+an unrelated source edit instead of relying solely on build 144's complete file
+hash. It retains exact input/recipe identities and rejects missing, duplicate,
+reordered or changed required fields. All 238 Xbox tests pass. An additional
+comparison against the previous adapter confirms unchanged historical recipe
+identities and byte-identical renderer output for the real build-144 source;
+that real source also passes the unrelated-edit probe and rejects changed fields.
+Evidence: `generated/update-research-20261007/`. The existing private IPA and
+physical iPad installation have not changed. Consumer signing and actual
+multiplayer remain the next acceptance gates, not completed work.
+
+## Installation delivery
+
+**2026-10-07: current network candidate built, public IPA still pending.**
+The live GitHub API reports OpenCE **build 144**, revision
+`76b1898ee14e6fb58e0412acc183da509c10e001`, with **network version 21**.
+The physically tested build 138 uses network 20 and cannot join network-21
+hosts. Matching the protocol number is necessary but does not establish
+successful HaloPad multiplayer.
+
+The first build-144 attempt exposed an outdated HaloPad anisotropic-filtering
+insertion: upstream now caches immutable samplers and the old insertion referred
+to variables outside their scope. The compatibility fix applies the same optional
+filtering to the sampler input key before cache lookup. HUD, point-filtered and
+non-mipmapped textures retain their exclusions; an explicit stronger game setting
+is retained. Historic renderer recipes keep their original identity. Compiled
+regressions exercise exclusions, GPU limits and repeated cache keys.
+
+The rebuilt private iOS candidate packages build 144/network 21, requires iOS
+17.4+, and passes strict code-signature verification. It is 19,853,004 bytes;
+SHA-256 `b2a8ae7010b31cfcaeb80d7059cd007ccbde718c41b315adfe37704cb5e184d6`.
+No disc/maps, PC identity/modules or provisioning profile are packaged. The
+compiled Xbox engine is included. This candidate has not replaced the physical
+iPad's tested build 138. Evidence: `generated/release-candidate-20261007/`.
+Validation: all 236 Xbox tests and 26 archive/installer/signing/profile tests pass;
+Bash syntax and whitespace checks pass. The exact IPA also passes the real
+non-mutating signing/device preflight against the iPad's development profile.
+
+The intended first public app download is an **Xbox-only beta IPA**, with the
+edition picker, disc importer, touch/controller support and a tested OpenCE
+engine; players import their own Xbox disc after signing/installing. PC Custom
+Edition remains an optional personal combined build. Accompany the IPA with
+checksums, complete component notices, exact engine/network versions and tested
+installation/upgrade instructions. A Mac download needs its own acceptance and
+signing/notarization checks. The source/PadMint recipe updates are a separate
+deliverable; latest public PadMint 0.4.11 still lacks the draft conditional-tool
+flow in PadMint PR #133.
+
+Before promoting an IPA: test this exact candidate on hardware, including a
+real matching-version multiplayer match; reproduce an ordinary player's signing
+route with its actual memory entitlements; verify upgrade/save behavior and clear
+recovery guidance for incompatible old checkpoints; finish notices and the exact
+compiled-engine distribution decision. Installing with the maintainer's development
+profile alone does not establish a broadly usable sideloading route. No public
+binary or claim of release readiness follows from the successful build.
+
+**2026-10-07: direct-download delivery plan, implementation started.**
+Keep the existing Xbox engine, picker and disc importer. The intended release
+is an Xbox-only app; Custom Edition remains an optional personal combined build.
+Work through four separate acceptance steps:
+
+1. **Package and install handoff:** the existing device installer now accepts
+   `--ipa` directly and offers `--check-only`. Validate archive paths and app
+   identity before extracting, retain profile/device checks, sign a temporary
+   copy, and preserve the input IPA. This removes manual unzipping from the
+   developer-profile route; it is not yet a consumer signing application.
+2. **Physical device:** use one frozen candidate for signing, picker, gameplay
+   and update preservation checks. Back up and independently read back the
+   existing iPad data before replacement. The private build-138 IPA is the
+   candidate; record the exact hash and results rather than chasing a moving
+   upstream release during acceptance.
+3. **Distribution contents:** inventory the compiled engine and dependencies,
+   bundle required notices and review distribution treatment. Inspection of
+   the candidate found no bundled dependency notices. The guest build includes
+   musl, tomlc17, Expat, KCP, Monocypher and zlib; the host includes ANGLE and
+   xxHash. The component/license inventory still needs completion. Absence of
+   ISO/map files is not a complete review of compiled-in assets or engine rights.
+4. **Player delivery and updates:** after the first three steps, prepare a
+   stable platform-specific download, tested signing instructions, exact engine
+   and network versions, and an in-place upgrade path preserving player data.
+   Verify Mac signing/notarization separately. Keep a tested prior release and
+   promote tested builds rather than promise every daily upstream update works.
+
+Public binary publication remains pending. Source-only HaloPad/PadMint fixes
+can proceed independently of deciding how to distribute the compiled engine.
+
+Installer validation: 26 focused archive, device-wrapper, signing and profile
+tests pass, including invalid archive paths, non-device apps, failed signing,
+PC package requirements and non-mutating preflight. The real private IPA also
+passed preflight with the connected iPad's development profile. Before the
+in-place device install, two independent reads of Documents/Library matched
+all 459 files (7,422,708,827 bytes). Installation through `--ipa` succeeded;
+98 save/profile/preference files read back unchanged before first launch.
+QuickTime showed the physical iPad opening to the edition picker with build
+138 and the existing Xbox maps ready, plus the expected different-network
+warning for build 144.
+
+Physical interaction through Apple's Device Hub then verified touch menu navigation,
+a new test profile, Pillar of Autumn on Normal, swipe-to-look, the X action to leave
+the cryo tube, and Save and Quit followed by Continue back into the checkpoint.
+The original profile's Continue stayed in the menu and logged `checksum failed on
+persistent storage`; its pre-install save bytes are retained in the verified backup.
+This does not establish whether the old checkpoint was already invalid or became
+incompatible with this engine. Do not bypass the checksum or overwrite the backup.
+A one-player local Battle Creek lobby was created but did not start during this
+test; multiplayer remains unverified. Sustained movement, combat, controller input,
+audio and frame-rate acceptance remain open. Short remote stick gestures are not
+enough to diagnose a physical-touch defect.
+
+The iPad currently retains the private Xbox-only build 138, paused in the test
+campaign. Custom Edition is temporarily unavailable in this candidate. A signed
+combined build 125 is retained locally, but it is older and is not an exact backup
+of the original app; validate save compatibility before returning to that build.
+Private logs and backup audits: `generated/ipa-install-check-20261007/`.
+
+**2026-10-06: player reports identify a distribution problem as well as setup bugs.**
+Players want Xbox Halo on an iPhone/iPad, but encounter PC installer/key requirements,
+Mac/Xcode builds, unclear signing instructions and confusion over whether both Halo
+editions are required. Several stop before reaching the game. The Xbox-only builder
+removes the PC dependency; it does not remove local compilation or signing.
+
+The intended simpler flow is **download app → sign/install → import owned disc → play**,
+with the edition picker retained and Custom Edition optional. PadMint remains useful
+for personal builds and the PC translation. This is a delivery proposal, not a shipped
+download or a change to the current publication policy.
+
+Comparison checked against published artifacts and source:
+
+- [ChupathingyCE v0.6.7b](https://github.com/ChupathingyCE/chupathingyce/releases/tag/v0.6.7b)
+  has desktop/Android releases, including Mac, but no IPA in that release.
+- [NicholasDominici's iOS v0.1.2](https://github.com/NicholasDominici/halo-ce-ios/releases/tag/v0.1.2-ios)
+  does publish an unsigned IPA: 5,663,938 bytes, published SHA-256 verified as
+  `8340cc94f21429e398c668f5d4313f20917fdd6f8c202d51b934a7bfc7194530`.
+  ZIP inventory contains the app executable, icons, metadata and notices, with no disc
+  or map files. Its [release build script](https://github.com/NicholasDominici/halo-ce-ios/blob/ff9d86bf65730b780b65fb4b4d3a7d87044623ed/tools/ios_build.py)
+  embeds the compiled guest engine. The package was inspected, not run; its release
+  notes leave multiplayer and physical-iPad validation open.
+- [OpenCE PR #64](https://github.com/OpenCommunityEdition/OpenCE/pull/64) is a separate
+  Apple port with IPA workflow artifacts and a Mac test download. At reviewed head
+  `6702fb72efd8d97a780939d9b4bc04ab78d05aaf`, its
+  [distribution record](https://github.com/AttilaTheFun/halo-ce-universal/blob/6702fb72efd8d97a780939d9b4bc04ab78d05aaf/port/apple/DISTRIBUTION.md)
+  explicitly distinguishes excluded game assets from included reconstructed engine code.
+  These checks establish packaging differences, not comparative gameplay quality.
+
+HaloPad already produces an approximately 19.7 MB personal Xbox-only IPA and imports
+maps afterward. Publishing an empty launcher would not supply its required engine;
+publicly distributing the existing app still includes game-derived executable code.
+
+Next delivery steps, in order:
+
+1. Ship the paired HaloPad/PadMint input fixes after outstanding device acceptance.
+   The source now also signs and installs Xbox-only apps without a PC identity file
+   or prepared PC package. Regression checks retain device/profile validation and
+   ensure failed signing never installs. PC/combined package requirements remain.
+2. Validate the exact Xbox-only IPA on physical iPhone/iPad: signing capabilities,
+   first install, disc import, gameplay, matching-version multiplayer and in-place
+   upgrade with saved data. State which signing route and account type were tested.
+3. Resolve distribution treatment of the compiled Xbox engine separately from maps,
+   dependencies and PC inputs. The existing source-only release policy is not proof
+   that direct-download packaging is technically impossible; another fork's download
+   is not distribution clearance for HaloPad either.
+4. If public binary distribution is approved, publish an audited Xbox-only IPA/Mac
+   app with stable download links and a short platform-specific install guide. Show
+   the exact OpenCE build/network version and retain a tested prior release. Updates
+   should replace the app while preserving imports/saves; do not promise automatic
+   iOS updates or cross-fork network compatibility without verifying them.
+
+No public binary uploaded, signing-tool compatibility promised or physical-device
+acceptance added by this review. README and install instructions now distinguish the
+live 0.3.7/0.4.9 flow from the draft Xbox-only flow. Follow-up validation: 37 focused
+profile, signing, device-wrapper, Xbox-only package and builder regression tests pass;
+Bash syntax, documentation links and whitespace checks pass. Signing/profile calls and
+device operations are simulated in the new tests; they do not establish hardware acceptance.
+
+## Build validation
+
+**2026-10-06: Xbox-only installation flow (draft, not released).**
+Selecting an Xbox ISO/XISO in the updated HaloPad recipe builds without the PC installer,
+product key, Wine, PC translation or PC game package. Selecting HaloCESetup.exe retains
+both editions. PadMint's companion draft checks tools for the selected input and refreshes
+them when switching files; release both changes together. The same picker/importer/controls
+are used by the Xbox-only app. Custom Edition is clearly marked as absent, with instructions
+for adding it through a combined build.
+
+Validation: full personal Mac ZIP and iOS IPA builds completed against OpenCE build 138
+(`76addf661f02e2fd090d7b00f9dd12c29e562a9b`, network 20). Signatures, entitlements, OS minimums
+and package contents checked; Xbox-only outputs contain no PC image, modules, product ID
+or PC package. A clean source export with no PC inputs or third-party Python packages also
+built the Mac app. An isolated Mac installation imported an owned Xbox disc, reached Halo's
+main menu, then relaunched into the picker with its maps retained. The combined build opened
+PC setup using the same test identity; all Xbox files retained identical hashes. Actual app
+and player data were not replaced. Full PadMint suite: 318 passing; Xbox suite: 234 passing.
+Builder failure/rollback tests and PC-cache tests pass separately. Private build records and
+logs are retained under `generated/xbox-only-check-20261006/`.
+
+No physical iOS install, new gameplay/performance acceptance or real multiplayer-match
+acceptance was performed. Personal binaries are not public release assets.
+
+**Earlier graphics investigation paused by Chris on 2026-10-03.**
+The resumed installation work above does not establish resolution of that investigation.
 Replacement-bot instructions and bounded priorities:
 [focused handoff](HaloPad-NEXT-BOT-HANDOFF-2026-10-03.md).
 The chronology below is evidence, not permission to resume or repeat old passes.

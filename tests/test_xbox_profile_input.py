@@ -11,6 +11,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'scripts/xbox'))
 import guest_adaptation as guest
 import profile_input as bridge
+import network_bridge
+from test_xbox_network_policy import CLIENT, SERVER, LOBBY
 
 
 class XboxProfileInputTests(unittest.TestCase):
@@ -24,7 +26,11 @@ class XboxProfileInputTests(unittest.TestCase):
             bridge.INPUT: bridge.HEADERS + bridge.ANCHOR + b'input_get_device_states();\n}\n',
             bridge.IMPORTS: b'host_sdl_init\n',
             guest.CAMERA_SOURCE: guest.CAMERA_ANCHOR,
+            network_bridge.CLIENT: CLIENT,
+            network_bridge.SERVER: SERVER,
+            network_bridge.LOBBY: LOBBY,
         }
+        network_paths = {network_bridge.CLIENT, network_bridge.SERVER, network_bridge.LOBBY}
         # guest_adaptation loads its own module object; patch that exact boundary.
         recipe = guest.profile_input
         with tempfile.TemporaryDirectory() as tmp, \
@@ -42,9 +48,15 @@ class XboxProfileInputTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     with guest.renderer_adaptation(root, guest.identity(adaptation)):
                         for path, content in fixtures.items():
-                            if path == guest.CAMERA_SOURCE and adaptation != 'render-camera-v1':
+                            if path == guest.CAMERA_SOURCE and adaptation not in guest.CAMERA_ADAPTATIONS:
+                                continue
+                            if path in network_paths and adaptation not in guest.NETWORK_ADAPTATIONS:
                                 continue
                             self.assertNotEqual((root/path).read_bytes(), content)
+                        if adaptation in guest.NETWORK_ADAPTATIONS:
+                            names = (root/bridge.IMPORTS).read_bytes().split()
+                            self.assertEqual(names[-3:], [b'host_halopad_input_context_v1',
+                                b'host_halopad_network_announce_v1', b'host_halopad_network_accepts_v1'])
                         if concurrent:
                             (root/concurrent).write_bytes(b'concurrent edit')
                         raise RuntimeError('interrupted build')

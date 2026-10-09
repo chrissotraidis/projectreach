@@ -28,25 +28,33 @@ def main():
     ap.add_argument('app', type=pathlib.Path)
     ap.add_argument('--identity', required=True)
     ap.add_argument('--profile', type=pathlib.Path, required=True)
+    ap.add_argument('--check-only', action='store_true', help='validate app and profile without changing or signing the app')
     a = ap.parse_args()
     app = a.app.resolve()
-    if not (app / 'Info.plist').is_file() or not (app / 'data' / 'core-identity.json').is_file():
+    pc = (app / 'data' / 'core-identity.json').is_file()
+    xbox = all((app / 'data' / 'xbox' / name).is_file()
+               for name in ('build.json', 'halo_guest.elf', 'brokers.txt'))
+    if not (app / 'Info.plist').is_file() or not (pc or xbox):
         sys.exit(f'{app} is not a HaloPad device build')
     info = plistlib.loads((app / 'Info.plist').read_bytes())
     if info.get('CFBundleSupportedPlatforms') != ['iPhoneOS']:
-        sys.exit(f'{app} is a Simulator build; use the ios-app-arm64-apple-ios17.0 one')
+        sys.exit(f'{app} is not a device build; use the app built with --iphoneos')
     bundle = info['CFBundleIdentifier']
     try:
         granted = check(a.profile, bundle, a.identity)
     except (ValueError, subprocess.CalledProcessError, plistlib.InvalidFileException) as exc:
         sys.exit(f'profile preflight failed: {exc}')
+    if a.check_only:
+        print('PASS: device app and signing profile; no files changed')
+        return
     entitlements = dict(ENTITLEMENTS)
     entitlements.update({k: granted[k] for k in ('application-identifier', 'com.apple.developer.team-identifier', 'get-task-allow') if k in granted})
     shutil.copy2(a.profile, app / 'embedded.mobileprovision')
-    with tempfile.NamedTemporaryFile(suffix='.plist', delete=False) as f:
-        plistlib.dump(entitlements, f)
-    subprocess.run(['codesign', '--force', '--sign', a.identity, '--entitlements', f.name, '--timestamp=none', str(app)], check=True)
-    subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
+    with tempfile.TemporaryDirectory(prefix='halopad-sign-') as folder:
+        entitlements_path = pathlib.Path(folder) / 'entitlements.plist'
+        entitlements_path.write_bytes(plistlib.dumps(entitlements))
+        subprocess.run(['codesign', '--force', '--sign', a.identity, '--entitlements', str(entitlements_path), '--timestamp=none', str(app)], check=True)
+        subprocess.run(['codesign', '--verify', '--deep', '--strict', str(app)], check=True)
     print('signed', app)
 
 

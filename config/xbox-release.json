@@ -1,0 +1,5 @@
+{
+  "revision": "73dc01d09a21875f14c77b4430f20518d1f5ad09",
+  "release": "build-157",
+  "note": "Engine snapshot for this HaloPad source release: OpenCE build 157, network version 24, played on iPad on 2026-10-09. Moving upstream releases do not change this record; online compatibility follows the signed network policy (scripts/xbox/network_policy.py)."
+}

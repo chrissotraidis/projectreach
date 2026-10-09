@@ -22,6 +22,9 @@ _border_spec.loader.exec_module(border_sampling)
 _input_spec = importlib.util.spec_from_file_location('profile_input', pathlib.Path(__file__).with_name('profile_input.py'))
 profile_input = importlib.util.module_from_spec(_input_spec)
 _input_spec.loader.exec_module(profile_input)
+_network_spec = importlib.util.spec_from_file_location('network_bridge', pathlib.Path(__file__).with_name('network_bridge.py'))
+network_bridge = importlib.util.module_from_spec(_network_spec)
+_network_spec.loader.exec_module(network_bridge)
 
 RENDERER = pathlib.Path('port/linux/src/d3d8_gl.c')
 SOURCE_SHA256 = '5c8c132048b1efaa57d322b9c8a0ef65df07c1755df653c0f1a178ce96831cc6'
@@ -49,16 +52,21 @@ ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/
 def latest_mode():
     """HALOPAD_XBOX_LATEST=1: the builder's attempt at OpenCE's newest release, which HaloPad has
     not reviewed. Every edit's anchor must still be present exactly once (the checks below), and
-    scripts/builder/build.sh falls back to the tested pin when anything does not apply or build."""
+    scripts/builder/build.sh stops the update when anything does not apply or build."""
     return os.environ.get('HALOPAD_XBOX_LATEST') == '1'
 
 
-def _latest_hash(revision, path):
-    """The file's hash at an unreviewed revision, only in latest mode."""
+def _latest_source(revision, path):
+    """Read the exact unreviewed revision, only in latest mode."""
     if not latest_mode():
         return None
     shown = subprocess.run(['git', '-C', str(ENGINE_CHECKOUT), 'show', f'{revision}:{path}'], capture_output=True)
-    return hashlib.sha256(shown.stdout).hexdigest() if shown.returncode == 0 else None
+    return shown.stdout if shown.returncode == 0 else None
+
+
+def _latest_hash(revision, path):
+    source = _latest_source(revision, path)
+    return hashlib.sha256(source).hexdigest() if source is not None else None
 ANCHOR = b'\tscale[0] = scale[1] = 1.0f;\n#else\n'
 INSERT = b'''\t/* HaloPad private experiment: retain logical layout, scale only targets. */
 \t{
@@ -92,6 +100,50 @@ FILTER_INSERT = b'''\t/* HaloPad opt-in world filtering, independent of target r
 \t\t\tglSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);
 \t}
 '''
+
+# Build144 creates immutable samplers from an input key. Apply the optional
+# filtering before that key is compared/cached, while hires/mipmapped are in
+# scope. Changing a cached sampler would also change other draws using it.
+CACHED_FILTER_RENDERERS = {
+    'ddf4e9bbeda3d8f3fdf5258cfaa65f8d54122fb25c6e1eecca89beb8a0022aa4',
+}
+CACHED_FILTER_ANCHOR = b'\tinputs[10] = hires;\n'
+CACHED_FILTER_INSERT = (b'#ifdef HALO_ANDROID\n' + FILTER_INSERT
+    .replace(b'min_filter', b'inputs[0]')
+    .replace(b'mip_filter', b'inputs[1]')
+    .replace(b'state[D3DTSS_MAXANISOTROPY]', b'inputs[8]')
+    .replace(b'\t\tglSamplerParameterf(sampler, GL_TEXTURE_MAX_ANISOTROPY_EXT, requested);',
+             b'\t\t{ inputs[0] = D3DTEXF_ANISOTROPIC; inputs[8] = (DWORD)requested; }')
+    + b'#endif\n')
+
+
+def filtering_recipe(renderer, revision=None, original=None):
+    if renderer in CACHED_FILTER_RENDERERS:
+        return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT
+    # In latest mode, unrelated renderer edits must not select the old patch
+    # for the new sampler cache. Keep the exact input hash in the identity;
+    # recognize only the layout whose key fields this patch understands.
+    if latest_mode():
+        if original is None:
+            original = _latest_source(revision, RENDERER)
+        if original is None or hashlib.sha256(original).hexdigest() != renderer:
+            raise ValueError('Renderer filtering source differs from its identity')
+        if any(marker in original for marker in
+               (b'SAMPLER_STATE_WORDS', b'configured_sampler[', CACHED_FILTER_ANCHOR)):
+            required = (
+                b'static void configure_sampler(int stage, BOOL mipmapped, BOOL hires)\n{\n',
+                b'\tinputs[0] = hires ? D3DTEXF_LINEAR : state[D3DTSS_MINFILTER];\n',
+                b'\tinputs[1] = hires ? D3DTEXF_LINEAR : mipmapped ? state[D3DTSS_MIPFILTER] : D3DTEXF_NONE;\n',
+                b'\tinputs[8] = state[D3DTSS_MAXANISOTROPY];\n',
+                CACHED_FILTER_ANCHOR,
+                b'\tif (!configured_sampler[stage] || memcmp(configured[stage], inputs, sizeof(inputs)))\n',
+                b'\t\tconfigured_sampler[stage] = sampler_get(stage, inputs);\n',
+            )
+            positions = [original.find(part) for part in required]
+            if any(original.count(part) != 1 for part in required) or positions != sorted(positions):
+                raise ValueError('Renderer filtering input changed; review the sampler cache layout')
+            return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT
+    return FILTER_ANCHOR, FILTER_INSERT
 
 # Private host-bridge token, never forwarded to a GLES implementation. The
 # paired host/backend is required; normal GL_QUERY_RESULT remains boolean.
@@ -153,7 +205,10 @@ REVIEWED_CAMERA = {
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
 CAMERA_REPLACE = (b'#if 0 /* HaloPad: the view turns the frame the finger moves (display.direct_camera) */\n'
                   b'\t(void)local_player_index;\n\treturn observer;\n#else\n')
-PRESENT_ADAPTATIONS = ('render-present-v1', 'render-camera-v1')
+# network-policy-v1 is render-camera-v1 plus the network policy bridge.
+NETWORK_ADAPTATIONS = ('network-policy-v1',)
+CAMERA_ADAPTATIONS = ('render-camera-v1', *NETWORK_ADAPTATIONS)
+PRESENT_ADAPTATIONS = ('render-present-v1', *CAMERA_ADAPTATIONS)
 INPUT_ADAPTATIONS = ('shared-input-v1', *PRESENT_ADAPTATIONS)
 BORDER_ADAPTATIONS = ('render-border-v1', *INPUT_ADAPTATIONS)
 QUALITY_ADAPTATIONS = ('render-quality-v1', 'render-visibility-v1', 'render-water-v1', *BORDER_ADAPTATIONS)
@@ -169,9 +224,10 @@ def identity(name=None, revision=None):
         raise ValueError('Unknown HALOPAD_XBOX_GUEST_ADAPTATION')
     if revision is None:
         revision = os.environ.get('XBOX_REV') or json.loads(ENGINE_LOCK.read_text())['revision']
+    renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
     recipe = ANCHOR + INSERT
     if name in QUALITY_ADAPTATIONS:
-        recipe += FILTER_ANCHOR + FILTER_INSERT
+        recipe += b''.join(filtering_recipe(renderer, revision))
     if name in COUNTED_ADAPTATIONS:
         recipe += COUNT_ANCHOR + COUNT_INSERT + ATOMIC_ANCHOR + ATOMIC_REPLACE
     if name in WATER_ADAPTATIONS:
@@ -182,14 +238,15 @@ def identity(name=None, revision=None):
         recipe += profile_input.recipe()
     if name in PRESENT_ADAPTATIONS:
         recipe += PRESENT_ANCHOR + PRESENT_REPLACE
-    renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
     result = {'name': name, 'upstream_renderer_sha256': renderer}
-    if name == 'render-camera-v1':
+    if name in CAMERA_ADAPTATIONS:
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
         if not camera:
             raise ValueError('Direct camera is reviewed only for builds 85, 119 and 125; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = camera
+    if name in NETWORK_ADAPTATIONS:
+        recipe += network_bridge.recipe()
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
@@ -206,13 +263,16 @@ def adapted_camera(original, revision=None):
 
 def adapted_source(original, name='render-scale-v1'):
     expected = identity(name)['upstream_renderer_sha256']
+    filter_anchor, filter_insert = filtering_recipe(expected, original=original) if name in QUALITY_ADAPTATIONS else (None, None)
     if hashlib.sha256(original).hexdigest() != expected or original.count(ANCHOR) != 1:
         raise ValueError('Renderer adaptation input changed; review the new upstream source first')
-    if name in QUALITY_ADAPTATIONS and original.count(FILTER_ANCHOR) != 1:
+    if name in QUALITY_ADAPTATIONS and original.count(filter_anchor) != 1:
         raise ValueError('Renderer filtering input changed; review the new upstream source first')
     modified = original.replace(ANCHOR, ANCHOR[:-len(b'#else\n')] + INSERT + b'#else\n')
     if name in QUALITY_ADAPTATIONS:
-        modified = modified.replace(FILTER_ANCHOR, FILTER_INSERT + FILTER_ANCHOR)
+        replacement = (filter_anchor + filter_insert if filter_anchor == CACHED_FILTER_ANCHOR
+                       else filter_insert + filter_anchor)
+        modified = modified.replace(filter_anchor, replacement)
     if name in COUNTED_ADAPTATIONS:
         if original.count(COUNT_ANCHOR) != 1 or original.count(ATOMIC_ANCHOR) != 1:
             raise ValueError('Renderer visibility input changed; review upstream first')
@@ -249,7 +309,17 @@ def renderer_adaptation(engine, adaptation):
         changes.append((shader_path, shader, border_sampling.adapt_shader(shader)))
     if adaptation['name'] in INPUT_ADAPTATIONS:
         changes.extend(profile_input.changes(engine))
-    if adaptation['name'] == 'render-camera-v1':
+    if adaptation['name'] in NETWORK_ADAPTATIONS:
+        # host_imports.list is also the input bridge's: stack both edits on one file.
+        planned = {path: index for index, (path, _, _) in enumerate(changes)}
+        for path, original, modified in network_bridge.changes(engine):
+            if path in planned:
+                prior_path, prior_original, prior_modified = changes[planned[path]]
+                changes[planned[path]] = (prior_path, prior_original,
+                                          network_bridge.adapt(path.relative_to(engine), prior_modified))
+            else:
+                changes.append((path, original, modified))
+    if adaptation['name'] in CAMERA_ADAPTATIONS:
         camera_path = engine / CAMERA_SOURCE
         camera = camera_path.read_bytes()
         changes.append((camera_path, camera, adapted_camera(camera)))

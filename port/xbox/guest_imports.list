@@ -1,2 +1,4 @@
 # Optional HaloPad guest adaptations; not present in unmodified builds.
 host_halopad_input_context_v1
+host_halopad_network_announce_v1
+host_halopad_network_accepts_v1

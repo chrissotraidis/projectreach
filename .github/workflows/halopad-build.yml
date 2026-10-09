@@ -1,0 +1,173 @@
+name: HaloPad release build
+on:
+  push:
+    branches: [main, codex/xbox-update-flow]
+    paths: ['port/**', 'scripts/**', 'config/**', 'tests/**', 'assets/**', 'tools/**', '.github/workflows/halopad-build.yml', '.github/workflows/halopad-testflight.yml', '.github/workflows/halopad-ipa.yml']
+  workflow_dispatch:
+    inputs:
+      engine:
+        description: Engine selection (upstream is an experimental candidate)
+        type: choice
+        options: [release, upstream]
+        default: release
+  repository_dispatch:
+    types: [opence-release]
+  schedule:
+    - cron: '17 */6 * * *'
+permissions:
+  contents: read
+concurrency:
+  group: halopad-build-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  delivery-tests:
+    if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    env:
+      BUNDLE_GEMFILE: tools/testflight/Gemfile
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_OPT_OUT_USAGE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8
+        with:
+          ruby-version: '3.3.9'
+          bundler-cache: true
+      - run: bundle exec ruby tools/testflight/test_delivery.rb
+  select:
+    # One-time opt-in stays off until a consumer delivery route is accepted.
+    if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      # GitHub hides draft releases from read-only tokens, defeating deduplication.
+      contents: write
+    outputs:
+      build: ${{ steps.decision.outputs.build }}
+      record: ${{ steps.engine.outputs.record }}
+      failure_key: ${{ steps.failed.outputs.cache-primary-key }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ENGINE_CHANNEL: ${{ (github.event_name == 'schedule' || github.event_name == 'repository_dispatch') && 'upstream' || inputs.engine || (github.ref == 'refs/heads/main' && 'upstream' || 'release') }}
+      SKIP_RETAINED: ${{ github.event_name == 'schedule' || github.event_name == 'repository_dispatch' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Resolve engine once and skip completed upstream work
+        id: engine
+        run: |
+          selection=()
+          if [ "$SKIP_RETAINED" = true ]; then selection=(--skip-retained); fi
+          python3 scripts/xbox/check_update.py --channel "$ENGINE_CHANNEL" \
+            --app-version 0.3.8 "${selection[@]}" > selection.json
+      - name: Look up an identical failed automatic build
+        id: failed
+        if: env.SKIP_RETAINED == 'true' && steps.engine.outputs.build == 'true'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: generated/halopad-build-failure.txt
+          key: halopad-failure-v1-0.3.8-${{ github.sha }}-${{ fromJSON(steps.engine.outputs.record).release }}-${{ fromJSON(steps.engine.outputs.record).revision }}
+          lookup-only: true
+          enableCrossOsArchive: true
+      - name: Finalize build decision
+        id: decision
+        env:
+          FAILED_BEFORE: ${{ steps.failed.outputs.cache-hit }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          path = pathlib.Path('selection.json')
+          result = json.loads(path.read_text())
+          if result['build'] and os.environ.get('FAILED_BEFORE') == 'true':
+              result.update(build=False, reason='previous-build-failure')
+              with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+                  summary.write('This exact source and OpenCE release already failed its build checks. '
+                                'No Mac build started. Inspect the earlier failure, then use Run workflow '
+                                'with engine=upstream to retry. Changed source or engine is tried normally.\n')
+          path.write_text(json.dumps(result) + '\n')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('build=' + str(result['build']).lower() + '\n')
+          PY
+      - name: Save retained candidate selection for delivery retries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: halopad-selection-${{ github.run_number }}-${{ github.run_attempt }}
+          path: selection.json
+          retention-days: 14
+  build:
+    needs: select
+    if: needs.select.outputs.build == 'true'
+    runs-on: macos-15
+    timeout-minutes: 120
+    permissions:
+      contents: write
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      HALOPAD_BUILD_JOBS: '3'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      ENGINE_RECORD: ${{ needs.select.outputs.record }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          brew install llvm lld cmake ninja sdl3
+          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
+      - name: Check real keychain setup with disposable fixtures
+        run: python3 tools/testflight/smoke_keychain.py
+      - name: Build the selected engine and audit both packages
+        id: candidate_build
+        run: |
+          python3 -c 'import json,os,pathlib; pathlib.Path("selected-engine.json").write_text(json.dumps(json.loads(os.environ["ENGINE_RECORD"])))'
+          python3 scripts/xbox/candidate.py --app-version 0.3.8 \
+            --first-build "$((1000 + GITHUB_RUN_NUMBER))" \
+            --record selected-engine.json > candidate-result.json
+      - name: Stage installer source and app-update metadata
+        run: |
+          python3 scripts/xbox/update_source.py \
+            --candidate generated/xbox-candidates/latest-built.json \
+            --out generated/release-stage --tag "halopad-0.3.8-$((1000 + GITHUB_RUN_NUMBER))"
+      - name: Retain exact candidate privately for signing
+        # GITHUB_TOKEN cannot create a release targeting unmerged workflow changes.
+        # Drafts become available only to repository writers, never the player feed.
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/xbox/draft_release.py \
+            --candidate generated/xbox-candidates/latest-built.json \
+            --out generated/private-handoff > private-handoff.json
+      - name: Save build report only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: halopad-build-report-${{ github.run_number }}
+          path: |
+            candidate-result.json
+            private-handoff.json
+            generated/xbox-candidates/runs/*/result.json
+            generated/xbox-candidates/runs/*/xbox-release.json
+            generated/xbox-candidates/runs/*/*.log
+            generated/release-stage/halopad-update.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Record a failed automatic candidate build
+        if: failure() && steps.candidate_build.conclusion == 'failure' && needs.select.outputs.failure_key != ''
+        run: |
+          mkdir -p generated
+          echo 'Build checks failed; inspect this run before manually retrying.' > generated/halopad-build-failure.txt
+      - name: Avoid rebuilding unchanged failures on every scheduled check
+        if: failure() && steps.candidate_build.conclusion == 'failure' && needs.select.outputs.failure_key != ''
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: generated/halopad-build-failure.txt
+          key: ${{ needs.select.outputs.failure_key }}
+          enableCrossOsArchive: true
+      # Public promotion stays off until distribution and consumer signing pass.
+      # No signing key, game disc or player data is needed by this hosted build.

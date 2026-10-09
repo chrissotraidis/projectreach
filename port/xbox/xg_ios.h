@@ -10,6 +10,9 @@ UIView *xg_ios_make_view(CGRect frame);
 void xg_ios_view_resized(void);
 /* loads the game image and starts the game on its own thread; 0 on success */
 int xg_ios_start(const char *image_path, const char *data_root, const char *save_root);
+/* the verified network policy row for this engine (xg_network_policy.h); call
+ * before xg_ios_start. Returns 0, and keeps upstream's exact rule, if invalid. */
+int xg_ios_set_network_policy(unsigned int engine, unsigned int announce, unsigned int minimum, unsigned int maximum);
 
 /* player 1's touch gamepad (xg_touch.m): axes in SDL order (left x, left y,
  * right x, right y, left trigger, right trigger; -1..1, y down), buttons as

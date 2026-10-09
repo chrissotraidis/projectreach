@@ -19,6 +19,7 @@
 #include "xg_fault_frames.h"
 
 #include <errno.h>
+#include <mach/mach.h>
 #include <dlfcn.h>
 #include <pthread.h>
 #include <signal.h>
@@ -59,24 +60,24 @@ static void mark(uint32_t address, uint64_t size, uint8_t value)
 
 int xg_memory_initialize(void)
 {
-	/* reserve 8 GiB and keep the 4 GiB-aligned half inside it */
-	uint8_t *reservation = mmap(NULL, 2 * SPAN, PROT_NONE, MAP_PRIVATE | MAP_ANON, -1, 0);
-	uintptr_t base, start;
-	if (reservation == MAP_FAILED)
+	/* Ask the VM allocator for alignment directly. Reserving twice the span
+	 * first unnecessarily needs 8 GiB of free virtual address space. */
+	vm_address_t reservation = 0;
+	if (vm_map(mach_task_self(), &reservation, SPAN, SPAN - 1,
+		VM_FLAGS_ANYWHERE, MEMORY_OBJECT_NULL, 0, FALSE,
+		VM_PROT_NONE, VM_PROT_READ | VM_PROT_WRITE, VM_INHERIT_NONE) != KERN_SUCCESS)
 		return -1;
-	start = (uintptr_t)reservation;
-	base = (start + SPAN - 1) & ~(SPAN - 1);
-	if (base > start)
-		munmap(reservation, base - start);
-	if (start + 2 * SPAN > base + SPAN)
-		munmap((void *)(base + SPAN), start + 2 * SPAN - (base + SPAN));
-	xg_base = base;
+	xg_base = reservation;
 	mark(0, LOW_ALLOC, 1);
 	mark(XG_WINDOW_BASE, XG_WINDOW_SIZE, 1);
 	mark(HIGH_LIMIT, SPAN - HIGH_LIMIT, 1);
 	if (mmap(G(void *, XG_WINDOW_BASE), XG_WINDOW_SIZE, PROT_READ | PROT_WRITE,
 		MAP_PRIVATE | MAP_ANON | MAP_FIXED, -1, 0) == MAP_FAILED)
+	{
+		vm_deallocate(mach_task_self(), reservation, SPAN);
+		xg_base = 0;
 		return -1;
+	}
 	xg_log("guest memory at %p (4 GiB), Xbox window at guest 0x%08x", (void *)xg_base, XG_WINDOW_BASE);
 	return 0;
 }

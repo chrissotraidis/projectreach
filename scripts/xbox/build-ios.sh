@@ -10,15 +10,16 @@
 # shared (docs/XBOX-ENGINE.md).
 set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-TARGET=arm64-apple-ios17.0-simulator
+TARGET=arm64-apple-ios17.4-simulator
 SDK=iphonesimulator
 LAUNCH=""
 IDENTITY="-"
 PROFILE=""
+parse_options() {
 while [ $# -gt 0 ]; do
 	case "$1" in
-	--device) TARGET=arm64-apple-ios17.0; SDK=iphoneos ;;
-	--mac) TARGET=arm64-apple-ios17.0-macabi; SDK=maccatalyst ;;
+	--device) TARGET=arm64-apple-ios17.4; SDK=iphoneos ;;
+	--mac) TARGET=arm64-apple-ios17.4-macabi; SDK=maccatalyst ;;
 	--launch) LAUNCH=$2; shift ;;
 	--identity) IDENTITY=$2; shift ;;
 	--profile) PROFILE=$2; shift ;;
@@ -26,9 +27,15 @@ while [ $# -gt 0 ]; do
 	esac
 	shift
 done
+}
+parse_options "$@"
 if [ -n "$LAUNCH" ] && [ "$SDK" != iphonesimulator ]; then
     echo "--launch is Simulator-only; device builds are not installed by this script" >&2
     exit 2
+fi
+# Scheduled and manual builds must not rewrite the shared engine concurrently.
+if ! python3 "$ROOT/scripts/xbox/build_lock.py" --check; then
+    exec python3 "$ROOT/scripts/xbox/build_lock.py" -- /bin/sh "$0" "$@"
 fi
 XSDK=$SDK                                         # xcrun's SDK; Mac Catalyst builds with the macOS SDK and UIKit
 CATALYST=""
@@ -43,7 +50,7 @@ ANGLE_NAME=simulator                              # the ANGLE build folders: ang
 RENDERER=${HALOPAD_XBOX_RENDERER:-apple-gles}
 COUNTED=OFF
 case "${HALOPAD_XBOX_GUEST_ADAPTATION:-none}" in
-render-visibility-v1|render-water-v1|render-border-v1|shared-input-v1|render-present-v1|render-camera-v1)
+render-visibility-v1|render-water-v1|render-border-v1|shared-input-v1|render-present-v1|render-camera-v1|network-policy-v1)
     [ "$RENDERER" = angle-metal ] || {
         echo "Counted visibility requires the ANGLE renderer" >&2; exit 2;
     }
@@ -106,9 +113,9 @@ if [ "$RENDERER" = angle-metal ]; then
             -DHALOPAD_ANGLE_COUNTED_VISIBILITY=$COUNTED \
             -DANGLE_SOURCE_DIR="$XBOX_ANGLE_SOURCE" -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECTURES=arm64 \
-            -DCMAKE_OSX_DEPLOYMENT_TARGET=17.0 -DCMAKE_BUILD_TYPE=Release
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=17.4 -DCMAKE_BUILD_TYPE=Release
     fi
-    cmake --build "$ANGLE_BUILD" --parallel 12
+    cmake --build "$ANGLE_BUILD" --parallel "${HALOPAD_BUILD_JOBS:-12}"
     ANGLE_LIB="$ANGLE_BUILD/libhalopad-angle.a"
     ANGLE_FLAGS="-DXG_USE_ANGLE=1 -I$XBOX_ANGLE_SOURCE/include"
     [ "$COUNTED" != ON ] || ANGLE_FLAGS="$ANGLE_FLAGS -DXG_COUNTED_VISIBILITY=1"
@@ -121,6 +128,7 @@ for f in xg_memory xg_thread xg_syscall xg_gl xg_posix xg_xiso; do
 	$CC $CFLAGS -I"$INC" -c "$ROOT/port/xbox/$f.c" -o "$OBJ/$f.o"
 done
 $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_gen.c" -o "$OBJ/xg_gl_gen.o"
+$CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
 for f in xg_ios xg_touch xg_draw_capture xg_draw_replay xg_depth_capture xg_app_ios; do
 	$CC $CFLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
 done
@@ -187,7 +195,7 @@ cat > "$APP/Info.plist" <<EOF
 <key>CFBundleShortVersionString</key><string>0.3</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
-<key>MinimumOSVersion</key><string>17.0</string>
+<key>MinimumOSVersion</key><string>17.4</string>
 <key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
 <key>UIRequiresFullScreen</key><true/>
 <key>UILaunchScreen</key><dict/>

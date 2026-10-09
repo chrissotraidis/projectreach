@@ -257,6 +257,77 @@ int main(int argc, char **argv) {
         self.assertEqual(self.source.read_bytes(), self.original)
         self.assertEqual(json.loads(manifest.read_text()), {'name': 'previous'})
 
+    def test_cached_sampler_patch_has_distinct_identity_and_unique_anchor(self):
+        original = self.original + adapter.CACHED_FILTER_ANCHOR + adapter.FILTER_ANCHOR
+        digest = hashlib.sha256(original).hexdigest()
+        legacy = adapter.identity('render-quality-v1')['recipe_sha256']
+        with patch.object(adapter, 'SOURCE_SHA256', digest), \
+                patch.object(adapter, 'CACHED_FILTER_RENDERERS', {digest}):
+            self.assertNotEqual(adapter.identity('render-quality-v1')['recipe_sha256'], legacy)
+            modified = adapter.adapted_source(original, 'render-quality-v1')
+            self.assertIn(adapter.CACHED_FILTER_ANCHOR + adapter.CACHED_FILTER_INSERT, modified)
+            self.assertNotIn(adapter.FILTER_INSERT, modified)
+            for count in (0, 2):
+                changed = self.original + adapter.CACHED_FILTER_ANCHOR * count
+                changed_hash = hashlib.sha256(changed).hexdigest()
+                with patch.object(adapter, 'SOURCE_SHA256', changed_hash), \
+                        patch.object(adapter, 'CACHED_FILTER_RENDERERS', {changed_hash}):
+                    with self.assertRaisesRegex(ValueError, 'filtering input changed'):
+                        adapter.adapted_source(changed, 'render-quality-v1')
+
+    def test_cached_filter_preserves_exclusions_and_stable_sampler_keys(self):
+        source = '''
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#define HALO_ANDROID 1
+typedef unsigned DWORD;
+typedef int GLint;
+enum { D3DTEXF_NONE=0, D3DTEXF_POINT=1, D3DTEXF_ANISOTROPIC=3 };
+static int maximum;
+static struct { int anisotropy; } xgpu_capabilities;
+static void glGetIntegerv(int name, int *out) { assert(name == 0x84ff); *out=maximum; }
+static void platform_log(const char *format, ...) { (void)format; }
+static void configure(DWORD *inputs, int hires, int mipmapped) {
+''' + adapter.CACHED_FILTER_INSERT.decode() + '''
+}
+int main(int argc, char **argv) {
+    assert(argc == 10);
+    setenv("HALO_TEST_ANISOTROPY", argv[1], 1);
+    maximum=atoi(argv[2]); xgpu_capabilities.anisotropy=atoi(argv[3]);
+    int hires=atoi(argv[4]), mipmapped=atoi(argv[5]);
+    DWORD inputs[11]={0}, original[11], cached[11];
+    for (int i=0; i<11; ++i) inputs[i]=100+i;
+    inputs[0]=atoi(argv[6]); inputs[1]=atoi(argv[7]); inputs[8]=atoi(argv[8]);
+    memcpy(original, inputs, sizeof(inputs));
+    configure(inputs, hires, mipmapped);
+    int applied=atoi(argv[9]);
+    assert(inputs[0] == (applied ? D3DTEXF_ANISOTROPIC : original[0]));
+    assert(inputs[8] == (applied ? (DWORD)applied : original[8]));
+    for (int i=0; i<11; ++i) if (i!=0 && i!=8) assert(inputs[i]==original[i]);
+    memcpy(cached, inputs, sizeof(inputs));
+    memcpy(inputs, original, sizeof(inputs));
+    configure(inputs, hires, mipmapped);
+    assert(!memcmp(cached, inputs, sizeof(inputs)));
+    return 0;
+}
+'''
+        executable = self.root / 'cached-filter-test'
+        compiled = subprocess.run(['clang', '-x', 'c', '-Wall', '-Wextra', '-Werror',
+                                   '-fsanitize=address,undefined', '-o', str(executable), '-'],
+                                  input=source, text=True, capture_output=True)
+        self.assertEqual(compiled.returncode, 0, compiled.stderr)
+        # Request, GPU cap/support, HUD, mipmapped, min/mip filters, game AF, override.
+        cases = [('4',16,1,0,1,2,2,1,4), ('16',8,1,0,1,2,2,1,8),
+                 ('16',0,1,0,1,2,2,1,0), ('1',16,1,0,1,2,2,1,0),
+                 ('bad',16,1,0,1,2,2,1,0), ('16',16,0,0,1,2,2,1,0),
+                 ('16',16,1,1,1,2,2,1,0), ('16',16,1,0,0,2,2,1,0),
+                 ('16',16,1,0,1,1,2,1,0), ('16',16,1,0,1,2,0,1,0),
+                 ('4',16,1,0,1,3,2,16,0), ('16',16,1,0,1,3,2,4,16)]
+        for case in cases:
+            with self.subTest(case=case):
+                subprocess.run([str(executable), *map(str, case)], check=True)
+
 
 class SaveIdentityTests(unittest.TestCase):
     def test_exact_guest_and_legacy_transition(self):
