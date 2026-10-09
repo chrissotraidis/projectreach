@@ -13,7 +13,7 @@ def sources():
     paths = sorted(path for path in (ROOT / 'port/xbox').rglob('*')
                    if path.is_file() and path.suffix in ('.c', '.m', '.mm', '.h', '.s'))
     paths += [ROOT / 'scripts/xbox' / name for name in
-              ('build-ios.sh', 'prepare.sh', 'guest-cc.sh', 'guest_adaptation.py', 'border_sampling.py', 'profile_input.py', 'gen-host-gl.py', 'gen-host-gl-helpers.py', 'translate.py', 'runtime_manifest.py',
+              ('build-ios.sh', 'prepare.sh', 'guest-cc.sh', 'guest_adaptation.py', 'border_sampling.py', 'profile_input.py', 'network_bridge.py', 'gen-host-gl.py', 'gen-host-gl-helpers.py', 'translate.py', 'runtime_manifest.py',
                'angle/CMakeLists.txt', 'angle/counted_visibility.py', 'angle/counted_visibility.mm')]
     paths += [ROOT / 'port/xbox/guest_imports.list']
     return {str(path.relative_to(ROOT)): hashlib.sha256(path.read_bytes()).hexdigest()

@@ -157,6 +157,10 @@ void xh_host_halopad_input_context_v1(uint32_t menu, uint32_t low, uint32_t high
 {
     (void)menu; (void)low; (void)high; (void)sticks;
 }
+
+/* Desktop test host: upstream's exact network rule (no HaloPad policy). */
+uint32_t xh_host_halopad_network_announce_v1(uint32_t built_in) { return built_in; }
+uint32_t xh_host_halopad_network_accepts_v1(uint32_t built_in, uint32_t theirs) { return theirs == built_in; }
 int xh_host_sdl_gamepad_type(uint32_t pad) { return SDL_GetGamepadType(handle_get(pad)); }
 
 int xh_host_sdl_rumble_gamepad(uint32_t pad, uint32_t low, uint32_t high, uint32_t milliseconds)

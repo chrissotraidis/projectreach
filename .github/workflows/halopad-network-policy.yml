@@ -1,0 +1,60 @@
+name: HaloPad network compatibility
+# Keeps installed HaloPad apps playing online as OpenCE raises its network
+# version: decides, signs and publishes the small policy the app downloads
+# (scripts/xbox/network_policy.py). Linux only; no game data, engine build or app.
+on:
+  schedule:
+    - cron: '41 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: follow approves additive OpenCE raises; exact withdraws every widening
+        type: choice
+        options: [follow, exact]
+        default: follow
+      approve_through:
+        description: Approve OpenCE network versions through this number yourself (0 for none)
+        type: number
+        default: 0
+permissions:
+  contents: write
+  issues: write
+concurrency:
+  group: halopad-network-policy
+  cancel-in-progress: false
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Test the policy tools
+        run: python3 -m unittest discover -s tests -p test_xbox_network_policy.py
+      - name: Decide, sign and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          POLICY_KEY: ${{ secrets.HALOPAD_NETWORK_POLICY_KEY }}
+          MODE: ${{ inputs.mode || 'follow' }}
+          APPROVE: ${{ inputs.approve_through || 0 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          args=(--mode "$MODE" --approve-through "$APPROVE" --publish --report "$RUNNER_TEMP/report.json")
+          if [ -n "$POLICY_KEY" ]; then
+            printf '%s\n' "$POLICY_KEY" > "$RUNNER_TEMP/policy-key.pem"
+            args+=(--key "$RUNNER_TEMP/policy-key.pem")
+          fi
+          status=0
+          python3 scripts/xbox/network_policy.py update "${args[@]}" || status=$?
+          shred -u "$RUNNER_TEMP/policy-key.pem" 2>/dev/null || true
+          exit "$status"
+      - name: Summary
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f "$RUNNER_TEMP/report.json" ]; then
+            python3 scripts/xbox/network_policy.py notify "$RUNNER_TEMP/report.json"
+          fi

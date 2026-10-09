@@ -688,6 +688,30 @@ void xh_host_halopad_input_context_v1(uint32_t menu, uint32_t low, uint32_t high
 	pthread_mutex_unlock(&pad_lock);
 }
 
+/* ---------- HaloPad network policy v1 (scripts/xbox/network_bridge.py) */
+
+#include "xg_network_policy.h"
+static struct xg_network_policy network_policy;
+static atomic_int network_policy_logged;
+
+int xg_ios_set_network_policy(unsigned int engine, unsigned int announce, unsigned int minimum, unsigned int maximum)
+{
+	return xg_network_policy_set(&network_policy, engine, announce, minimum, maximum);
+}
+
+uint32_t xh_host_halopad_network_announce_v1(uint32_t built_in)
+{
+	uint32_t announced = xg_network_policy_announce(&network_policy, built_in);
+	if (announced != built_in && !atomic_exchange(&network_policy_logged, 1))
+		xg_log("network policy: network version %u announces compatible version %u", built_in, announced);
+	return announced;
+}
+
+uint32_t xh_host_halopad_network_accepts_v1(uint32_t built_in, uint32_t theirs)
+{
+	return (uint32_t)xg_network_policy_accepts(&network_policy, built_in, theirs);
+}
+
 void xg_ios_scroll_scoreboard(float points)
 {
 	pthread_mutex_lock(&pad_lock);

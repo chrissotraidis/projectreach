@@ -22,6 +22,9 @@ _border_spec.loader.exec_module(border_sampling)
 _input_spec = importlib.util.spec_from_file_location('profile_input', pathlib.Path(__file__).with_name('profile_input.py'))
 profile_input = importlib.util.module_from_spec(_input_spec)
 _input_spec.loader.exec_module(profile_input)
+_network_spec = importlib.util.spec_from_file_location('network_bridge', pathlib.Path(__file__).with_name('network_bridge.py'))
+network_bridge = importlib.util.module_from_spec(_network_spec)
+_network_spec.loader.exec_module(network_bridge)
 
 RENDERER = pathlib.Path('port/linux/src/d3d8_gl.c')
 SOURCE_SHA256 = '5c8c132048b1efaa57d322b9c8a0ef65df07c1755df653c0f1a178ce96831cc6'
@@ -202,7 +205,10 @@ REVIEWED_CAMERA = {
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
 CAMERA_REPLACE = (b'#if 0 /* HaloPad: the view turns the frame the finger moves (display.direct_camera) */\n'
                   b'\t(void)local_player_index;\n\treturn observer;\n#else\n')
-PRESENT_ADAPTATIONS = ('render-present-v1', 'render-camera-v1')
+# network-policy-v1 is render-camera-v1 plus the network policy bridge.
+NETWORK_ADAPTATIONS = ('network-policy-v1',)
+CAMERA_ADAPTATIONS = ('render-camera-v1', *NETWORK_ADAPTATIONS)
+PRESENT_ADAPTATIONS = ('render-present-v1', *CAMERA_ADAPTATIONS)
 INPUT_ADAPTATIONS = ('shared-input-v1', *PRESENT_ADAPTATIONS)
 BORDER_ADAPTATIONS = ('render-border-v1', *INPUT_ADAPTATIONS)
 QUALITY_ADAPTATIONS = ('render-quality-v1', 'render-visibility-v1', 'render-water-v1', *BORDER_ADAPTATIONS)
@@ -233,12 +239,14 @@ def identity(name=None, revision=None):
     if name in PRESENT_ADAPTATIONS:
         recipe += PRESENT_ANCHOR + PRESENT_REPLACE
     result = {'name': name, 'upstream_renderer_sha256': renderer}
-    if name == 'render-camera-v1':
+    if name in CAMERA_ADAPTATIONS:
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
         if not camera:
             raise ValueError('Direct camera is reviewed only for builds 85, 119 and 125; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = camera
+    if name in NETWORK_ADAPTATIONS:
+        recipe += network_bridge.recipe()
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
@@ -301,7 +309,17 @@ def renderer_adaptation(engine, adaptation):
         changes.append((shader_path, shader, border_sampling.adapt_shader(shader)))
     if adaptation['name'] in INPUT_ADAPTATIONS:
         changes.extend(profile_input.changes(engine))
-    if adaptation['name'] == 'render-camera-v1':
+    if adaptation['name'] in NETWORK_ADAPTATIONS:
+        # host_imports.list is also the input bridge's: stack both edits on one file.
+        planned = {path: index for index, (path, _, _) in enumerate(changes)}
+        for path, original, modified in network_bridge.changes(engine):
+            if path in planned:
+                prior_path, prior_original, prior_modified = changes[planned[path]]
+                changes[planned[path]] = (prior_path, prior_original,
+                                          network_bridge.adapt(path.relative_to(engine), prior_modified))
+            else:
+                changes.append((path, original, modified))
+    if adaptation['name'] in CAMERA_ADAPTATIONS:
         camera_path = engine / CAMERA_SOURCE
         camera = camera_path.read_bytes()
         changes.append((camera_path, camera, adapted_camera(camera)))

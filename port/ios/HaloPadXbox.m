@@ -23,6 +23,7 @@
 #import "HaloPadXboxSaveIdentity.h"
 #import "HaloPadXboxQuality.h"
 #import "HaloPadXboxUpdate.h"
+#import "HaloPadXboxNetworkPolicy.h"
 #include "xg_overlay_input.h"
 #include "../runtime/halopad_log.h"
 
@@ -132,6 +133,30 @@ static NSString *xbox_release(NSDictionary *build)
 static NSString *xbox_graphics_name(void)
 {
 	return HPXboxSharperSelected(NSUserDefaults.standardUserDefaults) ? @"Sharper (Preview)" : @"Original";
+}
+
+/* this build's OpenCE network version (build.json), 0 if unknown */
+static unsigned int xbox_network_version(void)
+{
+	NSNumber *version = HPNetworkPolicyInteger(xbox_build()[@"network_version"], 1, 65535);
+	return version ? version.unsignedIntValue : 0;
+}
+
+/* The verified cached compatibility policy for this engine, applied once per launch. */
+static void xbox_apply_network_policy(void)
+{
+	unsigned int engine = xbox_network_version();
+	NSDictionary *policy = engine ? HPNetworkPolicyCached(engine) : nil;
+	NSDictionary *row = policy[@"row"];
+	if (row && xg_ios_set_network_policy(engine, [row[@"announce"] unsignedIntValue],
+			[row[@"minimum"] unsignedIntValue], [row[@"maximum"] unsignedIntValue]))
+		HP_LOG("Xbox: network policy %lld: version %u announces %u and joins %u to %u (follows %s)",
+			[policy[@"serial"] longLongValue], engine, [row[@"announce"] unsignedIntValue],
+			[row[@"minimum"] unsignedIntValue], [row[@"maximum"] unsignedIntValue], [row[@"follows"] UTF8String]);
+	else
+		HP_LOG("Xbox: network policy: exact network version %u%s", engine, policy ? "" : " (no verified policy)");
+	/* a newer policy, if any, applies at the next start */
+	HPNetworkPolicyRefresh(engine, nil);
 }
 
 /* Preserve a copy before a different guest opens snapshot saves. */
@@ -353,6 +378,7 @@ static BOOL xbox_backup_saves(NSError **error)
 	if (getenv("XG_FRAME_DUMP_DOCUMENTS"))
 		setenv("XG_FRAME_DUMP", [xbox_root().stringByDeletingLastPathComponent stringByAppendingPathComponent:@"xbox-frame.ppm"].fileSystemRepresentation, 1);
 	HPXboxApplyQuality(xbox_build(), NSUserDefaults.standardUserDefaults);
+	xbox_apply_network_policy();
 	{
 		NSDictionary *build = xbox_build();
 		xg_log_sink = xbox_log_sink;
@@ -373,7 +399,7 @@ static BOOL xbox_backup_saves(NSError **error)
 {
 	NSString *adaptation = xbox_build()[@"guest_adaptation"][@"name"];
 	BOOL profileBridge = [adaptation isEqual:@"shared-input-v1"] || [adaptation isEqual:@"render-present-v1"] ||
-		[adaptation isEqual:@"render-camera-v1"];
+		[adaptation isEqual:@"render-camera-v1"] || [adaptation isEqual:@"network-policy-v1"];
 	pad.controllerGuideIntro = @"Touch: MOVE highlights menu items, A (Jump) selects and B (Melee) goes back. In play, drag the screen to aim or drag FIRE while shooting. Hold Scoreboard and drag to scroll its roster.";
 	pad.controllerGuideSections = @[
 		@[@"Movement & View", @[@"Left stick", @"Move"], @[@"Right stick", @"Look"],
@@ -876,6 +902,7 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 	__weak UILabel *weak_update = update;
 	__weak UIView *weak_notice = notice;
 	halopad_check_release(^(NSString *message) { weak_update.text = message; weak_notice.hidden = NO; });
+	HPNetworkPolicyRefresh(xbox_network_version(), nil);
 	stack = [[UIStackView alloc] initWithArrangedSubviews:@[ heading, cards, notice, footer ]];
 	stack.axis = UILayoutConstraintAxisVertical;
 	stack.spacing = 24;
@@ -955,7 +982,9 @@ static UIView *chooser_pill(NSString *text, UIColor *color)
 
 - (void)showUpdate
 {
-    NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\nHaloPad releases include a fixed Xbox engine. New OpenCE builds do not expire your game. Multiplayer peers need compatible engine versions; newer upstream hosts may require a newer HaloPad release.\n\nFor a published app update, use your installation client's Update action or get the new HaloPad app from Releases. Install over the existing app with the same signing identity; do not delete HaloPad. Your imported disc and profiles stay, though an engine change may require restarting a level.\n\nIf you build with PadMint, updating the HaloPad recipe selects that release's engine. Experimental upstream builds are a separate command-line option.", xbox_release(xbox_build())];
+    unsigned int engine = xbox_network_version();
+    NSString *message = [NSString stringWithFormat:@"Installed: OpenCE %@.\n\n%@ HaloPad downloads tested online compatibility updates by itself, so most new OpenCE builds need no app update. New OpenCE builds never expire your game.\n\nWhen OpenCE changes how online play works, HaloPad needs a new release. Get it from Releases and install it over the existing app with the same signing identity; do not delete HaloPad. Your imported disc and profiles stay, though an engine change may require restarting a level.\n\nIf you build with PadMint, each HaloPad release builds its own tested engine.",
+        xbox_release(xbox_build()), HPNetworkPolicySummary(engine, engine ? HPNetworkPolicyCached(engine) : nil)];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"HaloPad Updates" message:message preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"HaloPad Releases" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
         [UIApplication.sharedApplication openURL:[NSURL URLWithString:[HPProjectURL stringByAppendingString:@"/releases"]] options:@{} completionHandler:nil];

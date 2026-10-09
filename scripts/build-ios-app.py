@@ -145,8 +145,9 @@ def xbox_parts(target):
     graphics = ['-lc++', '-lz', '-framework', 'Metal', '-framework', 'IOSurface'] if renderer == 'angle-metal' else ['-framework', 'OpenGLES']
     if 'macabi' in target:
         graphics += ['-framework', 'IOKit']
+    # Security verifies the signed network policy (port/ios/HaloPadXboxNetworkPolicy.h).
     return [ROOT / 'port' / 'ios' / 'HaloPadXbox.m', lib, '-I', str(ROOT / 'port' / 'xbox'), '-I', '/opt/homebrew/include',
-            *graphics, '-DGLES_SILENCE_DEPRECATION']
+            *graphics, '-framework', 'Security', '-DGLES_SILENCE_DEPRECATION']
 
 
 def compile_icon(app, out, target, minimum):

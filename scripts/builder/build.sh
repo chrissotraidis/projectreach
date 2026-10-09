@@ -231,7 +231,8 @@ fi
 
 if [ $XBOX = 1 ]; then
 	step "fetching and building the Xbox engine (OpenCE) for this app"
-	export HALOPAD_XBOX_RENDERER=angle-metal HALOPAD_XBOX_GUEST_ADAPTATION=render-camera-v1   # the tested iPad build
+	# the tested iPad build, plus the online compatibility bridge (scripts/xbox/network_bridge.py)
+	export HALOPAD_XBOX_RENDERER=angle-metal HALOPAD_XBOX_GUEST_ADAPTATION=network-policy-v1
 	XSDK_FLAG=--device; [ $MAC = 0 ] || XSDK_FLAG=--mac
 	# A failed engine build stops the update. No automatic downgrade.
 	scripts/xbox/build-ios.sh $XSDK_FLAG
