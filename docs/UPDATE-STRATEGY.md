@@ -2,6 +2,17 @@
 
 ## Current decision, 2026-10-09
 
+**Physical-device result:** Chris resumed iPad testing. Build 22/OpenCE 157 was
+installed over build 10 using the existing development profile after independently
+verified backups. The picker, retained disc, campaign, touch movement/look/Use,
+Save and Quit, and cold relaunch worked. The engine-change backup exactly matched
+all 53 pre-upgrade save files. Continue returned to the cryo tutorial checkpoint;
+later-checkpoint persistence and exact old-checkpoint migration remain unverified.
+AltStore's real provisioning attempt still returned `PLA Update available (403)`;
+consumer update acceptance is still open. See [STATUS.md](STATUS.md) and private
+evidence in `generated/ipad-acceptance-20261009/acceptance.json`. This narrows the
+remaining gates; it does not activate publishing or resolve distribution findings.
+
 **Update repair loop, 2026-10-09:** the three audited defects have source fixes
 and verified package/private-delivery checks. Final hosted run
 [37866853501](https://github.com/chrissotraidis/projectreach/actions/runs/37866853501)
@@ -48,9 +59,9 @@ GitHub's schedule can be delayed or disabled after 60 days of repository inactiv
 it is not an indefinite delivery guarantee. See
 [GitHub's schedule rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
 
-Chris removed the local Codex maintenance schedule. Do not recreate it or capture
-his keyboard/mouse. Work through commands and APIs without disrupting his computer.
-The verification passes recorded here did not change the installed iPad app.
+Chris removed the local Codex maintenance schedule. Do not recreate it.
+He explicitly resumed iPad testing on October 9; that test is recorded above.
+Use commands and APIs for background work without disrupting his computer.
 The current goal is a product/release mechanism, not an agent repeatedly rebuilding
 on Chris's computer. The notes below this section retain earlier research evidence.
 
@@ -110,8 +121,8 @@ AltStore source. The build/retention pipeline can follow upstream without daily
 pin edits. Direct IPA publishing is implemented below, but remains disabled;
 public delivery and the first consumer upgrade remain unverified.
 AltStore certificate refresh does not prove automatic app upgrading, and
-free-account/lower-memory compatibility remains unproven. No device action is
-authorized until Chris explicitly resumes device testing.
+free-account/lower-memory compatibility remains unproven. Device testing was
+explicitly resumed on October 9; it does not authorize public publication.
 
 The optional TestFlight route below was evaluated for automatic beta updates.
 Its last App Store Connect export failed with `PLA Update available`; that

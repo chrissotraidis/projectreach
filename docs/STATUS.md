@@ -2,6 +2,38 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Physical iPad test, 2026-10-09: build 22 installed and playable; public release
+still gated.** Chris explicitly resumed device testing. An in-place upgrade from
+build 10 to **0.3.8/build 22, OpenCE 157, network 24** passed on the M2 iPad Pro
+running iPadOS 27.0.1 using the existing development profile. No uninstall occurred.
+
+- Before installation, independent copies of accessible Documents and Library
+  contained 642 files / 10,755,955,239 bytes. All 641 non-log files matched; the
+  sole difference was a verified 67-byte diagnostic-log append. A post-install,
+  pre-launch readback matched all 114 checked save/Library files.
+- The picker opened normally and recognized the retained Xbox disc. Campaign
+  Continue loaded Pillar of Autumn; movement, strafing, looking, Use, pause and
+  Save and Quit responded. Closing HaloPad through Switch Edition and launching
+  again returned to the picker; Continue loaded the cryo tutorial checkpoint.
+  A later checkpoint was not reached. Exact pre-upgrade checkpoint migration,
+  combat, controller input, audio quality and multiplayer are not accepted by
+  this test. PC gameplay was not tested by this Xbox-only package.
+- The app's automatic engine-change backup was independently copied back:
+  **all 53 files / 868,254,711 bytes exactly match the pre-upgrade Xbox saves**.
+  Post-game readback retained all 53 paths, with save/cache writes recorded.
+- AltStore was retried on the real iPad and returned **Apple.APIError 403,
+  “Unable to process request - PLA Update available (403)”**. This is a fresh
+  provisioning failure, without TestFlight involvement. Existing-profile
+  installation succeeded; consumer AltStore installation/update remains open.
+
+Private evidence, including the 23m19s recording, manifests and device logs, is in
+`generated/ipad-acceptance-20261009/acceptance.json`. The app was left paused in
+the campaign; the temporary local source server and recording were stopped.
+Next: resolve the account-holder agreement requirement, complete the actual
+consumer update/save-resume test, and resolve exact-package distribution findings
+in [RELEASE-CONTENT-REVIEW.md](RELEASE-CONTENT-REVIEW.md). Public delivery stays off.
+The earlier audit entries below describe their own test-time state.
+
 **Background audit conclusion, 2026-10-09: not ready for public release.**
 The requested background audit is complete: exact package/resource inventories,
 upstream provenance findings, demonstrated delivery repairs, focused tests, hosted
@@ -12,11 +44,10 @@ preserved personal IPA and unchanged local build counter. PR #20 remains a draft
 the publishing variables and app-feed branch remain absent.
 
 This completes the background audit, not consumer delivery or distribution
-acceptance. Device testing was conditional on Chris explicitly resuming it, and
-that permission has not arrived. The next release steps remain a preserved-data
-consumer upgrade/gameplay test and resolution of the documented provenance
-findings. Do not infer either from the completed audit or start another engine
-build simply to restate these results.
+acceptance. Device testing was subsequently resumed as recorded above. The next
+release steps remain a consumer-signed upgrade test, fuller gameplay acceptance
+and resolution of the documented provenance findings. Do not infer these from the
+completed audit or start another engine build simply to restate these results.
 
 **Hosted retry repair, 2026-10-09:** unchanged failed automatic candidate builds
 now have a cache guard before allocating a Mac runner. Manual upstream retries
@@ -59,12 +90,13 @@ documented update format supports changes to build number alone. This was a
 package/metadata check, not an installer test; see `feed-proof.json` in that folder.
 No Apple provisioning request, device action or publication occurred.
 
-**Next release gate:** after device testing is explicitly resumed, verify a
+**Next release gate:** verify a
 consumer-signed in-place upgrade and save/resume using independently read-back
 backups. Existing-profile signing does not establish that AltStore can obtain a
 new profile: its previous attempt also encountered Apple's agreement error.
-That account state has not been retested. Public latest is still v0.3.7; the
-app-feed branch and publishing variables remain absent. Exact-artifact
+The October 9 retry reproduced that account error, as recorded above. Public latest
+was v0.3.7 at the background audit; the app-feed branch and publishing variables
+remain absent. Exact-artifact
 distribution review and the first public-feed readback also remain outstanding.
 
 **Latest verified private candidate, 2026-10-09:** **0.3.8/build 22** uses
@@ -98,7 +130,7 @@ selected for retry; all six files matched on download; completed private deliver
 skipped another Mac runner; the private draft was not mistaken for publication;
 and repeat delivery kept the same release and hashes. Evidence is under
 `generated/update-repairs-20261009/`. The channel branch has not been created;
-publishing and device control remain off. The earlier audit
+publishing remains off; device testing was subsequently resumed above. The earlier audit
 reproductions remain in `generated/update-plan-audit-20261008/` as historical evidence.
 
 **Direct IPA publisher implemented, 2026-10-08:** the new main-branch delivery
