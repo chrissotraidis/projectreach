@@ -2,6 +2,22 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Background audit conclusion, 2026-10-09: not ready for public release.**
+The requested background audit is complete: exact package/resource inventories,
+upstream provenance findings, demonstrated delivery repairs, focused tests, hosted
+package reports and installer preflight are recorded below. A final readback
+confirmed the current product-source fingerprint, all 364 hosted tests, every
+archive-member hash, all 313 embedded-resource hashes in both packages, the
+preserved personal IPA and unchanged local build counter. PR #20 remains a draft;
+the publishing variables and app-feed branch remain absent.
+
+This completes the background audit, not consumer delivery or distribution
+acceptance. Device testing was conditional on Chris explicitly resuming it, and
+that permission has not arrived. The next release steps remain a preserved-data
+consumer upgrade/gameplay test and resolution of the documented provenance
+findings. Do not infer either from the completed audit or start another engine
+build simply to restate these results.
+
 **Hosted retry repair, 2026-10-09:** unchanged failed automatic candidate builds
 now have a cache guard before allocating a Mac runner. Manual upstream retries
 bypass it; changed source/engine is tried normally; retained successful packages
