@@ -2,6 +2,16 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Scope correction, 2026-10-09:** the daily-maintenance requirement remains
+unsolved. Chris is not releasing through AltStore; that installer-specific Apple
+agreement error is not a release prerequisite. The build-22 iPad results below
+prove an in-place installation and bounded gameplay, not install-once compatibility
+with future OpenCE versions. The next priority is the frozen-engine compatibility
+experiment in [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#current-decision-2026-10-09).
+Automatic IPA production is a fallback for changes requiring new engine code,
+not acceptance of this requirement. No compatibility policy is implemented in
+the installed HaloPad build yet.
+
 **Physical iPad test, 2026-10-09: build 22 installed and playable; public release
 still gated.** Chris explicitly resumed device testing. An in-place upgrade from
 build 10 to **0.3.8/build 22, OpenCE 157, network 24** passed on the M2 iPad Pro
@@ -29,8 +39,8 @@ running iPadOS 27.0.1 using the existing development profile. No uninstall occur
 Private evidence, including the 23m19s recording, manifests and device logs, is in
 `generated/ipad-acceptance-20261009/acceptance.json`. The app was left paused in
 the campaign; the temporary local source server and recording were stopped.
-Next: resolve the account-holder agreement requirement, complete the actual
-consumer update/save-resume test, and resolve exact-package distribution findings
+For public release: complete the selected direct-IPA update/save-resume test and
+resolve exact-package distribution findings
 in [RELEASE-CONTENT-REVIEW.md](RELEASE-CONTENT-REVIEW.md). Public delivery stays off.
 The earlier audit entries below describe their own test-time state.
 
@@ -90,7 +100,7 @@ documented update format supports changes to build number alone. This was a
 package/metadata check, not an installer test; see `feed-proof.json` in that folder.
 No Apple provisioning request, device action or publication occurred.
 
-**Next release gate:** verify a
+**Direct-IPA release gate (separate from the maintenance experiment):** verify a
 consumer-signed in-place upgrade and save/resume using independently read-back
 backups. Existing-profile signing does not establish that AltStore can obtain a
 new profile: its previous attempt also encountered Apple's agreement error.

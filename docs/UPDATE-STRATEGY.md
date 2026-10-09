@@ -2,6 +2,56 @@
 
 ## Current decision, 2026-10-09
 
+**Correction after Chris's feedback: the daily-maintenance request is not solved.**
+Automated IPA production removes routine compiling; it does not let an already
+installed iPad app follow compatible upstream network changes. AltStore is not the
+chosen release route and its account error is not a prerequisite for this work.
+Do not describe the build pipeline or the build-22 device test as completing this
+request. The whole-app-first decision below is historical and superseded here.
+
+The next engineering experiment is **one frozen HaloPad engine with compatibility
+updates delivered as data**. Do not rebuild the app between the before/after test.
+Keep whole-app releases for actual engine/behavior changes. No mechanism can
+promise compatibility with arbitrary future protocol changes without new code.
+
+Fresh comparison: ChupathingyCE at
+[`b78e6cfa`](https://github.com/ChupathingyCE/chupathingyce/tree/b78e6cfa00d007592a21b12363b2cbc1b5217997)
+implements a bounded, signed compatibility table keyed by its engine's wire ID.
+Its published table at
+[`c1dde172`](https://github.com/ChupathingyCE/chupathingyce/blob/c1dde1728f2783fbd8ee8fffaa6b77949daf5e54/legacy.json)
+has serial 4: `chupa-20a` follows build 147/network 23 and `chupa-24a` follows
+build 154/network 24. Independent Ed25519 verification against the public key in
+that source passed. The source now includes `tools/crossplay_test.py`; its loader
+rejects invalid signatures and stale serials. This updates the older comparison
+below. Signature verification proves who approved the table, not gameplay or
+compatibility with HaloPad. Do not apply either row to our different engine.
+Local research evidence: `generated/chupathingy-compat-review-20261009/published-table-proof.json`.
+
+Work order and acceptance:
+
+1. Establish real same-version HaloPad multiplayer, then test one frozen HaloPad
+   engine against a newer peer in both host/client directions using private data.
+   Adapt the existing network test hooks; a stand-in join bot is insufficient.
+   Keep failed baseline scenarios inconclusive, not accepted cross-play.
+2. Prototype only the compatibility boundary: advertisements, browser filtering
+   and join validation must all use one policy for that exact engine. Reuse the
+   reviewed upstream design where practical; do not import unrelated Delta
+   accounts, stats, moderation or services. Start private, with no widened public
+   compatibility claims. Follow the detailed mixed-version cases in section 4.
+3. Prove on the physical iPad that a tested peer initially refused is accepted
+   after only a policy refresh, with the installed executable unchanged. Verify
+   join, movement, damage/death, scoring, respawn, rejoin and match completion;
+   co-op remains separate. Test invalid/stale policy and offline fallback too.
+4. Only after that succeeds, automate testing new upstream versions and publish
+   signed approvals for successful cases. A failed test must retain the previous
+   policy and report that new engine code is needed. Use an existing approved
+   runner; compute and access to private test maps are explicit prerequisites,
+   not assumed free hosted resources. Do not upload private maps to public CI.
+
+This experiment is now the priority, not something blocked on an installer choice.
+It reduces updates for compatible changes; it does not download replacement native
+code or eliminate occasional maintenance when networking behavior really changes.
+
 **Physical-device result:** Chris resumed iPad testing. Build 22/OpenCE 157 was
 installed over build 10 using the existing development profile after independently
 verified backups. The picker, retained disc, campaign, touch movement/look/Use,
@@ -864,10 +914,10 @@ compiled-engine distribution review. Keep source/PadMint delivery independent.
 PadMint remains useful for optional personal Custom Edition combined builds and
 building from source; it should not be the everyday Xbox update mechanism.
 
-### 4. Deferred experiment: compatibility independent of the engine
+### 4. Compatibility independent of the engine (now the priority)
 
-Only start this if measured update/signing friction remains a material problem
-after whole-IPA updates work. Reusing an established, tested upstream compatibility
+Chris rejected daily whole-app replacement as the solution. This experiment no
+longer waits for an AltStore or whole-IPA delivery test. Reusing a tested upstream compatibility
 contract is preferable to operating another HaloPad-specific protocol service.
 
 Start with one frozen native engine and one newer OpenCE host. First establish
