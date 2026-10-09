@@ -23,6 +23,20 @@ The earlier audit evidence is preserved in `generated/update-plan-audit-20261008
   public release with a completed/superseding feed) skips the Mac delivery runner.
   Manual delivery remains available. Failures stay visible in GitHub Actions;
   this is retryable delivery, not an assurance that arbitrary failures repair themselves.
+- Automatic checks also look up an exact failed-build cache entry before starting
+  a Mac runner. Its key includes the source commit, app version, engine release
+  and engine revision. A failed candidate test/build/audit records the marker;
+  later unchanged checks skip both build and delivery, with the retry instruction
+  in the run summary. A retained success takes precedence. Manual **Run workflow**
+  with `engine=upstream` bypasses the marker; changed source/engine gets a new key.
+  Tool-install and upload failures do not create this marker. GitHub can evict
+  caches, so this avoids repeated builds while the marker is retained, not a
+  permanent failure database. No private inputs or binaries go into that cache.
+  [Hosted cache verification](https://github.com/chrissotraidis/projectreach/actions/runs/37870955353)
+  passed the actual Mac-to-Linux handoff and changed-key miss. The
+  [full hosted build](https://github.com/chrissotraidis/projectreach/actions/runs/37870955485)
+  passed 364 Python tests, both package audits and feed staging at 62c21cb;
+  downloaded reports match the current product-source fingerprint and metadata.
 - `app_channel.py` publishes only two small JSON feeds to `halopad-updates` in one
   Git commit after package readback/publication. The native app and AltStore use
   fixed raw URLs on that branch, independent of GitHub's generic latest release.
@@ -505,9 +519,12 @@ not be marked complete merely because CI passes.
 
 **Remaining work, in order:**
 
-1. Finish exact-artifact distribution review. Package checks verify the known
-   notices and exclude private profiles/player data; they are not a complete
-   embedded-asset provenance review.
+1. Resolve the specific title-texture finding in
+   [the build-22 content review](RELEASE-CONTENT-REVIEW.md). The technical inventory
+   now matches all 313 selected embedded resources to exact upstream files and
+   confirms the archive/catalog contents. Upstream's title generator includes a
+   map-background path, so distribution acceptance or exclusion of those optional
+   overrides remains a concrete decision.
 2. After Chris explicitly resumes device testing, independently back up/read back
    Documents and Library. Demonstrate two successive builds through the consumer's
    installer, preserving data and proving picker, campaign/save/resume and a

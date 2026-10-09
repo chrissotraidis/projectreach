@@ -2,6 +2,36 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Hosted retry repair, 2026-10-09:** unchanged failed automatic candidate builds
+now have a cache guard before allocating a Mac runner. Manual upstream retries
+bypass it; changed source/engine is tried normally; retained successful packages
+keep their delivery path. Local tests pass **341 Xbox + 23 builder tests**.
+[Hosted cache probe 37870955353](https://github.com/chrissotraidis/projectreach/actions/runs/37870955353)
+passed a real Mac save/Linux lookup, changed-key miss, and the production decision
+and delivery regression scripts. The temporary probe was removed after saving its
+logs. Cache eviction can permit another attempt; this is not permanent failure
+storage. [Final hosted run 37870955485](https://github.com/chrissotraidis/projectreach/actions/runs/37870955485)
+at 62c21cb passed all **364 Python tests**, delivery tests, both
+build-1021/OpenCE-150 package audits and feed staging. Downloaded reports match
+the current product-source fingerprint and both staged package identities,
+hashes, sizes, minimum OS and network versions. Evidence:
+`generated/failure-cooldown-20261009/hosted-proof.json`.
+
+**Package-content review, 2026-10-09:** both build-22 archives were inventoried,
+their icon catalogs inspected, and all **313** selected embedded resources matched
+byte-for-byte to the exact upstream checkout. See
+[RELEASE-CONTENT-REVIEW.md](RELEASE-CONTENT-REVIEW.md). One specific distribution
+finding is that upstream's optional title-texture generator has a path
+that retains processed game-map backgrounds. No graphics were removed or replaced,
+and no package was published. The older source-origin concerns are not resolved
+by this asset inventory. The consumer iPad upgrade test also remains pending.
+
+The real `install-device.sh --check-only` path also passed for the personal build-22
+IPA and the historical registered-iPad identifier. A temporary `xcrun` trap
+ensured the check could not contact a device; the IPA hash stayed unchanged.
+Evidence: `generated/failure-cooldown-20261009/offline-installer-proof.json`.
+This verifies archive/profile preflight, not current connectivity or installation.
+
 **Installer preparation, 2026-10-09:** build 22 now also has a separate personal
 IPA signed with the existing development profile. Independent extraction verified
 the Apple-rooted signature, exact app/engine identity, both memory entitlements,

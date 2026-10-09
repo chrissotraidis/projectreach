@@ -254,8 +254,10 @@ play each other.
 
 Everyone in a match needs the same OpenCE network version, and OpenCE changes it often. HaloPad shows
 its build on the Xbox card and in **⋯ › About** (for example *build 125*), and the picker tells you when
-OpenCE has moved past it. Rebuild with PadMint and install over your app: the build uses OpenCE's
-newest release and stops if that release cannot be built. Your profiles and settings
+OpenCE has moved past it. The released PadMint recipe follows OpenCE's newest release.
+Current development source instead uses its bundled engine record; `--xbox-latest`
+explicitly tries upstream. See [Updating HaloPad](#updating-halopad) for the prepared
+app-update route, which is not live yet. Install updates over your app. Your profiles and settings
 stay; a campaign checkpoint from before the rebuild may not load (OpenCE's checkpoints are memory
 snapshots tied to one engine build), so use **New Game** or the level select. The server browser finds
 games through public brokers, as upstream does; there is no HaloPad server.

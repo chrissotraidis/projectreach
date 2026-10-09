@@ -1,12 +1,20 @@
 # Xbox engine (second HaloPad engine)
 
+**Current build policy, 2026-10-09:** normal builds replay
+`config/xbox-release.json` (OpenCE 150 on this development branch).
+`--xbox-latest` explicitly selects upstream; the prepared hosted app-update
+workflow handles that selection separately. Public app delivery is not enabled.
+See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) and [STATUS.md](STATUS.md) for current
+candidate and acceptance evidence. The dated engine investigations below are
+historical and do not change the current default.
+
 Status, 2026-10-03: **HaloPad offers Windows Custom Edition or Xbox Combat Evolved at launch.**
 The accepted **experimental development pin** in `config/xbox-engine.lock.json`
 is upstream OpenCE (formerly halo-ce-universal) **build 125, `13c14df9`**, network version 16
 (accepted 2026-10-05 with `scripts/xbox/update-pin.sh`: Mac and Simulator menu/a10/match pass;
 build 119 `a38ede07`, build 85 `c3adcfe5` and build 74 `80d30410` before). The pin is an
-**explicit tested option** (`HALOPAD_XBOX_PINNED=1`): `scripts/builder/build.sh` (PadMint) normally builds OpenCE's newest release with
-`HALOPAD_XBOX_LATEST=1` (see "Updating the engine"). Build 64 expanded the high-resolution HUD/scopes and fixed meter
+**explicit tested option** (`HALOPAD_XBOX_PINNED=1`), separate from the bundled
+release record and explicit latest mode (see "Updating the engine"). Build 64 expanded the high-resolution HUD/scopes and fixed meter
 alpha and flat menu fills; the following paragraphs retain that earlier evidence.
 Save-backed candidate and acceptance Mac/ANGLE iPad Simulator menu/a10/scripted-match
 gates pass. A copied build-61 a30 checkpoint loads through normal menus; actual
@@ -173,7 +181,7 @@ picker appears at every launch.
 
 Historical design record: current source can create a personal Xbox-only IPA
 with `scripts/builder/build.sh --xbox-only --ipa HaloPad-Xbox.ipa`; normal builds
-now resolve the latest upstream release. The older no-IPA/pinned-only statements
+replay the bundled release record. The older no-IPA/pinned-only statements
 below describe September 30, not today's builder. Public app distribution remains
 under review; see [installation delivery](STATUS.md#installation-delivery).
 
@@ -487,9 +495,10 @@ rerunning the water/shadow comparisons. Evidence is linked above.
 
 ## Updating the engine
 
-**Players' rebuilds track OpenCE without a HaloPad release per upstream build.** OpenCE frequently
-changes its network version (which online players must share). `scripts/builder/build.sh`
-resolves OpenCE's latest release once, before expensive build steps, and builds it with `XBOX_REV=<its commit>` and
+**Normal builds are reproducible; latest is explicit.** OpenCE frequently changes
+its network version (which online players must share). `scripts/builder/build.sh`
+uses `config/xbox-release.json` by default. With `--xbox-latest`, it resolves
+OpenCE's latest release once, before expensive build steps, and builds it with `XBOX_REV=<its commit>` and
 `HALOPAD_XBOX_LATEST=1`: HaloPad's edits must still find every anchor exactly once (only the
 reviewed file hashes are waived, and the identity records `"reviewed": false`). If that guest or
 library does not build, or release lookup fails, the builder stops without an automatic downgrade.
