@@ -14,6 +14,16 @@ published on `halopad-network`. Details:
 `generated/network-policy-test-20261009/acceptance.json`. The engine record moves to
 OpenCE 157, the build tested on iPad.
 
+**Merged to main, 2026-10-09 (`fc8c64c`).** The network compatibility workflow ran on main
+([37899891167](https://github.com/chrissotraidis/projectreach/actions/runs/37899891167)):
+OpenCE build 162 is still network 24, policy unchanged. The automatic private candidate of
+OpenCE 162 ([37899870278](https://github.com/chrissotraidis/projectreach/actions/runs/37899870278))
+failed at the final link: OpenCE added host imports HaloPad does not implement yet
+(`host_memory_watch_begin_frame` and the voice-chat audio-stream calls
+`host_sdl_destroy_audio_stream`, `host_sdl_get_audio_stream_available`,
+`host_sdl_get_audio_stream_data`). The network bridge applied; this is the "new engine needs
+native work" case. Releases stay on OpenCE 157; nothing was published.
+
 **Scope correction, 2026-10-09:** the daily-maintenance requirement remains
 unsolved. Chris is not releasing through AltStore; that installer-specific Apple
 agreement error is not a release prerequisite. The build-22 iPad results below
