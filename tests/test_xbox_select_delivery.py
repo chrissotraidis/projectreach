@@ -23,7 +23,8 @@ class SelectionTests(unittest.TestCase):
         return select_delivery.select('workflow_run', self.event, '', self.out)
 
     def jobs(self, conclusion='success', status='completed'):
-        return json.dumps([{'jobs': [{'name': 'delivery-tests', 'status': 'completed', 'conclusion': 'success'}]},
+        return json.dumps([{'jobs': [{'name': 'delivery-tests', 'status': 'completed', 'conclusion': 'success'},
+                                               {'name':'select','status':'completed','conclusion':'success'}]},
                            {'jobs': [{'name': 'build', 'status': status, 'conclusion': conclusion}]}])
 
     def test_skipped_build_needs_no_artifact_or_download(self):
@@ -51,6 +52,16 @@ class SelectionTests(unittest.TestCase):
                 self.assertEqual(result,{'ready':str(not done).lower(),'tag':self.tag,'commit':'b'*40})
                 self.assertIn('halopad-selection-14-2',download.call_args.args[0])
                 completion.assert_called_once_with(self.tag,'b'*40,publish=True)
+
+    def test_disabled_upstream_schedule_does_not_require_a_selection_report(self):
+        jobs=json.loads(self.jobs('skipped'))
+        jobs[0]['jobs'][1]['conclusion']='skipped'
+        with patch.object(select_delivery.subprocess,'check_output',return_value=json.dumps(jobs)), \
+                patch.object(select_delivery.subprocess,'run') as download, \
+                patch.object(select_delivery.publish_ipa,'completed') as completion:
+            result=select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
+            self.assertEqual(result['ready'],'false')
+            download.assert_not_called();completion.assert_not_called()
 
     def test_missing_or_invalid_retry_selection_stops(self):
         with patch.object(select_delivery.subprocess,'check_output',return_value=self.jobs('skipped')), \

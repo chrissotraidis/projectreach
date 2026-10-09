@@ -29,6 +29,13 @@ def select(event_name, event, tag, out, *, resume_retained=False, publish=False)
         if builds[0]['conclusion'] == 'skipped':
             if not resume_retained:
                 return {'ready': 'false', 'tag': '', 'commit': commit}
+            selectors = [job for page in pages for job in page['jobs'] if job['name'] == 'select']
+            if len(selectors) != 1 or selectors[0]['status'] != 'completed':
+                raise ValueError('expected one completed candidate selection job')
+            if selectors[0]['conclusion'] == 'skipped':
+                return {'ready': 'false', 'tag': '', 'commit': commit}  # Upstream checks are disabled.
+            if selectors[0]['conclusion'] != 'success':
+                raise ValueError('candidate selection did not succeed')
             subprocess.run(['gh', 'run', 'download', run_id, '--repo', draft_release.REPO,
                             '--name', f'halopad-selection-{number}-{attempt}', '--dir', str(out)],
                            check=True, timeout=120)

@@ -41,7 +41,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_TAG: ${{ inputs.candidate }}
-          RESUME_RETAINED: true
+          RESUME_RETAINED: 'true'
           PUBLISH_IPA: ${{ vars.HALOPAD_IPA_PUBLISH_ENABLED }}
         run: python3 scripts/xbox/select_delivery.py
   deliver:
