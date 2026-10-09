@@ -2,26 +2,38 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
-**Latest background candidate, 2026-10-08 14:15 UTC:** private **0.3.8/build 21**
-uses OpenCE **157**, revision `73dc01d09a21875f14c77b4430f20518d1f5ad09`,
-network **24** on both platforms. All 346 Python tests passed; Mac and iOS package
-audits passed, followed by independent notice/signature/hash and source-identity
-verification. Build 20 retains its original hashes, and the persistent next-build
-counter is 22. Evidence: `generated/xbox-candidates/runs/21-build-157/result.json`.
-No device install, gameplay test or publication was performed.
+**Latest verified private candidate, 2026-10-09:** **0.3.8/build 22** uses
+OpenCE **157**, revision `73dc01d09a21875f14c77b4430f20518d1f5ad09`, network **24**
+on both platforms. At bf73815, all 359 Python tests and both package audits passed,
+including independent notice/signature/hash/source verification. The subsequent
+8a5ec96 fix changes only workflow/selector/test code, not the app runtime. Candidates
+20, 21 and 22 retain their recorded hashes; the persistent next-build counter is 23.
+Evidence: `generated/xbox-candidates/runs/22-build-157/result.json`. No device
+install, gameplay test or publication was performed.
 
 **Update repair loop, 2026-10-09:** the three integration-audit defects are now
-repaired in source and remain under verification. Main-branch app builds follow
-upstream while pinned recipe checks stay separate; publication rejects engine
+repaired and verified in source, package builds and private delivery. Main-branch
+app builds follow upstream while pinned recipe checks stay separate; publication rejects engine
 regressions and retagged revisions, even after a recipe-only release. Retained
 candidates carry their original identity into delivery retries, and complete
 uploads skip another Mac runner. Both app feeds move together on the dedicated
 `halopad-updates` branch only after verified public assets exist. Source/recipe
 releases cannot change that endpoint. Interrupted feed commits preserve the old
 feed, and retries finish an already published package without republishing it.
-All 359 Python tests passed locally, including disposable real-Git feed transaction
-tests. Final package and hosted verification are pending. The channel branch has
-not been created; publishing and device control remain off. The earlier audit
+Final clean hosted run
+[37866853501](https://github.com/chrissotraidis/projectreach/actions/runs/37866853501)
+at 8a5ec96 passed **360 Python tests**, both build-1020/OpenCE-150 package audits,
+feed staging and the delivery-test job. Downloaded reports match the current
+product-source fingerprint and all staged package metadata. Disposable real-Git
+transaction tests cover interrupted commits, lost responses and competing writers.
+The superseded bf73815 hosted run was canceled, not counted as a pass.
+
+Real private build-22 retention and delivery also passed: missing delivery was
+selected for retry; all six files matched on download; completed private delivery
+skipped another Mac runner; the private draft was not mistaken for publication;
+and repeat delivery kept the same release and hashes. Evidence is under
+`generated/update-repairs-20261009/`. The channel branch has not been created;
+publishing and device control remain off. The earlier audit
 reproductions remain in `generated/update-plan-audit-20261008/` as historical evidence.
 
 **Direct IPA publisher implemented, 2026-10-08:** the new main-branch delivery

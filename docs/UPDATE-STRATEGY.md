@@ -1,10 +1,17 @@
 # HaloPad updates without daily maintainer work
 
-## Current decision, 2026-10-08
+## Current decision, 2026-10-09
 
 **Update repair loop, 2026-10-09:** the three audited defects have source fixes
-and 359 passing local Python tests; package/hosted verification is still pending.
-Do not activate public delivery until those checks and consumer acceptance pass.
+and verified package/private-delivery checks. Final hosted run
+[37866853501](https://github.com/chrissotraidis/projectreach/actions/runs/37866853501)
+at 8a5ec96 passed 360 Python tests and both build-1020/OpenCE-150 package audits.
+Reports match the current product-source fingerprint and both staged package
+identities. Local OpenCE-157 build 22 passed both audits and a real private
+retention/upload/download/retry round trip. The later disabled-selector fix has
+its own regression in the final hosted run. No public channel has been created.
+Do not activate public delivery until actual consumer installation/upgrade and
+exact-artifact distribution acceptance pass.
 The earlier audit evidence is preserved in `generated/update-plan-audit-20261008/`.
 
 - Automatic main-branch app builds select upstream; branch/pinned recipe checks
