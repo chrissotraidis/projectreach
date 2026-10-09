@@ -10,6 +10,7 @@ import subprocess
 import zipfile
 
 import candidate
+import app_channel
 import draft_release as draft
 import update_source
 
@@ -23,29 +24,11 @@ def assets(release):
     return result
 
 
-def version_key(version, build):
-    candidate.validate(version, str(build))
-    parts = tuple(map(int, version.split('.')))
-    return parts + (0,) * (3 - len(parts)), int(build)
+version_key = app_channel.version_key
 
 
 def require_newer(result, releases):
-    if not any(not r['draft'] and not r['prerelease'] for r in releases):
-        return
-    latest = draft.api(draft.API + '/latest')
-    metadata = [a for a in latest['assets'] if a['name'] == 'halopad-update.json']
-    if len(metadata) == 1:
-        record = json.loads(draft.asset_bytes(metadata[0]))
-        if record['bundle_id'] != 'dev.halopad.HaloPad':
-            raise ValueError('latest update metadata belongs to another app')
-        previous = version_key(record['version'], record['build'])
-    elif not metadata and re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+', latest['tag_name']):
-        # Source-only historical releases have no app build number.
-        previous = (tuple(map(int, latest['tag_name'][1:].split('.'))), 0)
-    else:
-        raise ValueError('cannot establish latest release identity; publication stopped')
-    if version_key(result['version'], result['build']) <= previous:
-        raise ValueError('candidate is not newer than the current public app; publication stopped')
+    app_channel.require_forward(result, app_channel.published_record(releases))
 
 
 def deliver(result, out, *, publish=False):
@@ -95,16 +78,63 @@ def deliver(result, out, *, publish=False):
             raise ValueError(f'{name} readback differs; publication stopped without overwriting')
     release = read_release()
     if publish and release['draft']:
-        require_newer(result, releases)
+        require_newer(result, draft.api(draft.API + '?per_page=100', pages=True))
         # Every package and both feeds exist and have been downloaded/verified.
         draft.api(endpoint, 'PATCH', {'draft': False, 'prerelease': False, 'make_latest': 'true'})
         release = read_release()
         if release['draft'] or release['prerelease'] or draft.api(draft.API + '/latest')['id'] != release['id']:
             raise ValueError('publication/latest state is not confirmed; inspect before retrying')
-    proof = {'tag': tag, 'release_id': release['id'], 'published': not release['draft'],
+    channel_commit = app_channel.advance(out) if publish else None
+    proof = {'channel_commit': channel_commit, 'tag': tag, 'release_id': release['id'], 'published': not release['draft'],
              'assets': hashes, 'apple_services_used': False, 'consumer_upgrade': False}
     candidate.write_json(out / 'publication.json', proof)
     return proof
+
+
+def completed(tag, commit, *, publish):
+    """Cheap Ubuntu preflight: verified delivery avoids another Mac runner."""
+    delivery_tag = tag.replace('halopad-candidate-', 'halopad-', 1)
+    releases = draft.api(draft.API + '?per_page=100', pages=True)
+    matches = [r for r in releases if r['tag_name'] == delivery_tag]
+    if not matches:
+        return False
+    if len(matches) != 1 or matches[0]['target_commitish'] != commit:
+        raise ValueError('delivery release identity differs')
+    release = matches[0]
+    remote = assets(release)
+    if set(remote) != set(FILES) or any(a['state'] != 'uploaded' for a in remote.values()):
+        return False
+    sums = draft.asset_bytes(remote['SHA256SUMS'])
+    if remote['SHA256SUMS'].get('digest') != 'sha256:' + hashlib.sha256(sums).hexdigest():
+        return False
+    expected = {}
+    for line in sums.decode().splitlines():
+        sha, name = line.split('  ', 1)
+        if name in expected or not re.fullmatch(r'[0-9a-f]{64}', sha):
+            raise ValueError('invalid published checksums')
+        expected[name] = sha
+    if set(expected) != set(FILES) - {'SHA256SUMS'}:
+        raise ValueError('incomplete published checksums')
+    if any(remote[name].get('digest') != 'sha256:' + sha for name, sha in expected.items()):
+        return False
+    feed = json.loads(draft.asset_bytes(remote['altstore.json']))
+    if feed['sourceURL'] != app_channel.BASE + '/altstore.json':
+        return False
+    if not publish:
+        return True
+    if release['draft'] or release['prerelease']:
+        return False
+    _, channel = app_channel.snapshot()
+    if not channel:
+        return False
+    current = json.loads(channel['halopad-update.json'])
+    record = json.loads(draft.asset_bytes(remote['halopad-update.json']))
+    if current == record:
+        return channel['altstore.json'].encode() == draft.asset_bytes(remote['altstore.json'])
+    if version_key(current['version'], current['build']) < version_key(record['version'], record['build']):
+        return False  # Public assets exist, but the feed commit still needs retrying.
+    app_channel.require_forward(current, record)
+    return True  # This exact public package has already been superseded.
 
 
 def main():

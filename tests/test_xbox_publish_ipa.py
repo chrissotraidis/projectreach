@@ -18,8 +18,9 @@ class PublishTests(unittest.TestCase):
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)
         self.result = {'version': '0.3.8', 'build': '20', 'source': {'commit': 'a'*40},
-                       'started': '2026-10-08T08:00:00+00:00', 'engine': {'release': 'build-155'},
+                       'started': '2026-10-08T08:00:00+00:00', 'engine': {'release': 'build-155','revision':'b'*40},
                        'artifacts': {p: {'path': str(self.root/p)} for p in ('ios', 'mac')}}
+        p = patch.object(publish.app_channel, 'advance', return_value='c'*40); self.advance = p.start(); self.addCleanup(p.stop)
         self.release = None
         self.old = {'id': 1, 'tag_name': 'v0.3.7', 'draft': False, 'prerelease': False, 'assets': []}
         self.latest = self.old
@@ -127,12 +128,46 @@ class PublishTests(unittest.TestCase):
     def test_older_candidate_cannot_replace_newer_public_version_or_build(self):
         for version, build in (('0.3.9','1'), ('0.3.8','21'), ('0.3.8','20')):
             with self.subTest(version=version, build=build):
-                self.latest = {**self.old, 'assets': [{'name': 'halopad-update.json'}]}
+                self.old = {**self.old, 'tag_name':f'halopad-{version}-{build}', 'assets': [{'name': 'halopad-update.json'}]}
+                self.latest = self.old
                 self.remote['halopad-update.json'] = json.dumps({'bundle_id':'dev.halopad.HaloPad',
-                                                                'version':version,'build':build}).encode()
+                                                                'version':version,'build':build,'engine':self.result['engine']}).encode()
                 with self.assertRaisesRegex(ValueError, 'not newer'):
                     publish.require_newer(self.result, [self.old])
         self.assertFalse(any(c[1]=='PATCH' for c in self.calls))
+
+    def test_newer_app_cannot_ship_older_or_retagged_engine(self):
+        self.old={**self.old,'tag_name':'halopad-0.3.8-19','assets':[{'name':'halopad-update.json'}]}
+        record={'bundle_id':'dev.halopad.HaloPad','version':'0.3.8','build':'19',
+                'engine':{'release':'build-155','revision':'b'*40}}
+        self.remote['halopad-update.json']=json.dumps(record).encode()
+        for engine in ({'release':'build-150','revision':'a'*40}, {'release':'build-155','revision':'c'*40}):
+            self.result['engine']=engine
+            with self.subTest(engine=engine),self.assertRaisesRegex(ValueError,'engine regression'):
+                publish.require_newer(self.result,[self.old])
+        self.assertFalse(any(c[1]=='PATCH' for c in self.calls))
+        self.advance.assert_not_called()
+
+    def test_recipe_latest_does_not_hide_previous_engine_guard(self):
+        self.old={**self.old,'tag_name':'halopad-0.3.8-19','assets':[{'name':'halopad-update.json'}]}
+        self.latest={'id':99,'tag_name':'v0.3.9','draft':False,'prerelease':False,'assets':[]}
+        self.remote['halopad-update.json']=json.dumps({'bundle_id':'dev.halopad.HaloPad','version':'0.3.8',
+            'build':'19','engine':{'release':'build-157','revision':'c'*40}}).encode()
+        with self.assertRaisesRegex(ValueError,'engine regression'):
+            publish.require_newer(self.result,[self.old,self.latest])
+
+    def test_feed_failure_retries_already_published_assets_without_republishing(self):
+        self.advance.side_effect=RuntimeError('feed temporarily unavailable')
+        with self.assertRaisesRegex(RuntimeError,'feed temporarily'):
+            self.deliver(live=True)
+        self.assertFalse(self.release['draft'])
+        before=len(self.mutations()); before_uploads=len(self.uploaded)
+        self.advance.side_effect=None
+        receipt=self.deliver(live=True)
+        self.assertTrue(receipt['published'])
+        self.assertEqual(len(self.mutations()),before)
+        self.assertEqual(len(self.uploaded),before_uploads)
+        self.assertEqual(receipt['channel_commit'],'c'*40)
 
     def test_historical_two_component_versions_compare_as_the_same_version(self):
         self.assertEqual(publish.version_key('0.3', '20'), publish.version_key('0.3.0', '20'))

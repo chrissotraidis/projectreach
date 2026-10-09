@@ -48,7 +48,7 @@ jobs:
       record: ${{ steps.engine.outputs.record }}
     env:
       GH_TOKEN: ${{ github.token }}
-      ENGINE_CHANNEL: ${{ (github.event_name == 'schedule' || github.event_name == 'repository_dispatch') && 'upstream' || inputs.engine || 'release' }}
+      ENGINE_CHANNEL: ${{ (github.event_name == 'schedule' || github.event_name == 'repository_dispatch') && 'upstream' || inputs.engine || (github.ref == 'refs/heads/main' && 'upstream' || 'release') }}
       SKIP_RETAINED: ${{ github.event_name == 'schedule' || github.event_name == 'repository_dispatch' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
@@ -60,7 +60,13 @@ jobs:
           selection=()
           if [ "$SKIP_RETAINED" = true ]; then selection=(--skip-retained); fi
           python3 scripts/xbox/check_update.py --channel "$ENGINE_CHANNEL" \
-            --app-version 0.3.8 "${selection[@]}"
+            --app-version 0.3.8 "${selection[@]}" > selection.json
+      - name: Save retained candidate selection for delivery retries
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: halopad-selection-${{ github.run_number }}-${{ github.run_attempt }}
+          path: selection.json
+          retention-days: 14
   build:
     needs: select
     if: needs.select.outputs.build == 'true'

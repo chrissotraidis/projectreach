@@ -17,15 +17,7 @@ static BOOL HPHaloPadDownloadURL(id value)
         ![url.path containsString:@"/../"];
 }
 
-static NSString *HPHaloPadManifestURL(NSDictionary *release)
-{
-    if (![release isKindOfClass:NSDictionary.class] || ![release[@"draft"] isEqual:@NO] ||
-        ![release[@"prerelease"] isEqual:@NO] || ![release[@"assets"] isKindOfClass:NSArray.class]) return nil;
-    for (id asset in release[@"assets"])
-        if ([asset isKindOfClass:NSDictionary.class] && [asset[@"name"] isEqual:@"halopad-update.json"] &&
-            HPHaloPadDownloadURL(asset[@"browser_download_url"])) return asset[@"browser_download_url"];
-    return nil;
-}
+static NSString *const HPHaloPadUpdateFeedURL = @"https://raw.githubusercontent.com/chrissotraidis/projectreach/halopad-updates/halopad-update.json";
 
 static NSString *HPHaloPadUpdateNotice(NSDictionary *manifest, NSString *version, NSString *build,
                                       NSString *platform, NSString *osVersion)

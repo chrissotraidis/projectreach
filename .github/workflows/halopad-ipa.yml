@@ -24,6 +24,9 @@ jobs:
         github.event.workflow_run.head_branch == 'main' &&
         github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to see retained drafts and unfinished uploads.
+      actions: read
     timeout-minutes: 5
     outputs:
       ready: ${{ steps.candidate.outputs.ready }}
@@ -38,6 +41,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_TAG: ${{ inputs.candidate }}
+          RESUME_RETAINED: true
+          PUBLISH_IPA: ${{ vars.HALOPAD_IPA_PUBLISH_ENABLED }}
         run: python3 scripts/xbox/select_delivery.py
   deliver:
     needs: select

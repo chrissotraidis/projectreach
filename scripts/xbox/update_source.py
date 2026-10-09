@@ -12,6 +12,7 @@ import tempfile
 import zipfile
 
 import candidate
+import app_channel
 
 REPOSITORY = 'https://github.com/chrissotraidis/projectreach'
 REQUIRED = {'com.apple.developer.kernel.extended-virtual-addressing',
@@ -47,7 +48,7 @@ def stage(result, out, tag):
     metadata = {'schema': 1, 'bundle_id': 'dev.halopad.HaloPad', 'version': version,
                 'build': build, 'engine': result['engine'], 'artifacts': artifacts}
     feed = {'name': 'HaloPad', 'identifier': 'dev.halopad.source',
-            'sourceURL': f'{REPOSITORY}/releases/latest/download/altstore.json',
+            'sourceURL': app_channel.BASE + '/altstore.json',
             'apps': [{'name': 'HaloPad', 'bundleIdentifier': 'dev.halopad.HaloPad',
                       'developerName': 'Chris Sotraidis',
                       'localizedDescription': 'Xbox Halo on Apple devices. Import your own disc once; app updates keep your files.',

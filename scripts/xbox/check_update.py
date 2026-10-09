@@ -11,7 +11,8 @@ import draft_release as draft
 import release
 
 
-def retained(selected, source_hash, version, releases):
+def retained_candidate(selected, source_hash, version, releases):
+    matches = []
     for item in releases:
         assets = {a['name']: a for a in item.get('assets', [])}
         if draft.ASSET not in assets or draft.RECEIPT not in assets:
@@ -23,14 +24,22 @@ def retained(selected, source_hash, version, releases):
         try:
             data = json.loads(draft.asset_bytes(receipt))
             record = data['candidate']
+            candidate.validate(record['version'], record['build'])
+            if (item['tag_name'] != f'halopad-candidate-{record["version"]}-{record["build"]}'
+                    or item['target_commitish'] != record['source']['commit']):
+                continue
             if (data['schema'] == 1 and archive.get('digest') == 'sha256:' + data['archive_sha256']
                     and record['status'] == 'built-awaiting-acceptance' and record['version'] == version
                     and record['source']['tree_sha256'] == source_hash
                     and all(record['engine'][key] == selected[key] for key in ('revision', 'release'))):
-                return True
+                matches.append(record)
         except (ValueError, KeyError, TypeError):
             continue  # Incomplete/edited receipts never suppress a needed build.
-    return False
+    return max(matches, key=lambda r: int(r["build"]), default=None)
+
+
+def retained(selected, source_hash, version, releases):
+    return retained_candidate(selected, source_hash, version, releases) is not None
 
 
 def main():
@@ -42,9 +51,12 @@ def main():
     try:
         selected = (release.resolve(json.loads(release.LOCK.read_text())) if args.channel == 'upstream'
                     else release.read_record(release.BUNDLED))
-        skip = args.skip_retained and retained(selected, candidate.product_digest(), args.app_version,
-            draft.api(draft.API + '?per_page=100', pages=True))
-        result = {'build': not skip, 'record': selected}
+        previous = (retained_candidate(selected, candidate.product_digest(), args.app_version,
+            draft.api(draft.API + '?per_page=100', pages=True)) if args.skip_retained else None)
+        skip = previous is not None
+        result = {'build': not skip, 'record': selected,
+                  'candidate': f'halopad-candidate-{previous["version"]}-{previous["build"]}' if previous else '',
+                  'commit': previous['source']['commit'] if previous else ''}
         if os.environ.get('GITHUB_OUTPUT'):
             with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
                 stream.write('build=' + str(not skip).lower() + '\nrecord=' + json.dumps(selected) + '\n')

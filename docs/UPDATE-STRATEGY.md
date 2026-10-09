@@ -2,6 +2,31 @@
 
 ## Current decision, 2026-10-08
 
+**Update repair loop, 2026-10-09:** the three audited defects have source fixes
+and 359 passing local Python tests; package/hosted verification is still pending.
+Do not activate public delivery until those checks and consumer acceptance pass.
+The earlier audit evidence is preserved in `generated/update-plan-audit-20261008/`.
+
+- Automatic main-branch app builds select upstream; branch/pinned recipe checks
+  remain available. The publisher checks OpenCE release number and exact revision
+  as well as app version/build, rejecting engine downgrades and retagged engines.
+- When a candidate was already built, the selection report preserves its tag and
+  original source commit. IPA delivery resumes incomplete uploads on the next
+  upstream check without building again. A checksum-verified completed draft (or
+  public release with a completed/superseding feed) skips the Mac delivery runner.
+  Manual delivery remains available. Failures stay visible in GitHub Actions;
+  this is retryable delivery, not an assurance that arbitrary failures repair themselves.
+- `app_channel.py` publishes only two small JSON feeds to `halopad-updates` in one
+  Git commit after package readback/publication. The native app and AltStore use
+  fixed raw URLs on that branch, independent of GitHub's generic latest release.
+  A fast-forward-only branch update preserves competing writes. Interrupted feed
+  updates leave the old channel usable; an explicit retry of the published package
+  can finish its feed without re-uploading binaries. The branch is not live yet.
+
+GitHub's schedule can be delayed or disabled after 60 days of repository inactivity;
+it is not an indefinite delivery guarantee. See
+[GitHub's schedule rules](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule).
+
 Chris removed the local Codex maintenance schedule. Do not recreate it or capture
 his keyboard/mouse. Work through commands and APIs without disrupting his computer.
 The verification passes recorded here did not change the installed iPad app.
@@ -80,8 +105,8 @@ byte-identical.
 
 Public promotion requires the one-time repository variable
 `HALOPAD_IPA_PUBLISH_ENABLED=true`, after the package/distribution and consumer
-upgrade checks are accepted. It publishes the complete draft and makes it latest
-in one final release update. Older/equal version/build identities cannot replace
+upgrade checks are accepted. It publishes the complete draft, then advances the dedicated app-feed branch.
+If the feed step fails, the previous feed remains and retry can finish delivery. Older/equal version/build identities and older/retagged engines cannot replace
 the current public app; prior releases remain available. The variable is unset.
 The intended operating path is to enable this delivery route and the existing
 `HALOPAD_PREVIEW_ENABLED` upstream check after acceptance. Those are GitHub jobs,

@@ -34,12 +34,7 @@ int main(void) { @autoreleasepool {
     assert(!HPHaloPadDownloadURL(@"https://evil.invalid/HaloPad.ipa"));
     assert(!HPHaloPadDownloadURL(@"http://github.com/chrissotraidis/projectreach/releases/download/v1/app.ipa"));
     assert(!HPHaloPadDownloadURL(@"https://github.com/chrissotraidis/projectreach/releases/download/../app.ipa"));
-    NSDictionary *release = @{@"draft":@NO,@"prerelease":@NO,@"assets":@[@{@"name":@"halopad-update.json",@"browser_download_url":url}]};
-    assert(HPHaloPadManifestURL(release));
-    assert(!HPHaloPadManifestURL(@{@"draft":@NO,@"prerelease":@NO,@"assets":@[]}));
-    NSMutableDictionary *bad = [release mutableCopy]; bad[@"draft"] = @YES;
-    assert(!HPHaloPadManifestURL(bad)); bad[@"draft"] = @{};
-    assert(!HPHaloPadManifestURL(bad));
+    assert([HPHaloPadUpdateFeedURL isEqualToString:@"https://raw.githubusercontent.com/chrissotraidis/projectreach/halopad-updates/halopad-update.json"]);
 
 } return 0; }
 '''

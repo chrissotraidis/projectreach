@@ -7,9 +7,10 @@ import re
 import subprocess
 
 import draft_release
+import publish_ipa
 
 
-def select(event_name, event, tag, out):
+def select(event_name, event, tag, out, *, resume_retained=False, publish=False):
     commit = ''
     if event_name == 'workflow_run':
         run = event['workflow_run']
@@ -26,24 +27,37 @@ def select(event_name, event, tag, out):
         if len(builds) != 1 or builds[0]['status'] != 'completed':
             raise ValueError('expected exactly one completed producing build job')
         if builds[0]['conclusion'] == 'skipped':
-            return {'ready': 'false', 'tag': '', 'commit': commit}
-        if builds[0]['conclusion'] != 'success':
-            raise ValueError('producing build did not succeed')
-        subprocess.run(['gh', 'run', 'download', run_id, '--repo', draft_release.REPO,
-                        '--name', f'halopad-build-report-{number}', '--dir', str(out)],
-                       check=True, timeout=120)
-        tag = json.loads((out / 'private-handoff.json').read_text())['tag']
+            if not resume_retained:
+                return {'ready': 'false', 'tag': '', 'commit': commit}
+            subprocess.run(['gh', 'run', 'download', run_id, '--repo', draft_release.REPO,
+                            '--name', f'halopad-selection-{number}-{attempt}', '--dir', str(out)],
+                           check=True, timeout=120)
+            selection = json.loads((out / 'selection.json').read_text())
+            tag, commit = selection['candidate'], selection['commit']
+            if selection['build'] is not False or not re.fullmatch(r'[0-9a-f]{40}', commit):
+                raise ValueError('invalid retained-candidate selection')
+        else:
+            if builds[0]['conclusion'] != 'success':
+                raise ValueError('producing build did not succeed')
+            subprocess.run(['gh', 'run', 'download', run_id, '--repo', draft_release.REPO,
+                            '--name', f'halopad-build-report-{number}', '--dir', str(out)],
+                           check=True, timeout=120)
+            tag = json.loads((out / 'private-handoff.json').read_text())['tag']
     elif event_name != 'workflow_dispatch':
         raise ValueError('unsupported delivery event')
     if not isinstance(tag, str) or not re.fullmatch(r'halopad-candidate-[0-9.]+-[0-9]+', tag):
         raise ValueError('invalid candidate tag')
+    if resume_retained and commit and publish_ipa.completed(tag, commit, publish=publish):
+        return {'ready': 'false', 'tag': tag, 'commit': commit}
     return {'ready': 'true', 'tag': tag, 'commit': commit}
 
 
 def main():
     result = select(os.environ['GITHUB_EVENT_NAME'],
                     json.loads(Path(os.environ['GITHUB_EVENT_PATH']).read_text()),
-                    os.environ.get('CANDIDATE_TAG', ''), Path('generated/producer-report'))
+                    os.environ.get('CANDIDATE_TAG', ''), Path('generated/producer-report'),
+                    resume_retained=os.environ.get('RESUME_RETAINED') == 'true',
+                    publish=os.environ.get('PUBLISH_IPA') == 'true')
     with Path(os.environ['GITHUB_OUTPUT']).open('a') as stream:
         for key, value in result.items():
             stream.write(f'{key}={value}\n')

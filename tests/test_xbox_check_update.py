@@ -15,9 +15,9 @@ class CheckUpdateTests(unittest.TestCase):
     def setUp(self):
         self.selected={'revision':'a'*40,'release':'build-154'}
         self.record={'schema':1,'archive_sha256':'c'*64,'candidate':{
-            'status':'built-awaiting-acceptance','version':'0.3.8',
-            'source':{'tree_sha256':'b'*64},'engine':self.selected}}
-        self.release={'draft':True,'assets':[
+            'status':'built-awaiting-acceptance','version':'0.3.8','build':'20',
+            'source':{'tree_sha256':'b'*64,'commit':'a'*40},'engine':self.selected}}
+        self.release={'draft':True,'tag_name':'halopad-candidate-0.3.8-20','target_commitish':'a'*40,'assets':[
             {'name':check.draft.ASSET,'state':'uploaded','digest':'sha256:'+'c'*64},
             {'name':check.draft.RECEIPT,'state':'uploaded','size':1024}]}
 

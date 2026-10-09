@@ -2,6 +2,28 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Latest background candidate, 2026-10-08 14:15 UTC:** private **0.3.8/build 21**
+uses OpenCE **157**, revision `73dc01d09a21875f14c77b4430f20518d1f5ad09`,
+network **24** on both platforms. All 346 Python tests passed; Mac and iOS package
+audits passed, followed by independent notice/signature/hash and source-identity
+verification. Build 20 retains its original hashes, and the persistent next-build
+counter is 22. Evidence: `generated/xbox-candidates/runs/21-build-157/result.json`.
+No device install, gameplay test or publication was performed.
+
+**Update repair loop, 2026-10-09:** the three integration-audit defects are now
+repaired in source and remain under verification. Main-branch app builds follow
+upstream while pinned recipe checks stay separate; publication rejects engine
+regressions and retagged revisions, even after a recipe-only release. Retained
+candidates carry their original identity into delivery retries, and complete
+uploads skip another Mac runner. Both app feeds move together on the dedicated
+`halopad-updates` branch only after verified public assets exist. Source/recipe
+releases cannot change that endpoint. Interrupted feed commits preserve the old
+feed, and retries finish an already published package without republishing it.
+All 359 Python tests passed locally, including disposable real-Git feed transaction
+tests. Final package and hosted verification are pending. The channel branch has
+not been created; publishing and device control remain off. The earlier audit
+reproductions remain in `generated/update-plan-audit-20261008/` as historical evidence.
+
 **Direct IPA publisher implemented, 2026-10-08:** the new main-branch delivery
 workflow retrieves an existing candidate, verifies both packages and prepares a
 private draft with the IPA, Mac app, update feeds, icon and checksums. All assets

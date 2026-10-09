@@ -50,6 +50,8 @@ class UpdateSourceTests(unittest.TestCase):
         metadata = self.stage(); out = self.root / 'staged'
         feed = json.loads((out / 'altstore.json').read_text()); app=feed['apps'][0]
         version = app['versions'][0]
+        self.assertEqual(feed['sourceURL'], update_source.app_channel.BASE + '/altstore.json')
+        self.assertNotIn('/releases/latest/',feed['sourceURL'])
         self.assertEqual((version['version'], version['buildVersion']), ('0.3.8','13'))
         self.assertEqual(version['size'], (out / 'HaloPad.ipa').stat().st_size)
         self.assertEqual(version['downloadURL'], metadata['artifacts']['ios']['url'])

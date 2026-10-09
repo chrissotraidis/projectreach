@@ -614,33 +614,25 @@ static NSString *const HPProjectURL = @"https://github.com/chrissotraidis/projec
 	BOOL choosing;
 }
 
-/* A new upstream commit is not a new HaloPad release. Source-only releases
-   have no manifest and must never send a player to a nonexistent app download. */
+/* The app channel is independent of source-only/PadMint releases. */
 static void halopad_check_release(void (^notice)(NSString *message))
 {
-    NSURL *latest = [NSURL URLWithString:@"https://api.github.com/repos/chrissotraidis/projectreach/releases/latest"];
-    NSURLRequest *request = [NSURLRequest requestWithURL:latest cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
-    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *r, NSError *e) {
-        if (e || ![r isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)r).statusCode != 200 || data.length > 1024 * 1024) return;
-        NSDictionary *release = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
-        NSString *url = HPHaloPadManifestURL(release);
-        if (!url) return;
-        NSURLRequest *metadata = [NSURLRequest requestWithURL:[NSURL URLWithString:url] cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
-        [[NSURLSession.sharedSession dataTaskWithRequest:metadata completionHandler:^(NSData *body, NSURLResponse *r2, NSError *e2) {
-            if (e2 || ![r2 isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)r2).statusCode != 200 || body.length > 64 * 1024) return;
-            NSDictionary *manifest = body ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
-            NSDictionary *info = NSBundle.mainBundle.infoDictionary;
-            NSOperatingSystemVersion os = NSProcessInfo.processInfo.operatingSystemVersion;
-            NSString *osVersion = [NSString stringWithFormat:@"%ld.%ld.%ld", (long)os.majorVersion, (long)os.minorVersion, (long)os.patchVersion];
-            NSString *message = HPHaloPadUpdateNotice(manifest, info[@"CFBundleShortVersionString"], info[@"CFBundleVersion"],
+    NSURL *url = [NSURL URLWithString:HPHaloPadUpdateFeedURL];
+    NSURLRequest *request = [NSURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:20];
+    [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *body, NSURLResponse *response, NSError *error) {
+        if (error || ![response isKindOfClass:NSHTTPURLResponse.class] || ((NSHTTPURLResponse *)response).statusCode != 200 || body.length > 64 * 1024) return;
+        NSDictionary *manifest = body ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+        NSDictionary *info = NSBundle.mainBundle.infoDictionary;
+        NSOperatingSystemVersion os = NSProcessInfo.processInfo.operatingSystemVersion;
+        NSString *osVersion = [NSString stringWithFormat:@"%ld.%ld.%ld", (long)os.majorVersion, (long)os.minorVersion, (long)os.patchVersion];
+        NSString *message = HPHaloPadUpdateNotice(manifest, info[@"CFBundleShortVersionString"], info[@"CFBundleVersion"],
 #if TARGET_OS_MACCATALYST
-                @"mac", osVersion
+            @"mac", osVersion
 #else
-                @"ios", osVersion
+            @"ios", osVersion
 #endif
-            );
-            if (message) dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
-        }] resume];
+        );
+        if (message) dispatch_async(dispatch_get_main_queue(), ^{ notice(message); });
     }] resume];
 }
 

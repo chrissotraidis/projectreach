@@ -40,6 +40,27 @@ class SelectionTests(unittest.TestCase):
             self.assertEqual(self.select(), {'ready': 'true', 'tag': self.tag, 'commit': 'a' * 40})
         self.assertIn('halopad-build-report-14', download.call_args.args[0])
 
+    def test_retained_build_resumes_incomplete_delivery_without_rebuilding(self):
+        (self.out/'selection.json').write_text(json.dumps({'build':False,'candidate':self.tag,'commit':'b'*40}))
+        for done in (False, True):
+            with self.subTest(done=done), \
+                    patch.object(select_delivery.subprocess,'check_output',return_value=self.jobs('skipped')), \
+                    patch.object(select_delivery.subprocess,'run') as download, \
+                    patch.object(select_delivery.publish_ipa,'completed',return_value=done) as completion:
+                result=select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True,publish=True)
+                self.assertEqual(result,{'ready':str(not done).lower(),'tag':self.tag,'commit':'b'*40})
+                self.assertIn('halopad-selection-14-2',download.call_args.args[0])
+                completion.assert_called_once_with(self.tag,'b'*40,publish=True)
+
+    def test_missing_or_invalid_retry_selection_stops(self):
+        with patch.object(select_delivery.subprocess,'check_output',return_value=self.jobs('skipped')), \
+                patch.object(select_delivery.subprocess,'run'), self.assertRaises(FileNotFoundError):
+            select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
+        (self.out/'selection.json').write_text(json.dumps({'build':True,'candidate':self.tag,'commit':'b'*40}))
+        with patch.object(select_delivery.subprocess,'check_output',return_value=self.jobs('skipped')), \
+                patch.object(select_delivery.subprocess,'run'), self.assertRaises(ValueError):
+            select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
+
     def test_failed_incomplete_missing_or_ambiguous_build_cannot_deliver(self):
         data = json.loads(self.jobs())
         data[-1]['jobs'] *= 2
