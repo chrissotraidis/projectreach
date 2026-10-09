@@ -254,13 +254,17 @@ def gh(path, method='GET', body=None):
 
 
 def published_policy():
-    """(verified policy or None, envelope bytes or None); refuses unverifiable content."""
+    """(verified policy or None, envelope bytes or None); refuses unverifiable content.
+
+    Read through the API, never the raw CDN the app uses: the CDN can lag a new
+    commit by minutes, and a stale read must not drive the next decision."""
     try:
-        envelope = raw(REPO, BRANCH, FILE)
+        item = api(f'repos/{REPO}/contents/{FILE}?ref={BRANCH}')
     except urllib.error.HTTPError as error:
         if error.code == 404:
             return None, None
         raise
+    envelope = base64.b64decode(item['content'])
     return verify(envelope), envelope
 
 

@@ -1,7 +1,9 @@
 # Xbox engine (second HaloPad engine)
 
 **Current build policy, 2026-10-09:** normal builds replay
-`config/xbox-release.json` (OpenCE 150 on this development branch).
+`config/xbox-release.json` (OpenCE 157, network version 24) with the
+`network-policy-v1` adaptation: the installed app follows compatible OpenCE network
+raises through a signed policy ([UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy)).
 `--xbox-latest` explicitly selects upstream; the prepared hosted app-update
 workflow handles that selection separately. Public app delivery is not enabled.
 See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) and [STATUS.md](STATUS.md) for current

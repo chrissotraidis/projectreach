@@ -40,6 +40,11 @@
 
 ## What's new
 
+- **Next release (0.3.8, in the current source): no more chasing OpenCE.** Each HaloPad release
+  builds the exact OpenCE engine it was tested with, so OpenCE's daily builds no longer change or
+  break your PadMint build. Your installed app also keeps up with online play by itself: when OpenCE
+  raises its network version with a compatible change, HaloPad downloads a small signed update and
+  joins those games, with no rebuild and no reinstall. See [Updating HaloPad](#updating-halopad).
 - **0.3.6: corrected Wine setup.** Homebrew disabled its Wine cask; follow the
   [Wine installation guide](docs/INSTALL-WINE.md). PadMint 0.4.9 shows the corrected setup step.
 - **0.3.5: builds from OpenCE's newest release.** OpenCE changes its online version frequently.
@@ -160,24 +165,30 @@ To update, install over the existing app. Deleting HaloPad deletes its profiles 
 
 ### Updating HaloPad
 
-HaloPad opens to the edition picker on every fresh launch. The Xbox card identifies the
-installed engine. **Updates…** links to HaloPad releases. The app only announces a newer
-HaloPad package when that release includes download metadata for your platform; it does
-not tell you to rebuild whenever OpenCE changes. There is no public app feed yet.
+You do not need to rebuild HaloPad every time OpenCE publishes a build. OpenCE ships new
+builds almost daily, but most of them do not change how online play works, and your installed
+app keeps working with all of them. The campaign never expires.
 
-Normal PadMint builds use the exact engine recorded in `config/xbox-release.json` for
-that HaloPad source release. Tomorrow's OpenCE changes do not silently change today's
-recipe. The current development snapshot is build 150; package checks have passed, but
-physical gameplay and consumer-upgrade acceptance are still pending. A fixed engine
-keeps builds reproducible; it does not guarantee compatibility with newer multiplayer
-protocols. Offline play and peers using the same supported protocol do not expire when
-upstream publishes another build.
+**Your build stays the same.** Each HaloPad release builds the exact OpenCE engine recorded in
+`config/xbox-release.json` (currently OpenCE build 157, network version 24, the engine tested on
+iPad). New OpenCE builds do not change or break that recipe.
 
-Until downloadable app delivery is available, update the HaloPad recipe in PadMint and
-build using the same input type: your Xbox ISO/XISO for Xbox-only, or your original PC
-installer with `product-key.txt` for both editions. Install over the existing app using
-the same signing identity. Keep imported files and profiles; do not delete HaloPad.
-Xbox checkpoints may require a level restart after changing engines.
+**Online play keeps up by itself.** OpenCE only lets players with the same network version play
+together, and it raises that number when it changes its network messages. Most raises so far have
+been compatible: older builds still play with newer ones. Each time HaloPad opens, it checks a small
+signed compatibility file. When OpenCE raises its version with a compatible change, the file lets
+your installed app announce the new version and join those games, starting the next time you
+press **Play Xbox**. A change is followed only after
+[ChupathingyCE's](https://github.com/ChupathingyCE/chupathingyce) cross-play tests classify it as
+compatible. **Updates…** on the edition picker shows which versions your app plays with. If the file
+cannot be downloaded or verified, HaloPad keeps the last good one, or its built-in version.
+
+**Some changes still need a new HaloPad.** When OpenCE changes online play in a way older builds
+cannot handle, the project publishes a new release. Update the HaloPad recipe in PadMint and build
+with the same input type: your Xbox ISO/XISO for Xbox-only, or your original PC installer with
+`product-key.txt` for both editions. Install over the existing app using the same signing identity.
+Keep imported files and profiles; do not delete HaloPad. Xbox checkpoints may require a level
+restart after changing engines.
 
 For an explicit experiment with upstream's newest engine, add `--xbox-latest` to the
 builder command. A failed experiment stops without substituting another engine.
@@ -252,15 +263,13 @@ play each other.
 <details>
 <summary><strong>Why can't I join someone's Xbox game?</strong></summary>
 
-Everyone in a match needs the same OpenCE network version, and OpenCE changes it often. HaloPad shows
-its build on the Xbox card and in **⋯ › About** (for example *build 125*), and the picker tells you when
-OpenCE has moved past it. The released PadMint recipe follows OpenCE's newest release.
-Current development source instead uses its bundled engine record; `--xbox-latest`
-explicitly tries upstream. See [Updating HaloPad](#updating-halopad) for the prepared
-app-update route, which is not live yet. Install updates over your app. Your profiles and settings
-stay; a campaign checkpoint from before the rebuild may not load (OpenCE's checkpoints are memory
-snapshots tied to one engine build), so use **New Game** or the level select. The server browser finds
-games through public brokers, as upstream does; there is no HaloPad server.
+OpenCE players can only join hosts on a network version their game accepts. HaloPad follows OpenCE's
+compatible network changes automatically (see [Updating HaloPad](#updating-halopad)); **Updates…** on
+the edition picker shows the versions your app plays with. Close HaloPad and open it again so it can
+check for a newer compatibility file, then press **Play Xbox**. If the host uses a version OpenCE
+changed incompatibly, you need a newer HaloPad release. Players who have not updated OpenCE may also
+be on an older version. The server browser finds games through public brokers, as upstream does;
+there is no HaloPad game server.
 
 </details>
 

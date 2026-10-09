@@ -2,6 +2,39 @@
 
 ## Current decision, 2026-10-09
 
+### Network compatibility policy
+
+**Implemented and tested on hardware, 2026-10-09.** Installed apps follow compatible
+OpenCE network raises without a new app. Pieces:
+
+- `scripts/xbox/network_bridge.py` (adaptation `network-policy-v1`, now the production
+  build): the four OpenCE sites that use `HALO_PORT_NETWORK_VERSION` (LAN advertisement,
+  join check, internet lobby listing and filter) ask two host calls instead. Any other
+  code use of the number stops the build. Applies unchanged to OpenCE 157 through 160.
+- `port/xbox/xg_network_policy.h`: the host answers. Without a policy both answers are
+  OpenCE's exact rule; a row may only widen it (minimum <= engine <= announce <= maximum)
+  and never applies to another engine version.
+- `port/ios/HaloPadXboxNetworkPolicy.h`: the app downloads
+  `halopad-network/network-policy.json` at the picker, verifies its P-256 signature against
+  `config/network-policy-public.pem`, caches it only if its serial is newer, and applies it
+  at the next **Play Xbox**. **Updates…** shows the versions in use.
+- `scripts/xbox/network_policy.py` and `.github/workflows/halopad-network-policy.yml`:
+  every three hours on a free Linux runner, compare OpenCE's latest network version with
+  ChupathingyCE's cross-play-tested classification and sign/publish a new policy only when
+  the rows change. A breaking raise, or one unclassified for 48 hours, opens one issue.
+
+Operating it: the private key is the `HALOPAD_NETWORK_POLICY_KEY` repository secret, backed
+up in Chris's login Keychain as "HaloPad network policy signing key". **Run workflow** with
+`approve_through = N` approves versions through N yourself; `mode = exact` withdraws every
+widening (a newer serial, so devices take it). The branch `halopad-network` holds only the
+policy; `halopad-updates` stays the app feed.
+
+Hardware proof (build 23, `generated/network-policy-test-20261009/acceptance.json`): a Mac
+host announcing a simulated version 25 was refused by the iPad without a policy; the same
+installed iPad app then downloaded the signed policy and joined and played; the reverse
+direction (iPad host, Mac client) also played. No desync or crash; all 53 iPad saves were
+unchanged. Not covered: a real future OpenCE raise, the internet lobby path on hardware, co-op.
+
 **Plan of record, 2026-10-09 (replaces the earlier correction note).**
 Research findings that drive it:
 

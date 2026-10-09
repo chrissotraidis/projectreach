@@ -2,6 +2,18 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**Install-once online compatibility, 2026-10-09: implemented and proven on hardware.**
+Build 23 (OpenCE 157, network 24, adaptation `network-policy-v1`) lets an installed app
+follow compatible OpenCE network raises through a downloaded signed policy, with no new
+app. On the physical iPad, upgraded in place from build 22 after a verified 11.6 GB backup,
+the app refused a Mac host announcing a simulated version 25, then joined and played it
+after only downloading the policy; the reverse direction also played. All 53 saves were
+unchanged afterwards. The production policy (exact 24, since OpenCE is still on 24) is
+published on `halopad-network`. Details:
+[UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy) and
+`generated/network-policy-test-20261009/acceptance.json`. The engine record moves to
+OpenCE 157, the build tested on iPad.
+
 **Scope correction, 2026-10-09:** the daily-maintenance requirement remains
 unsolved. Chris is not releasing through AltStore; that installer-specific Apple
 agreement error is not a release prerequisite. The build-22 iPad results below
