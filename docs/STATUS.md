@@ -2,6 +2,16 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**0.3.9, 2026-10-10: both editions build again.** Since `e4a3a53`, the builder staged the
+Custom Edition game package as `game.zip`, and `halopad_package.py` refuses any name
+not ending in `.halopad.zip`. So every PC-installer (both-editions) build in 0.3.8 failed
+at its last step; Xbox-only builds were unaffected. The staged name is now
+`game.halopad.zip`, and the builder test stub enforces the packager's rule (8 tests fail
+on the old builder). A full both-editions build from a clean translation passed and was
+installed on the iPad over the Xbox-only 0.3.8: the picker showed both editions ready,
+Custom Edition reached Halo's main menu with the saved product ID, and all 53 Xbox saves
+were unchanged after a verified backup.
+
 **OpenCE 170, 2026-10-10: build 25 tested on iPad; any-computer build.** OpenCE 170
 (network 25) adds one host call, `host_sdl_close_gamepad` (Mac: closes the SDL gamepad;
 iPad: no-op, GameController slots need no release), and guest header ABI 2, which inserts
