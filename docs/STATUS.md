@@ -2,6 +2,22 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**OpenCE 168, 2026-10-10: build 24 tested on iPad.** OpenCE 158-168 added voice chat, its
+own Android touch overlay and hash-based memory watching, which need 10 new host calls.
+HaloPad now answers them (`db2cf2c`): the microphone reports "none", so voice chat is
+listen-only and can never replace the game's audio output; upstream's touch overlay always
+reads untouched, so HaloPad's own controls stay in charge; the memory-watch frame call is a
+no-op under page protection. Network version is still 24. All HaloPad engine patches apply
+unchanged to 168. Local build 24 passed 351 Xbox + 23 builder tests and both package
+audits. On the iPad, after a 12.5 GB backup verified against an independent readback
+(753 files, 53 saves), build 24 was installed over build 23: picker, menu, campaign
+Continue from the old checkpoint, look/move, 117-120 fps, audio and 0 GL errors. The
+app's engine-change backup exactly matched all 53 pre-upgrade saves. LAN: iPad 24 hosted
+and a Mac on 157 joined; iPad 24 joined a Mac 157 host. A freshly signed Mac build 24 could
+not see LAN games either way, most likely macOS Local Network permission for the new
+ad-hoc signature (entitlements identical; not confirmed). Evidence:
+`generated/opence-168-ipad-20261010/`.
+
 **Install-once online compatibility, 2026-10-09: implemented and proven on hardware.**
 Build 23 (OpenCE 157, network 24, adaptation `network-policy-v1`) lets an installed app
 follow compatible OpenCE network raises through a downloaded signed policy, with no new

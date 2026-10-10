@@ -170,7 +170,7 @@ builds almost daily, but most of them do not change how online play works, and y
 app keeps working with all of them. The campaign never expires.
 
 **Your build stays the same.** Each HaloPad release builds the exact OpenCE engine recorded in
-`config/xbox-release.json` (currently OpenCE build 157, network version 24, the engine tested on
+`config/xbox-release.json` (currently OpenCE build 168, network version 24, the engine tested on
 iPad). New OpenCE builds do not change or break that recipe.
 
 **Online play keeps up by itself.** OpenCE only lets players with the same network version play
@@ -257,6 +257,9 @@ route. Track those remaining steps in [installation delivery](docs/STATUS.md#ins
 Yes. Custom Edition joins the community-run PC servers in Halo's own lobby. The Xbox edition plays with
 other OpenCE players on PC, Linux and Android, up to 128 per match. The two editions cannot
 play each other.
+
+OpenCE's new voice chat works in listen-only mode in HaloPad: you hear other players, but HaloPad
+does not use your microphone yet.
 
 </details>
 

@@ -1079,7 +1079,23 @@ uint32_t xh_host_sdl_open_audio_stream(uint32_t device, uint32_t spec_address, u
 	AudioStreamBasicDescription format;
 	AURenderCallbackStruct render = { audio_render, NULL };
 	AudioComponent component;
-	(void)device;
+	/* Voice chat's microphone (OpenCE 158+, voice_audio.c) opens a stream with
+	 * no callback on the recording device. HaloPad has one output unit and no
+	 * microphone permission: answer "no microphone", so voice chat listens only
+	 * (other players' voices are mixed into the game's output) and the game's
+	 * sound is never replaced. */
+	if (!callback || device == SDL_AUDIO_DEVICE_DEFAULT_RECORDING)
+	{
+		static atomic_int told;
+		if (!atomic_exchange(&told, 1))
+			xg_log("voice chat: listening only (no microphone in HaloPad)");
+		return 0;
+	}
+	if (audio_unit)
+	{
+		xg_log("audio output is already open");
+		return 0;
+	}
 	if (spec->format != SDL_AUDIO_F32)
 	{
 		xg_log("audio format 0x%x is not supported", spec->format);
@@ -1138,6 +1154,50 @@ int xh_host_sdl_resume_audio_stream_device(uint32_t stream)
 	(void)stream;
 	return audio_unit && AudioOutputUnitStart(audio_unit) == noErr;
 }
+
+/* The microphone's reads (voice chat): HaloPad opens none, so there is no stream. */
+int xh_host_sdl_get_audio_stream_data(uint32_t stream, uint32_t data, int length)
+{
+	(void)stream; (void)data; (void)length;
+	return -1;
+}
+
+int xh_host_sdl_get_audio_stream_available(uint32_t stream)
+{
+	(void)stream;
+	return -1;
+}
+
+/* Only callback-less streams (the microphone's) are destroyed; the game's
+ * output stays open for the life of the process. */
+void xh_host_sdl_destroy_audio_stream(uint32_t stream)
+{
+	(void)stream;
+}
+
+/* ---------- OpenCE's own Android touch overlay (port/linux/src/touch_input.c)
+ * HaloPad draws its touch controls itself and hands them to the engine as
+ * gamepad 1 and mouse look, so upstream's overlay always reads as untouched:
+ * no gesture edges, no fingers, no swipe. Its menu pointer gets no finger
+ * events either: HaloPad sends none to the guest. */
+void xh_host_gesture_insets(uint32_t insets)
+{
+	memset(G(int32_t *, insets), 0, 4 * sizeof(int32_t));
+}
+
+void xh_host_touch_read(uint32_t state)
+{
+	memset(G(int32_t *, state), 0, 7 * sizeof(int32_t));
+}
+
+void xh_host_touch_look_read(uint32_t delta)
+{
+	memset(G(float *, delta), 0, 4 * sizeof(float));
+}
+
+void xh_host_touch_rumble(uint32_t low, uint32_t high) { (void)low; (void)high; }
+void xh_host_touch_scene(int32_t scene) { (void)scene; }
+void xh_host_touch_bindings(uint32_t controls) { (void)controls; }
 
 /* ---------- start-up */
 

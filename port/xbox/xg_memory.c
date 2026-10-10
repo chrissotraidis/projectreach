@@ -303,6 +303,10 @@ static void watch_written(uint32_t page)
 
 void xh_host_memory_watch_initialize(void) { watch_active = 1; }
 
+/* OpenCE 162+: a frame boundary for hash-based watching. HaloPad watches by
+ * page protection, which needs nothing per frame (as upstream's protection mode). */
+void xh_host_memory_watch_begin_frame(void) {}
+
 void xh_host_memory_watch_protect(uint32_t address, uint32_t size)
 {
 	uint32_t first, last, page;
