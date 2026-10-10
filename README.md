@@ -34,15 +34,15 @@
 > GitHub's free Mac runner builds the Xbox edition in your own copy of this repository
 > ([steps](#on-windows-linux-or-any-computer)). It is a preview: playable on real hardware, with
 > frame pacing and some Xbox graphics still being tuned.
-> The released installer (0.3.7) still builds both editions and needs the PC inputs. **Xbox-only
-> setup and the GitHub build are in the current source for 0.3.8.** See [Build and install](#build-and-install).
+> In PadMint, choose your Xbox ISO/XISO for the Xbox edition alone, or the PC installer and
+> product key for both editions. See [Build and install](#build-and-install).
 >
 > **AI disclosure:** HaloPad is developed with substantial AI assistance. The
 > [status log](docs/STATUS.md) records what has actually been checked, and on which device.
 
 ## What's new
 
-- **Next release (0.3.8, in the current source): no more chasing OpenCE.** Each HaloPad release
+- **0.3.8: no more chasing OpenCE.** Each HaloPad release
   builds the exact OpenCE engine it was tested with (OpenCE build 170), so OpenCE's daily builds no
   longer change or break your PadMint build. Your installed app also keeps up with online play by
   itself: when OpenCE raises its network version with a compatible change, HaloPad downloads a small
@@ -85,7 +85,7 @@ When your build includes both, it asks which one to open at launch.
 | Online | Community-run Custom Edition servers and LAN, alongside PC players | Internet and system link games of up to 128 players with PC, Linux and Android players on the same build |
 | Campaign | No | The original Xbox campaign |
 | Runs on | iPhone, iPad and Mac | iPhone, iPad and Mac |
-| Build with | PadMint or one command | Included in released PadMint builds; Xbox-only builds available in current source ([below](#build-and-install)) |
+| Build with | PadMint or one command | PadMint on a Mac from your disc image, or GitHub from any computer ([below](#build-and-install)) |
 
 For Custom Edition, HaloPad supplies the Windows services the game expects: Direct3D 9 rendered through
 Metal, DirectInput mapped to touch and controllers, audio, files, the registry and Winsock networking.
@@ -112,16 +112,13 @@ Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 
 ## Build and install
 
-**Available today:** [HaloPad 0.3.7](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.7)
-provides source and a PadMint recipe, not an app or IPA download. With released PadMint 0.4.11,
-select the original `HaloCESetup.exe` and keep `product-key.txt` beside it. This builds both
-editions; add your Xbox disc inside HaloPad after installation. PadMint handles the build;
-you do not run the source-build commands below afterward.
-
-**Xbox only:** the current source removes the PC installer, product key and Wine requirements.
-The PadMint flow described below needs HaloPad 0.3.8 and the PadMint release with
-[PadMint #133](https://github.com/chrissotraidis/padmint/pull/133). Until then, use the source
-command below or the [GitHub build](#on-windows-linux-or-any-computer).
+**Available today:** [HaloPad 0.3.8](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.8)
+provides source and a PadMint recipe, not an app or IPA download. With
+[PadMint 0.4.12](https://github.com/chrissotraidis/padmint/releases/latest) on an Apple silicon Mac,
+choose your Xbox ISO/XISO for the Xbox edition alone (no PC installer, product key or Wine), or the
+original `HaloCESetup.exe` with `product-key.txt` beside it for both editions. PadMint handles the
+build; you do not run the source-build commands below afterward. No Mac? Use the
+[GitHub build](#on-windows-linux-or-any-computer) for the Xbox edition.
 
 To build either edition from the current source, use an Apple silicon Mac with
 Xcode 26 or later on a macOS version supported by that Xcode. The finished Xbox
