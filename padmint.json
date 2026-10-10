@@ -25,13 +25,13 @@
       "hosts": {"macos-arm64": "experimental"},
       "output": "ipa",
       "check": "ipa",
-      "command": ["{repo}/scripts/builder/build.sh", "{disc}", "--xbox", "--out", "{work}", "--ipa", "{output}", "--jobs", "{jobs}"]
+      "command": ["{repo}/scripts/builder/build.sh", "{disc}", "--xbox", "--app-version", "0.3.8", "--out", "{work}", "--ipa", "{output}", "--jobs", "{jobs}"]
     },
     "macos": {
       "hosts": {"macos-arm64": "experimental"},
       "output": "zip",
       "check": "none",
-      "command": ["{repo}/scripts/builder/build.sh", "{disc}", "--mac", "--xbox", "--out", "{work}", "--zip", "{output}", "--jobs", "{jobs}"]
+      "command": ["{repo}/scripts/builder/build.sh", "{disc}", "--mac", "--xbox", "--app-version", "0.3.8", "--out", "{work}", "--zip", "{output}", "--jobs", "{jobs}"]
     }
   },
   "requirements": {
