@@ -2,6 +2,18 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**First real network raise, 2026-10-10.** OpenCE build 169 raised its network version to
+25 ("carry units' integrated lights in the object states", OpenCE 767a4edb). The change
+uses two spare bits in an existing flags field: version 24 machines ignore them, and 25
+machines treat a 24 host's zeros as "not sent". ChupathingyCE had not classified 25 yet, so
+the scheduled job correctly reported "waiting". After reviewing the diff, version 25 was
+approved with `approve_through=25`
+([run 38013753673](https://github.com/chrissotraidis/projectreach/actions/runs/38013753673)):
+policy 1791596126 lets network-24 apps announce 25 and join 24 to 25. The iPad (build 24)
+downloaded and verified it at the picker; **Updates…** shows "versions 24 to 25". Host
+imports are unchanged from 168, so no new HaloPad build was needed. Not yet tested against
+a real OpenCE 169 peer.
+
 **OpenCE 168, 2026-10-10: build 24 tested on iPad.** OpenCE 158-168 added voice chat, its
 own Android touch overlay and hash-based memory watching, which need 10 new host calls.
 HaloPad now answers them (`db2cf2c`): the microphone reports "none", so voice chat is
