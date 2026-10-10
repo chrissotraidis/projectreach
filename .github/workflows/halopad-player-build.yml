@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
   push:  # TEMPORARY branch test; removed before merge
     branches: [codex/opence-170]
-    paths: ['.github/workflows/halopad-player-build.yml']
+    paths: ['.github/workflows/halopad-player-build.yml', 'scripts/**']
 permissions:
   contents: read
 jobs:
