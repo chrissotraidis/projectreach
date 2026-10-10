@@ -960,6 +960,10 @@ int xh_host_sdl_rumble_gamepad(uint32_t pad, uint32_t low, uint32_t high, uint32
 	return 0;
 }
 
+/* OpenCE 170+ closes a controller once it has gone. Gamepad handles here are
+ * GameController slots, which pads_refresh keeps, so there is nothing to free. */
+void xh_host_sdl_close_gamepad(uint32_t pad) { (void)pad; }
+
 /* ---------- events: controllers that appeared since the last poll */
 
 int xh_host_sdl_poll_event(uint32_t event)

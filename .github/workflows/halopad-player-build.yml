@@ -1,0 +1,48 @@
+name: Build HaloPad (Xbox edition)
+# Builds the Xbox-only HaloPad app on GitHub's free macOS runner for public
+# repositories, so players on Windows, Linux or any computer can make their own
+# copy: fork this repository, open Actions, choose this workflow and Run workflow.
+# It uses this release's pinned OpenCE engine (config/xbox-release.json), needs
+# no secrets, signing account or game files, and never publishes anything: the
+# app is kept as this run's artifact for 7 days. Players add their own Xbox disc
+# inside HaloPad after installing it.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+      HOMEBREW_NO_AUTO_UPDATE: '1'
+      APP_VERSION: 0.3.8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install build tools
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          brew install llvm lld cmake ninja sdl3
+          echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
+          echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
+      - name: Build HaloPad for iPhone and iPad
+        run: |
+          scripts/builder/build.sh --xbox-only --app-version "$APP_VERSION" --app-build "$GITHUB_RUN_NUMBER" \
+            --out "$RUNNER_TEMP/ios" --ipa "$RUNNER_TEMP/out/HaloPad-v$APP_VERSION-ios-unsigned.ipa"
+      - name: Build HaloPad for Mac
+        run: |
+          scripts/builder/build.sh --xbox-only --mac --app-version "$APP_VERSION" --app-build "$GITHUB_RUN_NUMBER" \
+            --out "$RUNNER_TEMP/mac" --zip "$RUNNER_TEMP/out/HaloPad-v$APP_VERSION-mac.zip"
+      - name: Checksums
+        working-directory: ${{ runner.temp }}/out
+        run: shasum -a 256 HaloPad-* | tee SHA256SUMS
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: HaloPad-v${{ env.APP_VERSION }}-xbox-${{ github.run_number }}
+          path: ${{ runner.temp }}/out/
+          retention-days: 7
+          if-no-files-found: error
