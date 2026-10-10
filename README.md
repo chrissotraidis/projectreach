@@ -1,9 +1,9 @@
 # HaloPad
 
 <p align="center">
-  <strong>Halo: Combat Evolved on iPhone, iPad and Mac.</strong><br>
-  The Xbox edition with the original campaign and online matches of up to 128 players, plus Halo Custom
-  Edition on its community servers. Touch, keyboard and mouse, controllers and real networking.
+  <strong>Play Halo: Combat Evolved on your iPhone, iPad or Mac.</strong><br>
+  The original Xbox campaign, online matches of up to 128 players, and the PC community's Custom
+  Edition servers. Play with touch controls, a controller, or keyboard and mouse.
 </p>
 
 <p align="center">
@@ -20,74 +20,175 @@
 
 *HaloPad at Halo's own main menu. iPhone 14, iPad Pro and Apple silicon Mac builds play local and online.*
 
-**[What is it](#what-is-halopad) · [Status](#current-status) · [Get it](#build-and-install) ·
+**[What you need](#what-you-need) · [Build and install](#build-and-install) · [Add your disc](#add-your-xbox-disc) ·
 [Playing](#playing) · [FAQ](#frequently-asked-questions) · [Discord](https://discord.gg/xwHfUD2bxW)**
 
 > [!IMPORTANT]
-> **Choose your edition.** Xbox Halo uses your own Xbox disc image. Custom Edition uses your
-> PC installer and product key. They have separate setup requirements and multiplayer servers.
-> This repository contains no Halo files, product key, engine source or translated game code.
->
-> **Build your own copy.** There is no prebuilt download. On an Apple silicon Mac,
-> [PadMint](https://github.com/chrissotraidis/padmint) or one command builds HaloPad: a Mac app you
-> open right away, or an IPA you sign and install. On Windows, Linux or any other computer,
-> GitHub's free Mac runner builds the Xbox edition in your own copy of this repository
-> ([steps](#on-windows-linux-or-any-computer)). It is a preview: playable on real hardware, with
-> frame pacing and some Xbox graphics still being tuned.
-> In PadMint, choose your Xbox ISO/XISO for the Xbox edition alone, or the PC installer and
-> product key for both editions. See [Build and install](#build-and-install).
+> **HaloPad does not include Halo, and there is no app to download.** You bring your own copy of
+> the game and build the app yourself, for free. For most people that means one file, the Xbox
+> disc image described below, and a build that mostly runs by itself. HaloPad is a preview:
+> playable on real hardware, with frame pacing and some Xbox graphics still being tuned.
 >
 > **AI disclosure:** HaloPad is developed with substantial AI assistance. The
 > [status log](docs/STATUS.md) records what has actually been checked, and on which device.
+
+## What you need
+
+HaloPad plays two editions of Halo. **Start with the Xbox edition.** It has the full campaign and
+the busiest online games, it builds on any computer, and it needs only one file from you.
+
+### Xbox edition: one disc image file
+
+You need a disc image of **Halo: Combat Evolved for the original Xbox**, the 2001 game for the
+first Xbox console.
+
+| | |
+| --- | --- |
+| **The game** | Halo: Combat Evolved, original Xbox (2001) |
+| **The file** | Ends in `.iso` or `.xiso`. Use it as it is. If it came inside a `.zip`, `.7z` or `.rar`, unpack it first |
+| **Best choice** | The USA (NTSC) version, often named `Halo - Combat Evolved (USA)`. This is the one tested on iPhone, iPad and Mac |
+| **Other regions** | OpenCE, the engine HaloPad uses, says European (PAL) and other versions work. HaloPad has only been tested with the USA version |
+| **Free space** | About 2 GB on the device you play on for the maps HaloPad copies out, plus room for the file itself while you add it |
+
+**These will not work:** Halo for PC, Halo: Custom Edition, Halo: Combat Evolved Anniversary,
+the Master Chief Collection, Halo 2 or any later Halo, and versions for Xbox 360, Xbox One or
+Xbox Series consoles.
+
+Make the disc image from a Halo disc you own. If you already play Halo in the xemu Xbox emulator,
+the file you use there works here too. HaloPad checks the file when you add it: a message that it
+is "not an Xbox disc image" or "not Halo: Combat Evolved" means you picked the wrong file.
+
+### PC edition (optional): Custom Edition
+
+Add this only if you also want to join the Halo PC community's Custom Edition servers. It needs an
+Apple silicon Mac to build, and these files in one folder:
+
+- `HaloCESetup.exe`, the original Halo Custom Edition 1.00 installer. Do not use the 1.10 update
+  patch; HaloPad downloads Bungie's free update for you.
+- `product-key.txt`, a text file holding your Halo PC product key. Halo will not start without it.
+- [Wine](docs/INSTALL-WINE.md) installed on your Mac.
+
+The retail Halo PC game (`halo.exe`) and the Master Chief Collection are not supported.
+
+### A device to play on
+
+- **iPhone or iPad** with iOS or iPadOS 17.4 or later. Installing your own app on it requires
+  Apple signing; the [install guide](docs/INSTALL-IPHONE.md) explains it.
+- **Mac** with Apple silicon (M1 or newer) and macOS 14.4 or later. No Apple account needed.
+
+## Build and install
+
+Pick the path for the computer you have. Both are free.
+
+| Your computer | What you can build | How |
+| --- | --- | --- |
+| Mac with Apple silicon | Xbox edition, or both editions | [PadMint](#on-an-apple-silicon-mac) |
+| Windows, Linux, an Intel Mac, or anything else | Xbox edition | [GitHub, in your browser](#on-windows-linux-or-any-computer) |
+
+The current release is [HaloPad 0.3.9](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.9).
+
+### On an Apple silicon Mac
+
+1. Install **Xcode** (version 26 or later) from the Mac App Store and open it once to finish setup.
+2. Download [PadMint](https://github.com/chrissotraidis/padmint/releases/latest) (0.4.12 or later)
+   and open it.
+3. Select **HaloPad**, then choose where you will play: iPhone/iPad or Mac.
+4. Choose your game file:
+   - **Xbox edition only:** your `.iso` or `.xiso`. No PC installer, product key or Wine needed.
+   - **Both editions:** `HaloCESetup.exe`, with `product-key.txt` in the same folder.
+5. Let PadMint build. It tells you if a tool is missing and how to install it. The first build
+   needs about 35 GB of free space and takes the longest.
+6. **Mac:** unzip the app and open it. **iPhone/iPad:** sign and install the IPA with the
+   [install guide](docs/INSTALL-IPHONE.md).
+7. [Add your Xbox disc](#add-your-xbox-disc) inside the app.
+
+If you built both editions, PadMint also makes a **HaloPad game data** folder. Copy its
+`Halo-CE.halopad.zip` to your device, open HaloPad, choose Custom Edition, then
+**Choose Prepared Package…**.
+
+**Your build is yours alone.** It contains Halo game code, so never share or upload it.
+
+### On Windows, Linux or any computer
+
+The Xbox edition of the app contains no Halo files. You add your disc inside the app after
+installing it, so GitHub can build the app for you on its free Mac computers. This works for
+iPhone, iPad and Mac. Custom Edition still needs an Apple silicon Mac.
+
+1. Sign in to GitHub and **Fork** this repository. Your copy is public, like this one.
+2. In your fork, open **Actions**, enable workflows if asked, choose **Build HaloPad (Xbox edition)**
+   and click **Run workflow**. It takes about 15 minutes.
+3. Open the finished run and download its artifact. It holds `HaloPad-v0.3.9-ios-unsigned.ipa`,
+   `HaloPad-v0.3.9-mac.zip` and `SHA256SUMS`, and GitHub keeps it for 7 days.
+4. Install the IPA with [Sideloadly](https://sideloadly.io) (Windows or Mac) or another tool that
+   signs with your own Apple ID, or follow the [install guide](docs/INSTALL-IPHONE.md). On a Mac,
+   unzip the Mac app and open it.
+5. [Add your Xbox disc](#add-your-xbox-disc) inside the app.
+
+The build uses the OpenCE engine recorded for this release, and no secrets, accounts or game files.
+
+### Add your Xbox disc
+
+You do this once, after installing.
+
+1. Put your `.iso` or `.xiso` where HaloPad can reach it. On iPhone or iPad, copy it into the
+   **Files** app. On a Mac, anywhere works.
+2. Open HaloPad. On the edition picker, choose **Add Your Xbox Disc**, then **Choose Disc Image**,
+   and select your file.
+3. Wait while HaloPad copies the maps (about 2 GB). Then press **Play Xbox**.
+
+HaloPad keeps its own copy of the maps, so you can delete the disc image afterward to save space.
+If your build has only the Xbox edition, Custom Edition shows **Not included in this build**;
+**Add Custom Edition…** explains how to build both later.
+
+### Updating HaloPad
+
+**Always install the new version over the old app. Never delete HaloPad first:** deleting it
+deletes your saves, profiles and imported maps. On iPhone and iPad, sign the update with the same
+identity or Apple ID you used before.
+
+- **PadMint:** update the HaloPad recipe, build again with the same game file you chose before,
+  and install over the existing app.
+- **GitHub:** press **Sync fork** on your fork, run the workflow again, and install the new IPA
+  over the old one.
+
+**You rarely need to update just to keep playing online.** OpenCE publishes new engine builds
+almost daily, but your installed HaloPad keeps working. Each release builds the exact OpenCE engine
+it was tested with (currently OpenCE build 170, network version 25, recorded in
+`config/xbox-release.json`). OpenCE only lets players on the same network version play together.
+When OpenCE raises that version with a change older builds can still handle, HaloPad downloads a
+small signed compatibility file and joins those games the next time you press **Play Xbox**, with
+no rebuild. A change is followed only after
+[ChupathingyCE's](https://github.com/ChupathingyCE/chupathingyce) cross-play tests mark it as
+compatible. **Updates…** on the edition picker shows which versions your app plays with. When
+OpenCE changes online play in a way older builds cannot handle, a new HaloPad release follows.
+The campaign never expires. Xbox checkpoints may need a level restart after an engine change.
 
 ## What's new
 
 - **0.3.9: building both editions works again.** 0.3.8 stopped at its last step, packaging the
   Custom Edition game files, when you chose the PC installer. Xbox-only builds were not affected.
-- **0.3.8: no more chasing OpenCE.** Each HaloPad release
-  builds the exact OpenCE engine it was tested with (OpenCE build 170), so OpenCE's daily builds no
-  longer change or break your PadMint build. Your installed app also keeps up with online play by
-  itself: when OpenCE raises its network version with a compatible change, HaloPad downloads a small
-  signed update and joins those games, with no rebuild and no reinstall. See [Updating HaloPad](#updating-halopad).
-  The Xbox edition also builds without a Mac: [on Windows, Linux or any computer](#on-windows-linux-or-any-computer).
-- **0.3.6: corrected Wine setup.** Homebrew disabled its Wine cask; follow the
-  [Wine installation guide](docs/INSTALL-WINE.md). PadMint 0.4.9 shows the corrected setup step.
-- **0.3.5: builds from OpenCE's newest release.** OpenCE changes its online version frequently.
-  When the picker says OpenCE has moved on, rebuild with PadMint and install over your app.
-  See [Updating HaloPad](#updating-halopad) for the current source's update workflow.
-- **0.3.4: the server browser finds games.** The Xbox edition now ships OpenCE's list of public
-  matchmaking servers (`brokers.txt`), which it was missing, so **Multiplayer › Server Browser**
-  lists everyone's public games and joining them works. Rebuild with PadMint and install over your app.
-- **0.3.3: online with current OpenCE players.** The Xbox edition moves to OpenCE build 119
-  (network version 13, with online co-op), so HaloPad joins the same games as everyone else again.
-  HaloPad now tells you on the edition picker when OpenCE ships a build that can no longer play with
-  yours; rebuild with PadMint and install over your app to catch up. Saves stay.
-- **0.3.2: both editions from PadMint.** PadMint (and `build.sh --xbox`) now builds the Xbox edition
-  into HaloPad too, on iPhone, iPad and Mac, by fetching the engine from upstream on your Mac. Mac
-  players get **⋯ › Controls › Mouse Speed**.
-- **0.3: HaloPad for Mac.** The same app, edition picker, ⋯ menu and icon on Apple silicon Macs, with
-  keyboard and mouse, and no Apple account needed.
-- **0.2.1:** build HaloPad with [PadMint](https://github.com/chrissotraidis/padmint) in a few clicks.
-  Bungie's 1.10 update is downloaded for you and CrossOver is no longer needed
-  ([notes](https://github.com/chrissotraidis/projectreach/releases/tag/v0.2.1)).
-- **0.2:** the Xbox edition, with the original campaign and online play of up to 128 players; an
-  edition picker and one shared ⋯ menu; smoother Custom Edition frames; normal startup with the
-  product ID from your own key ([notes](https://github.com/chrissotraidis/projectreach/releases/tag/v0.2.0)).
+- **0.3.8: OpenCE updates no longer break your build.** Each HaloPad release builds the exact OpenCE
+  engine it was tested with, and your installed app keeps up with compatible online changes by
+  itself (see [Updating HaloPad](#updating-halopad)). The Xbox edition also builds
+  [without a Mac](#on-windows-linux-or-any-computer).
+- **0.3.6: corrected Wine setup.** Homebrew disabled its Wine package; follow the
+  [Wine installation guide](docs/INSTALL-WINE.md).
+
+Earlier changes are on the [releases page](https://github.com/chrissotraidis/projectreach/releases).
 
 ## What is HaloPad?
 
-HaloPad (the codebase is Project Reach) brings two versions of Halo: Combat Evolved to iPhone, iPad and
-Apple silicon Macs.
-When your build includes both, it asks which one to open at launch.
+HaloPad (the codebase is Project Reach) brings two editions of Halo: Combat Evolved to iPhone, iPad
+and Apple silicon Macs. When your build includes both, it asks which one to open at launch.
 
-| | Halo Custom Edition (PC) | Halo: Combat Evolved (Xbox) |
+| | Halo: Combat Evolved (Xbox) | Halo Custom Edition (PC) |
 | --- | --- | --- |
-| How it runs | Your own `haloce.exe` 1.10, translated from x86 to native ARM64 ahead of time | [OpenCE](https://github.com/OpenCommunityEdition/OpenCE), the port of the Xbox decompilation, built on your Mac |
-| Your files | Your Custom Edition installer and product key | Your own Xbox disc image, imported in the app |
-| Online | Community-run Custom Edition servers and LAN, alongside PC players | Internet and system link games of up to 128 players with PC, Linux and Android players on the same build |
-| Campaign | No | The original Xbox campaign |
+| Your files | Your Xbox disc image (`.iso` or `.xiso`), added in the app | Your Custom Edition installer and product key |
+| Campaign | The original Xbox campaign | No |
+| Online | Internet and system link games of up to 128 players, with PC, Linux and Android players on OpenCE | Community-run Custom Edition servers and LAN, alongside PC players |
 | Runs on | iPhone, iPad and Mac | iPhone, iPad and Mac |
-| Build with | PadMint or one command | PadMint on a Mac from your disc image, or GitHub from any computer ([below](#build-and-install)) |
+| Build on | Any computer: PadMint on a Mac, or GitHub | An Apple silicon Mac with PadMint |
+| How it runs | [OpenCE](https://github.com/OpenCommunityEdition/OpenCE), the port of the Xbox decompilation, built for Apple devices | Your own `haloce.exe` 1.10, translated from x86 to native ARM64 ahead of time |
 
 For Custom Edition, HaloPad supplies the Windows services the game expects: Direct3D 9 rendered through
 Metal, DirectInput mapped to touch and controllers, audio, files, the registry and Winsock networking.
@@ -112,131 +213,6 @@ stop responding after reconnecting it; if that happens, please share the diagnos
 Halo's resolution is tested on iPhone, not yet on iPad, so 800 × 600 is the safest choice there.
 Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 
-## Build and install
-
-**Available today:** [HaloPad 0.3.9](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.9)
-provides source and a PadMint recipe, not an app or IPA download. With
-[PadMint 0.4.12](https://github.com/chrissotraidis/padmint/releases/latest) on an Apple silicon Mac,
-choose your Xbox ISO/XISO for the Xbox edition alone (no PC installer, product key or Wine), or the
-original `HaloCESetup.exe` with `product-key.txt` beside it for both editions. PadMint handles the
-build; you do not run the source-build commands below afterward. No Mac? Use the
-[GitHub build](#on-windows-linux-or-any-computer) for the Xbox edition.
-
-To build either edition from the current source, use an Apple silicon Mac with
-Xcode 26 or later on a macOS version supported by that Xcode. The finished Xbox
-app runs on macOS 14.4+ or iOS/iPadOS 17.4+. iPhone/iPad installation also needs
-Developer Mode and your own Apple development profile with **Extended Virtual Addressing**
-and **Increased Memory Limit** ([install guide](docs/INSTALL-IPHONE.md)).
-
-With the updated PadMint and HaloPad recipe, select **HaloPad**, choose your platform,
-then choose your game file:
-
-| Select | What PadMint builds | What you need |
-| --- | --- | --- |
-| Your Xbox Halo `.iso` or `.xiso` | Xbox edition only | Your disc image; no PC installer, product key or Wine |
-| Original `HaloCESetup.exe` | Both editions | `product-key.txt` beside the installer, plus [Wine](docs/INSTALL-WINE.md) |
-
-The Xbox-only app opens to the same edition picker. Choose **Add Your Xbox Disc** and select
-your ISO/XISO again to import its maps. For iPhone/iPad, transfer the disc image to Files first.
-Custom Edition is marked **Not included in this build**; **Add Custom Edition…** explains how
-to build both editions later. Install the combined app over the existing one with the same
-signing identity to retain your Xbox files and saves.
-
-For a combined build, PadMint also creates a **HaloPad game data** folder. Transfer its
-`Halo-CE.halopad.zip` to your device, choose Custom Edition in the picker, then
-**Choose Prepared Package…**. The builder downloads Bungie's free 1.10 update, verifies the
-PC inputs by hash, translates the game and creates your product ID locally.
-
-From a source checkout, the equivalent commands are:
-
-```sh
-# Xbox only: add your disc in HaloPad after installing.
-brew install cmake ninja lld llvm sdl3
-scripts/builder/build.sh --xbox-only --mac --zip HaloPad-Xbox.zip
-scripts/builder/build.sh --xbox-only --ipa HaloPad-Xbox.ipa
-
-# Both editions: install Wine using the guide above, and the PC tools.
-brew install sevenzip winetricks llvm lld cmake ninja sdl3
-scripts/builder/build.sh /path/to/HaloCESetup.exe --xbox --mac --zip HaloPad.zip
-scripts/builder/build.sh /path/to/HaloCESetup.exe --xbox --ipa HaloPad.ipa
-```
-
-On Mac, unzip the app and open it. On iPhone/iPad, sign and install the personal IPA.
-**These builds contain translated game code and are yours alone. Never share or upload them.**
-To update, install over the existing app. Deleting HaloPad deletes its profiles and imported files.
-
-### On Windows, Linux or any computer
-
-The Xbox edition's app contains no Halo files: you import your own disc inside the app after
-installing it. So nothing has to be built from your game, and the app can be built for you on
-GitHub's free Mac runner (GitHub Actions is free for public repositories). This covers the Xbox
-edition for iPhone, iPad and Mac. Custom Edition still needs an Apple silicon Mac.
-
-1. Sign in to GitHub and **Fork** this repository (your copy is public, like this one).
-2. In your fork, open **Actions**, enable workflows if asked, choose **Build HaloPad (Xbox edition)**
-   and click **Run workflow**. It takes about 15 minutes.
-3. Open the finished run and download its artifact. It holds `HaloPad-v0.3.9-ios-unsigned.ipa`,
-   `HaloPad-v0.3.9-mac.zip` and `SHA256SUMS`, and is kept for 7 days.
-4. Install the IPA with [Sideloadly](https://sideloadly.io) (Windows or Mac) or another tool that
-   signs with your own Apple ID, or follow the [install guide](docs/INSTALL-IPHONE.md).
-5. Put your Xbox ISO/XISO in Files. Open HaloPad, choose **Add Your Xbox Disc** and select it.
-
-The build uses the OpenCE engine recorded for this release and no secrets, accounts or game files.
-To update later, use **Sync fork** on your fork, run the workflow again and install the new IPA over
-the old one with the same Apple ID; your saves stay.
-
-### Updating HaloPad
-
-You do not need to rebuild HaloPad every time OpenCE publishes a build. OpenCE ships new
-builds almost daily, but most of them do not change how online play works, and your installed
-app keeps working with all of them. The campaign never expires.
-
-**Your build stays the same.** Each HaloPad release builds the exact OpenCE engine recorded in
-`config/xbox-release.json` (currently OpenCE build 170, network version 25, the engine tested on
-iPad). New OpenCE builds do not change or break that recipe.
-
-**Online play keeps up by itself.** OpenCE only lets players with the same network version play
-together, and it raises that number when it changes its network messages. Most raises so far have
-been compatible: older builds still play with newer ones. Each time HaloPad opens, it checks a small
-signed compatibility file. When OpenCE raises its version with a compatible change, the file lets
-your installed app announce the new version and join those games, starting the next time you
-press **Play Xbox**. A change is followed only after
-[ChupathingyCE's](https://github.com/ChupathingyCE/chupathingyce) cross-play tests classify it as
-compatible. **Updates…** on the edition picker shows which versions your app plays with. If the file
-cannot be downloaded or verified, HaloPad keeps the last good one, or its built-in version.
-
-**Some changes still need a new HaloPad.** When OpenCE changes online play in a way older builds
-cannot handle, the project publishes a new release. Update the HaloPad recipe in PadMint and build
-with the same input type: your Xbox ISO/XISO for Xbox-only, or your original PC installer with
-`product-key.txt` for both editions. Install over the existing app using the same signing identity.
-Keep imported files and profiles; do not delete HaloPad. Xbox checkpoints may require a level
-restart after changing engines.
-
-For an explicit experiment with upstream's newest engine, add `--xbox-latest` to the
-builder command. A failed experiment stops without substituting another engine.
-`--xbox-release-record FILE` replays an exact saved candidate;
-`HALOPAD_XBOX_PINNED=1` retains the older reviewed development pin. These choices are
-mutually exclusive. Repeated builds reuse verified PC translations and incremental
-engine work when their inputs match. Source builds still compile on your Mac; an update
-notice does not install executable code inside HaloPad.
-
-### Adding the Xbox edition
-
-PadMint and the `--xbox` builder option add the Xbox edition to the same app, so HaloPad opens to the
-edition picker. Your Mac downloads this HaloPad release’s recorded [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
-engine and the pinned ANGLE renderer from their own repositories and builds them; none of that code is part of
-HaloPad. You add your own Xbox disc image in the app (**Add Your Xbox Disc** on the picker).
-
-```sh
-brew install cmake ninja lld llvm sdl3                            # once, on top of the tools above
-scripts/builder/build.sh /path/to/that/folder --xbox --ipa HaloPad.ipa        # iPhone and iPad
-scripts/builder/build.sh /path/to/that/folder --mac --xbox --zip HaloPad.zip  # Mac
-```
-
-The first Xbox build takes longer and needs about 35 GB free. [Xbox engine](docs/XBOX-ENGINE.md) covers
-updating to newer upstream builds, the tested disc (NTSC-US, maps build `01.10.12.2276`) and the
-lower-level `scripts/xbox/build-ios.sh` steps.
-
 ## Playing
 
 Create a Halo profile, then use the game's own **Multiplayer** menus to host or join.
@@ -259,53 +235,63 @@ Create a Halo profile, then use the game's own **Multiplayer** menus to host or 
 ## Frequently asked questions
 
 <details>
+<summary><strong>Which Halo file do I need?</strong></summary>
+
+For the Xbox edition: a `.iso` or `.xiso` disc image of Halo: Combat Evolved for the original
+Xbox, ideally the USA (NTSC) version. For the PC edition: the original `HaloCESetup.exe` Custom
+Edition installer plus your product key. Full details are in [What you need](#what-you-need).
+
+</details>
+
+<details>
 <summary><strong>Can I download an IPA?</strong></summary>
 
-There is no public HaloPad IPA today. PadMint builds a personal IPA on your Mac, and on any other
+No public HaloPad IPA exists today. PadMint builds a personal IPA on your Mac, and on any other
 computer GitHub can build the Xbox edition's IPA in your own fork
-([steps](#on-windows-linux-or-any-computer)); you then sign and install it on your iPhone or iPad.
-An IPA is the app, not your Xbox disc image. The Xbox-only build imports the disc's maps after
-installation and does not bundle the ISO/XISO.
+([steps](#on-windows-linux-or-any-computer)). You then sign and install it on your iPhone or iPad.
+The IPA is the app only; your disc image is added afterward and never goes inside it.
 
-**Download → sign and install → import your disc → play** is the simpler installation flow we
-are evaluating. The Xbox-only app can already be packaged separately from the disc. It still
-contains a compiled, game-derived engine, so leaving out maps alone does not resolve the
-distribution review. A public download also needs a verified signing and device-installation
-route. Track those remaining steps in [installation delivery](docs/STATUS.md#installation-delivery).
+A simpler **download, install, add your disc, play** route is being evaluated. The Xbox app still
+contains a compiled engine derived from the game, so leaving out the maps does not settle the
+distribution question, and a public download also needs a verified signing and installation route.
+Progress is tracked in [installation delivery](docs/STATUS.md#installation-delivery).
+
+</details>
+
+<details>
+<summary><strong>Do I need a paid Apple developer account?</strong></summary>
+
+Not for the Mac app. On iPhone and iPad, HaloPad asks for the **Extended Virtual Addressing** and
+**Increased Memory Limit** capabilities, because it reserves Halo's full 32-bit address space. Sign
+with an Apple development profile that allows both.
+
+The Xbox edition may not need them: on an iPad Pro (12.9-inch, 6th generation), the same build signed
+without either capability opened and played its campaign. A free Apple ID through Sideloadly or
+AltStore may therefore be enough for the Xbox edition, but that route and iPhones are not tested yet.
 
 </details>
 
 <details>
 <summary><strong>Can I play online with people on PC?</strong></summary>
 
-Yes. Custom Edition joins the community-run PC servers in Halo's own lobby. The Xbox edition plays with
-other OpenCE players on PC, Linux and Android, up to 128 per match. The two editions cannot
-play each other.
+Yes. Custom Edition joins the community-run PC servers in Halo's own lobby. The Xbox edition plays
+with other OpenCE players on PC, Linux and Android, up to 128 per match. The two editions cannot play
+each other.
 
-OpenCE's new voice chat works in listen-only mode in HaloPad: you hear other players, but HaloPad
-does not use your microphone yet.
+OpenCE's voice chat works in listen-only mode in HaloPad: you hear other players, but HaloPad does not
+use your microphone yet.
 
 </details>
 
 <details>
 <summary><strong>Why can't I join someone's Xbox game?</strong></summary>
 
-OpenCE players can only join hosts on a network version their game accepts. HaloPad follows OpenCE's
-compatible network changes automatically (see [Updating HaloPad](#updating-halopad)); **Updates…** on
-the edition picker shows the versions your app plays with. Close HaloPad and open it again so it can
-check for a newer compatibility file, then press **Play Xbox**. If the host uses a version OpenCE
-changed incompatibly, you need a newer HaloPad release. Players who have not updated OpenCE may also
-be on an older version. The server browser finds games through public brokers, as upstream does;
-there is no HaloPad game server.
-
-</details>
-
-<details>
-<summary><strong>Which version of Halo works?</strong></summary>
-
-Halo: Custom Edition 1.10 for the PC edition (the builder starts from the original installer and
-applies the official update). An original Xbox Halo: Combat Evolved disc image for the Xbox edition;
-NTSC-US is the tested one. The retail PC `halo.exe` and the Master Chief Collection are not supported.
+OpenCE players can only join hosts on a network version their game accepts. Close HaloPad and open it
+again so it can check for a newer compatibility file, then press **Play Xbox**. **Updates…** on the
+edition picker shows the versions your app plays with. If the host uses a version that OpenCE changed
+in an incompatible way, you need a newer HaloPad release. Players who have not updated OpenCE may also
+be on an older version. The server browser finds games through OpenCE's public brokers; there is no
+HaloPad game server.
 
 </details>
 
@@ -320,23 +306,8 @@ busy scenes are slower than on iPad for now.
 <details>
 <summary><strong>Does it run on Mac?</strong></summary>
 
-Yes, on Apple silicon Macs with macOS 14.4 or later. It is the same app as on iPad, built for the Mac, with
-the same edition picker and ⋯ menu, and it needs no Apple account. PadMint builds it with both
-editions. Custom Edition-only builds retain macOS 14/iOS 17 support.
-
-</details>
-
-<details>
-<summary><strong>Do I need a paid Apple developer account?</strong></summary>
-
-Not for the Mac app. On iPhone and iPad, HaloPad needs the **Extended Virtual Addressing** and
-**Increased Memory Limit** capabilities, because it reserves Halo's full 32-bit address space. Sign with
-an Apple development profile that allows both. Free signing through AltStore, SideStore or Sideloadly
-has not been tested.
-
-The Xbox edition may not need them: on an iPad Pro (12.9-inch, 6th generation), the same build signed
-without either capability opened and played its campaign. A free Apple ID through Sideloadly or AltStore
-may therefore be enough for the Xbox edition; that route and iPhones are not tested yet.
+Yes, on Apple silicon Macs with macOS 14.4 or later. It is the same app as on iPad, with the same
+edition picker and ⋯ menu, and it needs no Apple account.
 
 </details>
 
@@ -363,6 +334,35 @@ cannot load into a translated game.
 Yes, when you install over the existing app with the same signing. Never delete HaloPad to update.
 
 </details>
+
+## Building from source
+
+PadMint and the GitHub workflow run these commands for you. Use them only if you work on HaloPad
+itself. You need an Apple silicon Mac with Xcode 26 or later.
+
+```sh
+# Xbox edition only: add your disc in HaloPad after installing.
+brew install cmake ninja lld llvm sdl3
+scripts/builder/build.sh --xbox-only --mac --zip HaloPad-Xbox.zip
+scripts/builder/build.sh --xbox-only --ipa HaloPad-Xbox.ipa
+
+# Both editions: install Wine with the guide above, plus the PC tools.
+brew install sevenzip winetricks llvm lld cmake ninja sdl3
+scripts/builder/build.sh /path/to/HaloCESetup.exe --xbox --mac --zip HaloPad.zip
+scripts/builder/build.sh /path/to/HaloCESetup.exe --xbox --ipa HaloPad.ipa
+```
+
+The builder downloads this release's recorded [OpenCE](https://github.com/OpenCommunityEdition/OpenCE)
+engine and the pinned ANGLE renderer from their own repositories and builds them; none of that code is
+part of HaloPad. For PC builds it downloads Bungie's free 1.10 update, checks the PC files by hash,
+translates the game and creates your product ID locally. The first Xbox build needs about 35 GB free.
+Repeated builds reuse verified work when the inputs match.
+
+For experiments, `--xbox-latest` builds upstream's newest engine (a failure stops without substituting
+another), `--xbox-release-record FILE` replays an exact saved candidate, and
+`HALOPAD_XBOX_PINNED=1` keeps the older reviewed development pin. Use only one of these at a time.
+[Xbox engine](docs/XBOX-ENGINE.md) covers the tested disc (USA, maps build `01.10.12.2276`) and the
+lower-level `scripts/xbox/build-ios.sh` steps.
 
 ## Help and community
 
