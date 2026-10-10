@@ -2,6 +2,25 @@
 
 ## Current release candidate: 0.3.8 Xbox-only beta
 
+**OpenCE 170, 2026-10-10: build 25 tested on iPad; any-computer build.** OpenCE 170
+(network 25) adds one host call, `host_sdl_close_gamepad` (Mac: closes the SDL gamepad;
+iPad: no-op, GameController slots need no release), and guest header ABI 2, which inserts
+`thread_detach` after the last field HaloPad reads. Local build 25 passed 351 Xbox + 23
+builder tests and both package audits. On the iPad, after a 13.4 GB backup verified against
+an independent readback (806 files, no differences; files identical to the 168 backup are
+APFS clones), build 25 installed over build 24: all 53 Xbox saves and every Library file
+except iOS launch snapshots unchanged; picker shows OpenCE 170; menu, campaign Continue and
+touch look work. The same build re-signed **without Extended Virtual Addressing, and then
+without either memory capability**, also opened and played the campaign on this iPad, so
+free Apple ID signing may suffice for the Xbox edition (free tools and iPhones untested).
+The normal build 25 was reinstalled; saves unchanged.
+
+The new `Build HaloPad (Xbox edition)` workflow builds the unsigned IPA and Mac zip on
+GitHub's macOS runner with no secrets or game files, so a fork can produce a copy for
+players on Windows or Linux. Its first run exposed a builder bug: outputs outside the
+checkout crashed `build-ios-app.py` while printing the path; fixed and checked locally
+for both outputs. Evidence: `generated/opence-170-ipad-20261010/`.
+
 **First real network raise, 2026-10-10.** OpenCE build 169 raised its network version to
 25 ("carry units' integrated lights in the object states", OpenCE 767a4edb). The change
 uses two spare bits in an existing flags field: version 24 machines ignore them, and 25

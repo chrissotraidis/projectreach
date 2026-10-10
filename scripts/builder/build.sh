@@ -103,8 +103,15 @@ done
 fi
 if [ $XBOX = 1 ]; then
 	for tool in cmake ninja ld.lld git curl; do
-		command -v "$tool" >/dev/null || { echo "missing $tool for the Xbox edition: brew install cmake ninja lld" >&2; exit 2; }
+		command -v "$tool" >/dev/null || { echo "missing $tool for the Xbox edition: brew install cmake ninja lld llvm sdl3" >&2; exit 2; }
 	done
+	# The engine is compiled with Homebrew's LLVM (scripts/xbox/guest-cc.sh) and the host
+	# code reads SDL3's headers (port/xbox/xg_ios.m); Xcode has neither.
+	XBOX_LLVM=${XBOX_LLVM_BIN:-/opt/homebrew/opt/llvm/bin}
+	for tool in clang llvm-ar llvm-readelf llvm-nm llvm-objdump; do
+		[ -x "$XBOX_LLVM/$tool" ] || { echo "missing $XBOX_LLVM/$tool for the Xbox edition: brew install llvm" >&2; exit 2; }
+	done
+	[ -f /opt/homebrew/include/SDL3/SDL_gamepad.h ] || { echo "missing SDL3 headers for the Xbox edition: brew install sdl3" >&2; exit 2; }
 fi
 if [ $PC = 0 ]; then
 	PY=python3
