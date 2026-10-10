@@ -42,7 +42,7 @@
       {"name": "7zz", "version_args": [], "player": true, "input_formats": ["exe"], "note": "brew install sevenzip"},
       {"name": "wine", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "Install Wine using https://github.com/chrissotraidis/projectreach/blob/main/docs/INSTALL-WINE.md (Homebrew's Wine cask is disabled). Then restart PadMint."},
       {"name": "winetricks", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "brew install winetricks (your product ID)"},
-      {"name": "/opt/homebrew/opt/llvm/bin/clang", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "brew install llvm (your product ID)"},
+      {"name": "/opt/homebrew/opt/llvm/bin/clang", "version_args": ["--version"], "player": true, "note": "brew install llvm sdl3 (both editions)"},
       {"name": "lld-link", "version_args": ["--version"], "player": true, "input_formats": ["exe"], "note": "brew install lld (your product ID)"}
       ,
       {"name": "ld.lld", "version_args": ["--version"], "player": true, "note": "brew install lld (the Xbox edition)"},

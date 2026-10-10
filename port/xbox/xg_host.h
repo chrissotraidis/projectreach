@@ -19,7 +19,9 @@ extern uintptr_t xg_base;
 #define GP(address) ((address) ? G(void *, address) : NULL)
 #define GA(pointer) ((uint32_t)((uintptr_t)(pointer) - xg_base))
 
-/* the upstream image layout (port/android/include/halo_android_abi.h) */
+/* the upstream image layout (port/android/include/halo_android_abi.h).
+ * HaloPad reads the header only up to thread_attach, which ABI versions 1
+ * and 2 share; ABI 2 (OpenCE 170) adds thread_detach after it. */
 #define XG_WINDOW_BASE 0x80000000u
 #define XG_WINDOW_SIZE 0x08000000u
 #define XG_IMAGE_BASE 0x88000000u
@@ -28,7 +30,7 @@ extern uintptr_t xg_base;
 struct xg_guest_header
 {
 	uint32_t magic, abi_version, image_end, import_table, import_names, import_count;
-	uint32_t start, thread_start, thread_attach, init_array_start, init_array_end;
+	uint32_t start, thread_start, thread_attach;
 };
 extern const struct xg_guest_header *xg_header;
 

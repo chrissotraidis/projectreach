@@ -21,7 +21,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   delivery-tests:
-    if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'
+    # Players' forks use halopad-player-build.yml; this pipeline needs HaloPad's own secrets.
+    if: github.repository == 'chrissotraidis/projectreach' && (github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true')
     runs-on: ubuntu-latest
     env:
       BUNDLE_GEMFILE: tools/testflight/Gemfile
@@ -38,7 +39,7 @@ jobs:
       - run: bundle exec ruby tools/testflight/test_delivery.rb
   select:
     # One-time opt-in stays off until a consumer delivery route is accepted.
-    if: github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true'
+    if: github.repository == 'chrissotraidis/projectreach' && (github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true')
     runs-on: ubuntu-latest
     permissions:
       # GitHub hides draft releases from read-only tokens, defeating deduplication.

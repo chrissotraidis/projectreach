@@ -168,6 +168,16 @@ int xh_host_sdl_rumble_gamepad(uint32_t pad, uint32_t low, uint32_t high, uint32
 	return SDL_RumbleGamepad(handle_get(pad), (Uint16)low, (Uint16)high, milliseconds);
 }
 
+/* OpenCE 170+: the event thread closes a controller once it has gone */
+void xh_host_sdl_close_gamepad(uint32_t pad)
+{
+	SDL_Gamepad *object = handle_get(pad);
+	if (!object)
+		return;
+	handles[pad] = NULL;
+	SDL_CloseGamepad(object);
+}
+
 /* ---------- audio: SDL's callback runs the guest's on SDL's audio thread,
  * switched to a guest stack by xg_enter; SDL's stream lock is recursive, so
  * the guest may put data into the stream from inside the callback */

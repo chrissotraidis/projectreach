@@ -24,6 +24,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   policy:
+    if: github.repository == 'chrissotraidis/projectreach'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

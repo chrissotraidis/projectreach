@@ -68,6 +68,11 @@ STATE = ROOT / 'generated' / 'halopad-disk-ios'
 # the Xbox engine, when it was built on this Mac (scripts/xbox/build-ios.sh; docs/XBOX-ENGINE.md)
 XBOX_OUT = ROOT / 'ref' / 'xbox-build' / 'out'
 
+def shown(path):
+    """A path for messages: relative inside this checkout, absolute for outputs elsewhere."""
+    return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
+
+
 def xbox_release_tag(revision):
     """Upstream's release tag (build-85) for the picker and About; None when untagged or unavailable.
     Upstream deletes old release tags, so the pin records the name it had (config/xbox-engine.lock.json)."""
@@ -313,7 +318,7 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
         ipa.unlink()
     subprocess.run(['ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', 'Payload', str(ipa)], cwd=out, check=True)
     shutil.rmtree(payload)
-    print('ipa', ipa.relative_to(ROOT), '(signed with', (identity or 'ad-hoc; sign before installing') + ')')
+    print('ipa', shown(ipa), '(signed with', (identity or 'ad-hoc; sign before installing') + ')')
     return app
 
 
@@ -398,7 +403,7 @@ def main():
         exe, _ = run_core.build(work, target, ROOT / 'port' / 'ios' / 'HaloPadApp.m', extra=extra)
     app = package(exe, work / f'ios-app-{target}', work, target, a.identity, a.profile, a.product_id,
                   pc=not a.xbox_only, app_version=a.app_version, app_build=a.app_build)
-    print('built', app.relative_to(ROOT))
+    print('built', shown(app))
     if a.iphoneos or a.mac:
         return 0
     if not a.launch:
