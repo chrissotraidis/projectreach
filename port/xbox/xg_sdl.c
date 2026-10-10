@@ -204,6 +204,36 @@ int xh_host_sdl_put_audio_stream_data(uint32_t stream, uint32_t data, int length
 
 int xh_host_sdl_resume_audio_stream_device(uint32_t stream) { return SDL_ResumeAudioStreamDevice(handle_get(stream)); }
 
+/* voice chat's microphone (OpenCE 158+): a stream opened without a callback */
+int xh_host_sdl_get_audio_stream_data(uint32_t stream, uint32_t data, int length)
+{
+	SDL_AudioStream *object = handle_get(stream);
+	return object ? SDL_GetAudioStreamData(object, G(void *, data), length) : -1;
+}
+
+int xh_host_sdl_get_audio_stream_available(uint32_t stream)
+{
+	SDL_AudioStream *object = handle_get(stream);
+	return object ? SDL_GetAudioStreamAvailable(object) : -1;
+}
+
+void xh_host_sdl_destroy_audio_stream(uint32_t stream)
+{
+	SDL_AudioStream *object = handle_get(stream);
+	if (!object)
+		return;
+	handles[stream] = NULL;
+	SDL_DestroyAudioStream(object);
+}
+
+/* OpenCE's Android touch overlay (touch_input.c): no touchscreen on this test host */
+void xh_host_gesture_insets(uint32_t insets) { memset(G(int32_t *, insets), 0, 4 * sizeof(int32_t)); }
+void xh_host_touch_read(uint32_t state) { memset(G(int32_t *, state), 0, 7 * sizeof(int32_t)); }
+void xh_host_touch_look_read(uint32_t delta) { memset(G(float *, delta), 0, 4 * sizeof(float)); }
+void xh_host_touch_rumble(uint32_t low, uint32_t high) { (void)low; (void)high; }
+void xh_host_touch_scene(int32_t scene) { (void)scene; }
+void xh_host_touch_bindings(uint32_t controls) { (void)controls; }
+
 /* ---------- OpenGL ES functions for xg_gl.c and the generated wrappers */
 
 void *xg_gl_proc(const char *name) { return (void *)SDL_GL_GetProcAddress(name); }
