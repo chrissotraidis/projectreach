@@ -4,7 +4,7 @@ HaloPad currently produces a personal IPA, not a public app download. Build it
 once with PadMint or the [source builder](../README.md#build-and-install), then
 sign and install it. Do not run the source builder again after PadMint finishes.
 
-HaloPad 0.3.8 supports **Xbox only**, with no PC installer, product key or
+HaloPad 0.3.9 supports **Xbox only**, with no PC installer, product key or
 prepared PC package, as well as both editions. Building on your own Mac requires Xcode 26 or
 later (and a macOS version that supports it); the device requires iOS/iPadOS 17.4+, Developer Mode and a development profile
 covering that device with **Extended Virtual Addressing** and **Increased

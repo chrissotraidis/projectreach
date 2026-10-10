@@ -63,7 +63,9 @@ print('built', p)
 ''')
         self.write('scripts/prepare-game-data.py', '''import os, pathlib, sys
 if os.environ.get('FAIL_PACKAGE'): sys.exit(23)
-pathlib.Path(sys.argv[sys.argv.index('--output') + 1]).write_text('new game package')
+output = pathlib.Path(sys.argv[sys.argv.index('--output') + 1])
+if not output.name.endswith('.halopad.zip'): sys.exit('Output must end in .halopad.zip')  # as halopad_package.py
+output.write_text('new game package')
 ''')
         self.write('bin/ditto', '#!/bin/sh\nfor last; do :; done\nprintf "new archive" > "$last"\n')
         self.write('result.zip', 'old archive')

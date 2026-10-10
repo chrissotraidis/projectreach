@@ -292,7 +292,7 @@ finish_package() {
 				echo "Could not restore the previous game package; it is preserved in $STAGE" >&2
 				return "$status"
 			}
-		elif [ ! -f "$STAGE/game.zip" ]; then
+		elif [ ! -f "$STAGE/game.halopad.zip" ]; then
 			rm -f "$PACKAGE"
 		fi
 	fi
@@ -302,10 +302,10 @@ finish_package() {
 trap finish_package EXIT
 mkdir -p "$IPA.data"
 if [ $MAC = 1 ]; then
-	$PY scripts/prepare-game-data.py --app-data "$APP/Contents/Resources/data" --game ref/inputs/custom-original --output "$STAGE/game.zip"
+	$PY scripts/prepare-game-data.py --app-data "$APP/Contents/Resources/data" --game ref/inputs/custom-original --output "$STAGE/game.halopad.zip"
 	ditto -c -k --norsrc --noextattr --keepParent "$APP" "$STAGE/app.zip"
 else
-	$PY scripts/prepare-game-data.py --app-data "$APP/data" --game ref/inputs/custom-original --output "$STAGE/game.zip"
+	$PY scripts/prepare-game-data.py --app-data "$APP/data" --game ref/inputs/custom-original --output "$STAGE/game.halopad.zip"
 	mkdir "$STAGE/Payload"
 	cp -R "$APP" "$STAGE/Payload/"
 	(cd "$STAGE" && zip -qry app.zip Payload)
@@ -313,7 +313,7 @@ fi
 # Publish outputs only after both packages have been created successfully.
 # Retain the previous game package until the app replacement succeeds as well.
 [ ! -f "$PACKAGE" ] || mv "$PACKAGE" "$STAGE/previous-game.zip"
-mv -f "$STAGE/game.zip" "$PACKAGE"
+mv -f "$STAGE/game.halopad.zip" "$PACKAGE"
 mv -f "$STAGE/app.zip" "$IPA"
 # keep this build's finished translation (adding the Xbox edition reuses it) and drop its
 # intermediate runs and the previous builder's translation (gigabytes each); other runs stay

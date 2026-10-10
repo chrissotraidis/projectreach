@@ -42,6 +42,8 @@
 
 ## What's new
 
+- **0.3.9: building both editions works again.** 0.3.8 stopped at its last step, packaging the
+  Custom Edition game files, when you chose the PC installer. Xbox-only builds were not affected.
 - **0.3.8: no more chasing OpenCE.** Each HaloPad release
   builds the exact OpenCE engine it was tested with (OpenCE build 170), so OpenCE's daily builds no
   longer change or break your PadMint build. Your installed app also keeps up with online play by
@@ -112,7 +114,7 @@ Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
 
 ## Build and install
 
-**Available today:** [HaloPad 0.3.8](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.8)
+**Available today:** [HaloPad 0.3.9](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.9)
 provides source and a PadMint recipe, not an app or IPA download. With
 [PadMint 0.4.12](https://github.com/chrissotraidis/padmint/releases/latest) on an Apple silicon Mac,
 choose your Xbox ISO/XISO for the Xbox edition alone (no PC installer, product key or Wine), or the
@@ -173,8 +175,8 @@ edition for iPhone, iPad and Mac. Custom Edition still needs an Apple silicon Ma
 1. Sign in to GitHub and **Fork** this repository (your copy is public, like this one).
 2. In your fork, open **Actions**, enable workflows if asked, choose **Build HaloPad (Xbox edition)**
    and click **Run workflow**. It takes about 15 minutes.
-3. Open the finished run and download its artifact. It holds `HaloPad-v0.3.8-ios-unsigned.ipa`,
-   `HaloPad-v0.3.8-mac.zip` and `SHA256SUMS`, and is kept for 7 days.
+3. Open the finished run and download its artifact. It holds `HaloPad-v0.3.9-ios-unsigned.ipa`,
+   `HaloPad-v0.3.9-mac.zip` and `SHA256SUMS`, and is kept for 7 days.
 4. Install the IPA with [Sideloadly](https://sideloadly.io) (Windows or Mac) or another tool that
    signs with your own Apple ID, or follow the [install guide](docs/INSTALL-IPHONE.md).
 5. Put your Xbox ISO/XISO in Files. Open HaloPad, choose **Add Your Xbox Disc** and select it.
