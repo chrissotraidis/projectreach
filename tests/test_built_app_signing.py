@@ -49,6 +49,8 @@ class BuiltAppSigningTests(unittest.TestCase):
             subprocess.run(['xattr', '-wx', 'com.apple.FinderInfo',
                             (b'TEXTttxt' + bytes(24)).hex(), str(resource)], check=True)
             subprocess.run(['xattr', '-w', 'com.apple.ResourceFork', 'fixture', str(resource)], check=True)
+            source.chmod(0o444)
+            resource.chmod(0o444)
             failed = subprocess.run(['codesign', '--force', '--sign', '-', '--timestamp=none', str(app)],
                                     capture_output=True, text=True)
             self.assertNotEqual(failed.returncode, 0)
@@ -58,6 +60,7 @@ class BuiltAppSigningTests(unittest.TestCase):
             entitlements.write_bytes(plistlib.dumps(builder.MAC_ENTITLEMENTS))
             builder.sign_built_app(app, entitlements=entitlements)
             self.assertEqual(resource.read_bytes(), source.read_bytes())
+            self.assertEqual(source.stat().st_mode & 0o777, 0o444)
             self.assertIn('com.apple.FinderInfo', subprocess.check_output(['xattr', str(source)], text=True))
             signed_entitlements = subprocess.check_output(
                 ['codesign', '--display', '--entitlements', ':-', str(app)], stderr=subprocess.DEVNULL)

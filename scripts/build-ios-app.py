@@ -194,6 +194,10 @@ def sign_built_app(app, identity=None, entitlements=None):
     # Finder/resource-fork metadata can reach the bundle through copied inputs or
     # a synced build folder. Clean only our generated app, never the source files.
     # https://developer.apple.com/library/archive/qa/qa1940/_index.html
+    # Copied installer DLLs may retain read-only modes, which prevents xattr cleanup.
+    for resource in app.rglob('*'):
+        if resource.is_file() and not resource.is_symlink():
+            resource.chmod(resource.stat().st_mode | 0o200)
     subprocess.run(['xattr', '-cr', str(app)], check=True)
     command = ['codesign', '--force', '--sign', identity or '-']
     if entitlements:
