@@ -1,18 +1,55 @@
 # HaloPad status
 
-## HaloPad 0.3.11 candidate: OpenCE 244
+## HaloPad 0.3.11: OpenCE 244 validation
 
-Prepared 2026-10-21. The candidate pins OpenCE build 244
-(`6ec42856d73e258e5a8c7e9cd19161f46d89d0e4`), network version 32.
-Renderer, shader, input and network adaptations have been reviewed for the exact
-upstream source. Native dialogs handle the new mod-confirmation import; Files
+Validated 2026-10-21 for source/recipe publication. The Xbox edition pins OpenCE
+build 244 (`6ec42856d73e258e5a8c7e9cd19161f46d89d0e4`), network version 32.
+Renderer, shader, input and network adaptations are reviewed against the exact
+upstream source. Native dialogs implement the new mod-confirmation import; Files
 accepts generic disk images, and read-only copied resources can be signed.
-Updated component notices retain upstream AGPL and historical CC0 texts.
+Updated component notices include upstream's AGPL license and historical CC0 text.
+The PC Custom Edition engine is unchanged. Public delivery remains source and
+recipe only, with no public IPA or game data.
 
-This section is a preparation record, not release acceptance. Clean PadMint
-player builds and runtime validation are in progress; no 0.3.11 release is
-published at this point. Optional mods, chat, bots and HDR are not claimed tested.
-Public delivery remains source and recipe only.
+**Build validation:** 388 Xbox tests, 33 builder tests and two signing tests pass.
+Clean PadMint player checks passed for both iOS and Mac from source `10f0d84`,
+using current PadMint main `6acc4d6`, Apple Python 3.9.6, fresh source clones and
+empty PadMint folders. The builds took 229 and 230 seconds. Both packages pass
+strict signatures, engine identity, notices and content audits; all 49 embedded
+runtime-source hashes match the clean source. Only validation documentation and
+test whitespace changed after that tested runtime source.
+
+The [hosted player workflow](https://github.com/chrissotraidis/projectreach/actions/runs/39531087575)
+also passed for both platforms. Its downloaded 0.3.11/build-4 artifacts pass
+checksums, strict signatures, 35 component notices, exact engine/network identity
+and the same 49-source-hash audit. This verifies the GitHub build route available
+to Windows and Linux users; it does not add a Windows-native game target.
+
+**Physical validation:** the exact clean-player iOS package was installed over
+0.3.10 on the iPad Pro with the same signer and full entitlements. Two independent
+pre-install reads matched 951 files (15,940,259,175 bytes each). The pre-launch
+readback preserved all 210 checked game, save and preference files. Tests used
+isolated data and save directories on both machines.
+
+The iPad discovered the clean-player Mac app through Bonjour, downloaded the
+missing Custom Edition Blood Gulch map and its three resource maps, and joined
+live gameplay. Both endpoints recorded advancing two-player movement, shooting,
+death and respawn, with 82 iPad and 86 Mac samples and zero GL errors. A cached
+rejoin passed with another 29 iPad and 30 Mac samples. The iPad screen and a
+2-minute-25-second recording confirm rendered gameplay. This is bounded automated
+physical gameplay, not a full campaign or manual touch/controller acceptance.
+
+All four downloaded files match the independent originals, the test UI map and
+save sentinel are unchanged, and no partial download files remain. Final iPad
+readback matches all 210 normal protected files (3,185,970,719 bytes), including
+both editions' maps, saves, configuration and preferences. The Mac also joined
+a current network-32 public server and recorded 45 advancing gameplay samples
+with zero GL errors. Its 28 input maps, resources and save sentinel are unchanged.
+
+Required post-publication PadMint checks will follow publication before release
+announcement. Optional mods, text chat, bots and HDR are not claimed tested.
+Issue #29's picker change has a native regression; confirmation from the original
+reporter remains open. Issue #26's separate ultrawide concern remains unconfirmed.
 
 ## HaloPad 0.3.10: OpenCE 208
 

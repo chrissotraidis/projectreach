@@ -130,4 +130,3 @@ int main(void) {
                 with self.assertRaisesRegex(ValueError, 'unreviewed'):
                     network.check_uses(root)
         self.assertNotEqual(network.recipe(), network.recipe(newer=True))
-
