@@ -1,5 +1,19 @@
 # HaloPad status
 
+## HaloPad 0.3.11 candidate: OpenCE 244
+
+Prepared 2026-10-21. The candidate pins OpenCE build 244
+(`6ec42856d73e258e5a8c7e9cd19161f46d89d0e4`), network version 32.
+Renderer, shader, input and network adaptations have been reviewed for the exact
+upstream source. Native dialogs handle the new mod-confirmation import; Files
+accepts generic disk images, and read-only copied resources can be signed.
+Updated component notices retain upstream AGPL and historical CC0 texts.
+
+This section is a preparation record, not release acceptance. Clean PadMint
+player builds and runtime validation are in progress; no 0.3.11 release is
+published at this point. Optional mods, chat, bots and HDR are not claimed tested.
+Public delivery remains source and recipe only.
+
 ## HaloPad 0.3.10: OpenCE 208
 
 **Published 2026-10-16:** [HaloPad 0.3.10](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.10)

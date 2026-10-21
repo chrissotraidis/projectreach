@@ -12,6 +12,8 @@ COMPONENTS = {
     'tomlc17': 'LICENSE', 'expat': 'COPYING', 'kcp': 'LICENSE',
     'zlib': 'LICENSE', 'stb': 'LICENSE', 'smaa': 'LICENSE', 'musl-math': 'COPYRIGHT',
     'mbedtls': 'LICENSE',
+    'opus': 'COPYING', 'stb_vorbis': 'LICENSE', 'miniupnpc': 'LICENSE',
+    'english-words': 'LICENSE.md',
 }
 CHROMIUM_REFERENCE = 'https://chromium.googlesource.com/chromium/src/+/2f2268b0cfbce9d99583621ac14b984528b15cd0/LICENSE'
 
@@ -58,7 +60,14 @@ def write(engine, headers, destination, revision, *, angle=None, angle_revision=
         records.append({'source': name, 'source_sha256': hashlib.sha256(data).hexdigest(),
                         'notice_sha256': hashlib.sha256(notice.encode()).hexdigest()})
 
-    add(engine, 'LICENSE.md', label='OpenCE/LICENSE.md')
+    # Newer OpenCE releases use LICENSE (AGPL); historical pins use LICENSE.md
+    # (CC0). Preserve the selected checkout's text, including retained licences.
+    engine_license = 'LICENSE' if (engine / 'LICENSE').is_file() else 'LICENSE.md'
+    add(engine, engine_license, label=f'OpenCE/{engine_license}')
+    for path in sorted((engine / 'LICENSES').glob('*')):
+        if path.is_file():
+            relative = str(path.relative_to(engine))
+            add(engine, relative, label=f'OpenCE/{relative}')
     for directory, name in COMPONENTS.items():
         relative = f'port/third_party/{directory}'
         if (engine / relative).is_dir():
@@ -75,11 +84,15 @@ def write(engine, headers, destination, revision, *, angle=None, angle_revision=
     sdl = engine / 'build/android/third_party/SDL3'
     if sdl.is_dir():
         add(sdl, 'LICENSE.txt', label='SDL headers/LICENSE.txt')
-    fonts = engine / 'port/assets/fonts'
-    for path in sorted(fonts.rglob('*')):
+    assets = engine / 'port/assets'
+    for path in sorted(assets.rglob('*')):
         if path.is_file() and ('license' in path.name.lower() or 'ofl' in path.name.lower()):
             relative = str(path.relative_to(engine))
             add(engine, relative, label=f'OpenCE/{relative}')
+    # The upstream text-filter attribution and MIT notice live in this README.
+    text_filter = 'port/assets/text_filter/README.md'
+    if (engine / text_filter).is_file():
+        add(engine, text_filter, label=f'OpenCE/{text_filter}')
     for path in sorted(headers.rglob('*.h')):
         relative = path.relative_to(headers)
         if relative.parts[0] in ('GLES2', 'GLES3', 'KHR'):

@@ -73,6 +73,34 @@ class CollectionTests(unittest.TestCase):
             self.collect()
         self.assertFalse(self.out.exists())
 
+    def test_current_engine_license_and_additional_notices_follow_selected_checkout(self):
+        (self.engine / 'LICENSE.md').unlink()
+        self.put(self.engine, 'LICENSE', 'GNU AFFERO GENERAL PUBLIC LICENSE\nVersion 3\n')
+        self.put(self.engine, 'LICENSES/CC0-1.0.txt', 'Retained CC0 fixture notice\n')
+        self.put(self.engine, 'port/assets/icons/lucide/LICENSE', 'Lucide fixture permission\n')
+        self.put(self.engine, 'port/assets/text_filter/README.md', 'MIT License\nCopyright Surge AI fixture\n')
+        for component in ('opus', 'stb_vorbis', 'miniupnpc', 'english-words'):
+            self.put(self.engine, f'port/third_party/{component}/{notices.COMPONENTS[component]}',
+                     f'{component} fixture permission\n')
+        result = self.collect()
+        text = (self.out / 'THIRD-PARTY-NOTICES.txt').read_bytes()
+        sources = [row['source'] for row in result['components']]
+        self.assertIn('OpenCE/LICENSE', sources)
+        self.assertNotIn('OpenCE/LICENSE.md', sources)
+        self.assertIn(b'GNU AFFERO GENERAL PUBLIC LICENSE', text)
+        self.assertIn(b'Retained CC0 fixture notice', text)
+        self.assertIn(b'Lucide fixture permission', text)
+        self.assertIn(b'Copyright Surge AI fixture', text)
+        for component in ('opus', 'stb_vorbis', 'miniupnpc', 'english-words'):
+            self.assertIn(f'{component} fixture permission'.encode(), text)
+        notices.validate(result, text, SELECTED['revision'])
+
+    def test_missing_engine_license_fails_before_output(self):
+        (self.engine / 'LICENSE.md').unlink()
+        with self.assertRaises(FileNotFoundError):
+            self.collect()
+        self.assertFalse(self.out.exists())
+
     def test_wrong_engine_or_renderer_revision_fails_before_output(self):
         for revisions in (['wrong'], [SELECTED['revision'], 'wrong']):
             with self.subTest(revisions=revisions), \

@@ -4,6 +4,7 @@ These fixtures establish parser/publication behavior, not game compatibility.
 """
 import ctypes
 import pathlib
+import re
 import shutil
 import struct
 import subprocess
@@ -14,6 +15,43 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 BUILD = b'01.10.12.2276'
 PROGRESS = ctypes.CFUNCTYPE(None, ctypes.c_double, ctypes.c_void_p)
+
+
+@unittest.skipUnless(sys.platform == 'darwin', 'native Apple content types require Darwin')
+class XboxDiscPickerTests(unittest.TestCase):
+    def test_picker_accepts_generic_and_specific_disc_types(self):
+        implementation = (ROOT / 'port/ios/HaloPadXbox.m').read_text()
+        helper = re.search(r'static NSArray<UTType \*> \*xbox_disc_content_types\(void\)\n\{.*?\n\}',
+                           implementation, re.S)
+        self.assertIsNotNone(helper)
+        source = '''
+#import <Foundation/Foundation.h>
+#import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
+''' + helper[0] + '''
+int main(void) { @autoreleasepool {
+    NSArray<UTType *> *allowed = xbox_disc_content_types();
+    NSArray<UTType *> *discs = @[
+        UTTypeDiskImage, [UTType typeWithFilenameExtension:@"iso"],
+        [UTType typeWithFilenameExtension:@"xiso"], UTTypeData
+    ];
+    for (UTType *disc in discs) {
+        BOOL accepted = NO;
+        for (UTType *type in allowed) accepted |= [disc conformsToType:type];
+        if (!accepted) { fprintf(stderr, "Rejected %s\\n", disc.identifier.UTF8String); return 1; }
+    }
+    for (UTType *type in allowed) {
+        if ([UTTypeFolder conformsToType:type]) return 2;
+    }
+} return 0; }
+'''
+        with tempfile.TemporaryDirectory(prefix='halopad-disc-types-') as folder:
+            root = pathlib.Path(folder)
+            (root / 'types.m').write_text(source)
+            subprocess.run(['xcrun', 'clang', '-fobjc-arc', '-Wall', '-Wextra', '-Werror',
+                            str(root / 'types.m'), '-framework', 'Foundation',
+                            '-framework', 'UniformTypeIdentifiers', '-o', str(root / 'types')],
+                           check=True, capture_output=True)
+            subprocess.run([str(root / 'types')], check=True, capture_output=True)
 
 
 def directory(entries):

@@ -51,6 +51,9 @@ REVIEWED_RENDERERS = {
     # renderer, shader, camera and input sources are byte-identical to 206.
     'f90d95552797039383049c1f8f79a35ddbe98b2d':
         '693b1aff55e875c07e4c23703e3af134ef40a0e77fe0512ce19e2ba632db07dc',
+    # Build244: reviewed GLES query lifecycle, HDR presentation and samplers.
+    '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4':
+        border_sampling.GLES_244_RENDERER_SHA256,
 }
 ENGINE_LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
 ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/vol/engine'
@@ -82,6 +85,14 @@ INSERT = b'''\t/* HaloPad private experiment: retain logical layout, scale only 
 \t\t\tscale[0] = scale[1] = 2.0f;
 \t}
 '''
+SCALE_244_ANCHOR = b'\tscale[0] = scale[1] = 1.0f;\n\tscreen_supersampling = 1.0f;\n#else\n'
+SCALE_244_INSERT = INSERT + b'\tscreen_supersampling = scale[1];\n'
+
+
+def scale_recipe(renderer):
+    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+        return SCALE_244_ANCHOR, SCALE_244_INSERT
+    return ANCHOR, INSERT
 # World-filtering policy follows the reviewed idea in Tyberious's upstream
 # PR 35, not its unmerged config/source patch. Keep HUD/point/non-mip paths intact.
 FILTER_ANCHOR = b'\tif (xgpu_capabilities.border_clamp)\n'
@@ -126,6 +137,9 @@ CACHED_FILTER_INSERT = (b'#ifdef HALO_ANDROID\n' + FILTER_INSERT
 
 
 def filtering_recipe(renderer, revision=None, original=None):
+    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+        return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT.replace(
+            b'!hires && mipmapped &&', b'!hires && mipmapped && !rendered &&')
     if renderer in CACHED_FILTER_RENDERERS:
         return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT
     # In latest mode, unrelated renderer edits must not select the old patch
@@ -187,8 +201,22 @@ ASYNC_COUNT_REPLACE = b'''#ifdef HALO_ANDROID
 #elif defined(HALO_GLES)
 '''
 
+# Build244 keeps the entire query-read branch inside HALO_GLES. Preserve its
+# pending/result lifecycle and replace only the boolean sample conversion.
+COUNT_244_ANCHOR = b'''\t\t\tglGetQueryObjectuiv(device.queries[index], GL_QUERY_RESULT, &samples);
+\t\t\t/* ES only says whether any sample passed. The game divides the
+\t\t\tcount by the test's area (lens flare brightness,
+\t\t\trasterizer_lights.c): report more than any test covers. */
+\t\t\tif (samples)
+\t\t\t\tsamples = VISIBILITY_ALL_SAMPLES;
+'''
+COUNT_244_REPLACE = (ASYNC_COUNT_REPLACE.split(b'#else\n', 1)[0] +
+                     b'#else\n' + COUNT_244_ANCHOR + b'#endif\n')
+
 
 def counting_recipe(renderer):
+    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+        return COUNT_244_ANCHOR, COUNT_244_REPLACE
     if renderer == border_sampling.GLES_RENDERER_SHA256:
         return ASYNC_COUNT_ANCHOR, ASYNC_COUNT_REPLACE
     return COUNT_ANCHOR, COUNT_INSERT
@@ -220,6 +248,18 @@ PRESENT_ANCHOR = b'''\t\tglBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 \t\tglClear(GL_COLOR_BUFFER_BIT);
 ''' + PRESENT_READ
 PRESENT_REPLACE = PRESENT_READ + PRESENT_ANCHOR[:-len(PRESENT_READ)]
+# Build244 can present HDR through a shader before falling back to a blit.
+# Prime the read framebuffer before selecting/clearing the drawable. Keep the
+# fallback's read bind: an HDR attempt is allowed to change the read target.
+PRESENT_244_ANCHOR = b'\t\ty = (window_height - height) / 2;\n' + PRESENT_ANCHOR[:-len(PRESENT_READ)]
+PRESENT_244_REPLACE = (b'\t\ty = (window_height - height) / 2;\n' + PRESENT_READ +
+                       PRESENT_ANCHOR[:-len(PRESENT_READ)])
+
+
+def presentation_recipe(renderer):
+    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+        return PRESENT_244_ANCHOR, PRESENT_244_REPLACE
+    return PRESENT_ANCHOR, PRESENT_REPLACE
 # Direct first-person camera on iOS: upstream compiles display.direct_camera out of
 # Android builds (it is not an Android setting), so the view was drawn from the
 # tick-blended camera, one to two ticks (33-66 ms) behind the player's look input.
@@ -238,6 +278,8 @@ REVIEWED_CAMERA = {
     '8102e711c353068d22d62efe6bf67ebc8a90a22e':
         'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
     'f90d95552797039383049c1f8f79a35ddbe98b2d':
+        'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
+    '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4':
         'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
 }
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
@@ -263,7 +305,7 @@ def identity(name=None, revision=None):
     if revision is None:
         revision = os.environ.get('XBOX_REV') or json.loads(ENGINE_LOCK.read_text())['revision']
     renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
-    recipe = ANCHOR + INSERT
+    recipe = b''.join(scale_recipe(renderer))
     if name in QUALITY_ADAPTATIONS:
         recipe += b''.join(filtering_recipe(renderer, revision))
     if name in COUNTED_ADAPTATIONS:
@@ -275,16 +317,16 @@ def identity(name=None, revision=None):
     if name in INPUT_ADAPTATIONS:
         recipe += profile_input.recipe()
     if name in PRESENT_ADAPTATIONS:
-        recipe += PRESENT_ANCHOR + PRESENT_REPLACE
+        recipe += b''.join(presentation_recipe(renderer))
     result = {'name': name, 'upstream_renderer_sha256': renderer}
     if name in CAMERA_ADAPTATIONS:
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
         if not camera:
-            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206 and 208; review render_interpolation.c first')
+            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208 and 244; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = camera
     if name in NETWORK_ADAPTATIONS:
-        recipe += network_bridge.recipe()
+        recipe += network_bridge.recipe(newer=renderer == border_sampling.GLES_244_RENDERER_SHA256)
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
@@ -301,12 +343,13 @@ def adapted_camera(original, revision=None):
 
 def adapted_source(original, name='render-scale-v1'):
     expected = identity(name)['upstream_renderer_sha256']
+    scale_anchor, scale_insert = scale_recipe(expected)
     filter_anchor, filter_insert = filtering_recipe(expected, original=original) if name in QUALITY_ADAPTATIONS else (None, None)
-    if hashlib.sha256(original).hexdigest() != expected or original.count(ANCHOR) != 1:
+    if hashlib.sha256(original).hexdigest() != expected or original.count(scale_anchor) != 1:
         raise ValueError('Renderer adaptation input changed; review the new upstream source first')
     if name in QUALITY_ADAPTATIONS and original.count(filter_anchor) != 1:
         raise ValueError('Renderer filtering input changed; review the new upstream source first')
-    modified = original.replace(ANCHOR, ANCHOR[:-len(b'#else\n')] + INSERT + b'#else\n')
+    modified = original.replace(scale_anchor, scale_anchor[:-len(b'#else\n')] + scale_insert + b'#else\n')
     if name in QUALITY_ADAPTATIONS:
         replacement = (filter_anchor + filter_insert if filter_anchor == CACHED_FILTER_ANCHOR
                        else filter_insert + filter_anchor)
@@ -326,9 +369,10 @@ def adapted_source(original, name='render-scale-v1'):
     if name in BORDER_ADAPTATIONS:
         modified = border_sampling.apply_edits(modified, border_sampling.renderer_edits(expected))
     if name in PRESENT_ADAPTATIONS:
-        if original.count(PRESENT_ANCHOR) != 1:
+        present_anchor, present_replace = presentation_recipe(expected)
+        if original.count(present_anchor) != 1:
             raise ValueError('Renderer presentation input changed; review upstream first')
-        modified = modified.replace(PRESENT_ANCHOR, PRESENT_REPLACE)
+        modified = modified.replace(present_anchor, present_replace)
     return modified
 
 

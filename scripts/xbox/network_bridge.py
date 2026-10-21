@@ -1,7 +1,7 @@
 """HaloPad network policy v1: OpenCE's network version through two host calls.
 
-OpenCE refuses every host whose network version differs from its own, although
-its raises have so far been additive. The app (port/ios/HaloPadXboxNetworkPolicy.h)
+OpenCE refuses every host whose network version differs from its own. The app
+(port/ios/HaloPadXboxNetworkPolicy.h)
 verifies a signed compatibility policy and answers two questions for the guest:
 which version to announce, and whether a host's version may be joined. Without a
 policy both answers are upstream's exact rule.
@@ -11,6 +11,9 @@ join check, and the internet lobby's listing and filter. Each edit is anchored o
 the exact upstream statement, and any other use of HALO_PORT_NETWORK_VERSION in
 code fails the build: a partial bridge could announce one version and filter by
 another.
+
+Build244 also counts newer games to explain an empty browser. Its extra check
+uses the same policy as the filter, so an accepted game is not hidden first.
 """
 import pathlib
 import re
@@ -65,6 +68,9 @@ LOBBY_LISTING_REPLACE = (b'\tbytes[size++] = (unsigned char)(halopad_network_ann
                          b'\tbytes[size++] = (unsigned char)halopad_network_announced();\n')
 LOBBY_FILTER = b'listing.version != HALO_PORT_NETWORK_VERSION ||'
 LOBBY_FILTER_REPLACE = b'!halopad_network_accepts(listing.version) ||'
+LOBBY_NEWER = b'listing.version > HALO_PORT_NETWORK_VERSION && !(listing.flags & _listing_closed)'
+LOBBY_NEWER_REPLACE = (b'listing.version > halopad_network_announced() && '
+                       b'!halopad_network_accepts(listing.version) && !(listing.flags & _listing_closed)')
 IMPORT = b''.join(b'\n' + name.encode() for name in NAMES) + b'\n'
 
 # The sites this bridge replaces; every other code use is unreviewed.
@@ -73,10 +79,11 @@ TOKEN = re.compile(rb'\bHALO_PORT_NETWORK_VERSION\b')
 COMMENT = re.compile(rb'/\*.*?\*/|//[^\n]*', re.S)
 
 
-def recipe():
-    return b''.join((CLIENT_ANCHOR, CLIENT_INSERT, SERVER_ANCHOR, SERVER_REPLACE, LOBBY_DEFINE_ANCHOR,
+def recipe(newer=False):
+    original = b''.join((CLIENT_ANCHOR, CLIENT_INSERT, SERVER_ANCHOR, SERVER_REPLACE, LOBBY_DEFINE_ANCHOR,
                      LOBBY_DEFINE, LOBBY_LISTING, LOBBY_LISTING_REPLACE, LOBBY_FILTER,
                      LOBBY_FILTER_REPLACE, IMPORT))
+    return original + LOBBY_NEWER + LOBBY_NEWER_REPLACE if newer else original
 
 
 def code_uses(source):
@@ -93,8 +100,12 @@ def check_uses(engine):
             relative = path.relative_to(engine)
             if relative == LIMITS:
                 continue
-            count = code_uses(path.read_bytes())
-            if count != KNOWN_USES.get(relative, 0):
+            source = path.read_bytes()
+            count = code_uses(source)
+            expected = KNOWN_USES.get(relative, 0)
+            if relative == LOBBY and source.count(LOBBY_NEWER) == 1:
+                expected += 1
+            if count != expected:
                 unexpected.append(f'{relative} ({count})')
     if unexpected:
         raise ValueError('OpenCE uses its network version in unreviewed places: ' + ', '.join(unexpected) +
@@ -119,6 +130,8 @@ def adapt(path, original):
     if path == LOBBY:
         result = _replace(original, LOBBY_DEFINE_ANCHOR, LOBBY_DEFINE + LOBBY_DEFINE_ANCHOR, 'lobby helpers')
         result = _replace(result, LOBBY_LISTING, LOBBY_LISTING_REPLACE, 'lobby listing')
+        if LOBBY_NEWER in result:
+            result = _replace(result, LOBBY_NEWER, LOBBY_NEWER_REPLACE, 'newer-game count')
         return _replace(result, LOBBY_FILTER, LOBBY_FILTER_REPLACE, 'lobby filter')
     raise ValueError(f'not a network bridge source: {path}')
 

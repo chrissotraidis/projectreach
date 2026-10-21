@@ -85,7 +85,7 @@ Pick the path for the computer you have. Both are free.
 | Mac with Apple silicon | Xbox edition, or both editions | [PadMint](#on-an-apple-silicon-mac) |
 | Windows, Linux, an Intel Mac, or anything else | Xbox edition | [GitHub, in your browser](#on-windows-linux-or-any-computer) |
 
-The current release is [HaloPad 0.3.10](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.10).
+The current release is [HaloPad 0.3.11](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.11).
 
 ### On an Apple silicon Mac
 
@@ -152,8 +152,8 @@ identity or Apple ID you used before.
   over the old one.
 
 **Online play requires compatible game engines.** Each HaloPad release builds the OpenCE
-revision recorded in `config/xbox-release.json`. HaloPad 0.3.10 uses OpenCE
-build 208, network version 29. **Updates…** on the edition
+revision recorded in `config/xbox-release.json`. HaloPad 0.3.11 uses OpenCE
+build 244, network version 32. **Updates…** on the edition
 picker shows your installed engine and network version.
 
 HaloPad's corrected policy keeps each engine on its actual network version. A signed compatibility
@@ -164,6 +164,10 @@ Xbox checkpoints may need a level restart after an engine change.
 
 ## What's new
 
+- **0.3.11: OpenCE 244 and current multiplayer compatibility.** Updates the Xbox edition
+  to network version 32, with upstream co-op, rendering, audio and map-sharing fixes.
+  Files now accepts discs reported as generic disk images, and copied read-only resources
+  no longer stop signing during a build. Rebuild and install over your current app.
 - **0.3.10: current OpenCE multiplayer and automatic map downloads.** The Xbox edition uses
   OpenCE 208 (network version 29), downloads missing custom maps and resources from sharing
   peers, and finds compatible HaloPad games on the same local network automatically. The
@@ -327,7 +331,7 @@ calls into. The Xbox edition is a native port of the decompiled game.
 <details>
 <summary><strong>Can I use mods and custom maps?</strong></summary>
 
-Custom `.map` files, yes: **⋯ › Add Custom Maps…**. HaloPad 0.3.10's Xbox
+Custom `.map` files, yes: **⋯ › Add Custom Maps…**. HaloPad's Xbox
 edition also includes automatic downloading of missing custom maps and their required resource
 maps from a sharing host and other players. Downloading is on by default; **Settings › Network Setup
 › Map Sharing** controls it, and the host must enable **Server Setup › Map Sharing › Share Maps**.

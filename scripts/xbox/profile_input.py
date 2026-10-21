@@ -13,7 +13,9 @@ HASHES = {
 # byte-identical. Build85 adds host_sdl_scancode_name/_from_name only (2026-10-04).
 REVIEWED = {
     IMPORTS: {'3ce5174d36d3c4e26d5a21005de093fc76de583b732aaf4adf6783de57bb7c6e',
-              'bf3d4b4b7848033166e86d85c73cd410fc14623e0ed6c88ef8e50929a6b4a218'},
+              'bf3d4b4b7848033166e86d85c73cd410fc14623e0ed6c88ef8e50929a6b4a218',
+              # Build244 adds host_sdl_show_message_box; input context is unchanged.
+              '74535ea7db0610773c0e3470a61b7cf4225d8881807eb5ffb643c8d91bd33503'},
     # Build206 only defers the key-repeat clock read until the key is down;
     # input_frame_begin and the preference fields consumed below are unchanged.
     INPUT: {'67177fe1b16ba8e0962afd3423bd705ea6f306a6555c8ab56d3371daeaef5313'},

@@ -13,6 +13,19 @@ SHADER_SHA256 = '504d1d854e97612db322ce8e0f8bf89749ee63352067dfe190f3f1528b3dc05
 # Exact build206 input: GLES is now independent of the Android platform.
 GLES_RENDERER_SHA256 = '693b1aff55e875c07e4c23703e3af134ef40a0e77fe0512ce19e2ba632db07dc'
 GLES_SHADER_SHA256 = 'ca415f565417b484a851585a2b6685aab545f5ab873e711eaa9dfc6a9342a588'
+# Build244 adds DOT_ZW fragment depth; the border sampling anchors are intact.
+GLES_244_RENDERER_SHA256 = 'd0fd284845d21cd5fcff93ec40d8f4063743e9e295449b044b41579d89d55905'
+GLES_244_SHADER_SHA256 = '987afdffb84d3a1bbb551064621c27c8f9c05a17e0ba0e633c2392d8be0985ec'
+
+
+def is_gles(renderer):
+    return renderer in (GLES_RENDERER_SHA256, GLES_244_RENDERER_SHA256)
+
+
+def shader_hash(renderer):
+    if renderer == GLES_244_RENDERER_SHA256:
+        return GLES_244_SHADER_SHA256
+    return GLES_SHADER_SHA256 if is_gles(renderer) else SHADER_SHA256
 
 GLSL = '''uniform vec4 hp_border_state[4];
 uniform vec4 hp_border_color[4];
@@ -100,12 +113,19 @@ GLES_SHADER_EDITS = tuple((a.replace(b'HALO_ANDROID', b'HALO_GLES'),
 
 
 def renderer_edits(renderer=None):
-    return GLES_RENDERER_EDITS if renderer == GLES_RENDERER_SHA256 else RENDERER_EDITS
+    edits = GLES_RENDERER_EDITS if is_gles(renderer) else RENDERER_EDITS
+    if renderer == GLES_244_RENDERER_SHA256:
+        # Upstream excludes render targets from its new anisotropic setting.
+        # Preserve that extra argument while attaching our border uniforms.
+        old = b'configure_sampler(stage, description.levels > 1, description.hires);'
+        new = b'configure_sampler(stage, description.levels > 1, description.hires, target != NULL);'
+        return tuple((a.replace(old, new), b.replace(old, new)) for a, b in edits)
+    return edits
 
 
 def recipe(renderer=None):
-    gles = renderer == GLES_RENDERER_SHA256
-    shader = GLES_SHADER_SHA256 if gles else SHADER_SHA256
+    gles = is_gles(renderer)
+    shader = shader_hash(renderer)
     edits = (*renderer_edits(renderer), *(GLES_SHADER_EDITS if gles else SHADER_EDITS))
     return shader.encode() + b''.join(a + b for a, b in edits)
 
@@ -139,8 +159,8 @@ def apply_edits(original, edits):
 def adapt_shader(original, renderer=None):
     # OpenCE's newest, unreviewed release (scripts/builder/build.sh): the anchors alone decide
     latest = os.environ.get('HALOPAD_XBOX_LATEST') == '1'
-    gles = renderer == GLES_RENDERER_SHA256
-    expected = GLES_SHADER_SHA256 if gles else SHADER_SHA256
+    gles = is_gles(renderer)
+    expected = shader_hash(renderer)
     if hashlib.sha256(original).hexdigest() != expected and not latest:
         raise ValueError('Border shader input changed; review upstream first')
     return apply_edits(original, GLES_SHADER_EDITS if gles else SHADER_EDITS)

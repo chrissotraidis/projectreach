@@ -533,11 +533,18 @@ static BOOL xbox_backup_saves(NSError **error)
 		self.returnToChooser();
 }
 
-- (void)pick
+static NSArray<UTType *> *xbox_disc_content_types(void)
 {
 	UTType *iso = [UTType typeWithFilenameExtension:@"iso"] ?: UTTypeData;
 	UTType *xiso = [UTType typeWithFilenameExtension:@"xiso"] ?: UTTypeData;
-	UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:@[ iso, xiso, UTTypeData ]];
+	// Files providers may identify an ISO as a generic disk image, which does
+	// not conform to public.data. The extractor validates the selected contents.
+	return @[ iso, xiso, UTTypeDiskImage, UTTypeData ];
+}
+
+- (void)pick
+{
+	UIDocumentPickerViewController *picker = [[UIDocumentPickerViewController alloc] initForOpeningContentTypes:xbox_disc_content_types()];
 	picker.delegate = self;
 	[self presentViewController:picker animated:YES completion:nil];
 }

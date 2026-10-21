@@ -137,6 +137,27 @@ int xh_host_sdl_show_simple_message_box(uint32_t flags, uint32_t title, uint32_t
 	return SDL_ShowSimpleMessageBox(flags, G(const char *, title), G(const char *, message), NULL);
 }
 
+int xh_host_sdl_show_message_box(uint32_t flags, uint32_t title, uint32_t message,
+	int default_index, uint32_t button0, uint32_t button1, uint32_t button2)
+{
+	uint32_t labels[3] = { button0, button1, button2 };
+	SDL_MessageBoxButtonData buttons[3];
+	int count = 0, answer = -1;
+	for (int index = 0; index < 3; index++) {
+		if (!labels[index]) continue;
+		buttons[count++] = (SDL_MessageBoxButtonData){
+			.flags = index == default_index ? SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT |
+				SDL_MESSAGEBOX_BUTTON_ESCAPEKEY_DEFAULT : 0,
+			.buttonID = index, .text = G(const char *, labels[index]) };
+	}
+	if (!count) return -1;
+	SDL_MessageBoxData question = { .flags = flags,
+		.title = title ? G(const char *, title) : "",
+		.message = message ? G(const char *, message) : "",
+		.numbuttons = count, .buttons = buttons };
+	return SDL_ShowMessageBox(&question, &answer) ? answer : -1;
+}
+
 int xh_host_sdl_get_gamepads(uint32_t ids, int capacity)
 {
 	int count = 0, index;

@@ -661,6 +661,56 @@ int xh_host_sdl_show_simple_message_box(uint32_t flags, uint32_t title, uint32_t
 	return 1;
 }
 
+static void xg_present_message_box(NSString *heading, NSString *body, NSArray *labels,
+	int default_index, void (^complete)(int))
+{
+	UIViewController *presenter = game_view.window.rootViewController;
+	while (presenter.presentedViewController) presenter = presenter.presentedViewController;
+	/* Startup permission prompts and backgrounding temporarily make UIKit
+	 * unavailable. Keep the question pending: OpenCE treats -1 as continuing
+	 * with all mods, so it must not stand in for the player's choice. */
+	if (!presenter.view.window || UIApplication.sharedApplication.applicationState != UIApplicationStateActive) {
+		dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 100 * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+			xg_present_message_box(heading, body, labels, default_index, complete);
+		});
+		return;
+	}
+	UIAlertController *alert = [UIAlertController alertControllerWithTitle:heading
+		message:body preferredStyle:UIAlertControllerStyleAlert];
+	for (int index = 0; index < 3; index++) {
+		if (labels[index] == NSNull.null) continue;
+		UIAlertAction *action = [UIAlertAction actionWithTitle:labels[index]
+			style:UIAlertActionStyleDefault handler:^(UIAlertAction *selected) { complete(index); }];
+		[alert addAction:action];
+		if (index == default_index) alert.preferredAction = action;
+	}
+	[presenter presentViewController:alert animated:YES completion:nil];
+}
+
+/* OpenCE 244 asks the player before loading mods. The guest waits on its
+ * game thread; UIKit and the choice handlers stay on the main thread. */
+int xh_host_sdl_show_message_box(uint32_t flags, uint32_t title, uint32_t message,
+	int default_index, uint32_t button0, uint32_t button1, uint32_t button2)
+{
+	(void)flags;
+	if (NSThread.isMainThread || !(button0 || button1 || button2)) return -1;
+	NSString *heading = title ? @(G(const char *, title)) : @"";
+	NSString *body = message ? @(G(const char *, message)) : @"";
+	NSArray *labels = @[button0 ? @(G(const char *, button0)) : NSNull.null,
+		button1 ? @(G(const char *, button1)) : NSNull.null,
+		button2 ? @(G(const char *, button2)) : NSNull.null];
+	dispatch_semaphore_t done = dispatch_semaphore_create(0);
+	__block int answer = -1;
+	dispatch_async(dispatch_get_main_queue(), ^{
+		xg_present_message_box(heading, body, labels, default_index, ^(int selected) {
+			answer = selected;
+			dispatch_semaphore_signal(done);
+		});
+	});
+	dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+	return answer;
+}
+
 /* ---------- gamepads
  * Slot 1 is always connected: it is the touch gamepad (xg_touch.m) merged with
  * the first game controller, so player 1 can use either. More controllers

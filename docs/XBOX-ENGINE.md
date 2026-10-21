@@ -1,7 +1,7 @@
 # Xbox engine (second HaloPad engine)
 
-**Current build policy, 2026-10-16:** normal builds replay
-`config/xbox-release.json` (OpenCE 208, network version 29) with the
+**Current build policy, 2026-10-21:** normal builds replay
+`config/xbox-release.json` (OpenCE 244, network version 32) with the
 `network-policy-v1` adaptation. Compatibility requires the engine's actual network
 version; the reader clamps stale policy rows that widened it. A policy cannot
 supply missing engine features ([UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy)).
