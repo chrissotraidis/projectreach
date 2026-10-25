@@ -10,7 +10,60 @@ input and host imports are unchanged from 244. The new upstream Android texture
 cache and geometry streaming paths remain intact. Older reviewed adaptation
 identities are preserved. The PC Custom Edition engine is unchanged.
 
-Validation is in progress on 2026-10-26; results will be recorded before merge.
+**Build validation, 2026-10-26:** the configured Python suite runs 517 tests:
+500 pass; 16 native-package harness tests and one case-sensitive-filesystem
+test explicitly skip.
+The 68 focused adaptation/network tests also pass, including compiled
+ASan/UBSan negative controls. Applying the complete adaptation to the exact
+upstream checkout and restoring its eight source files succeeds. Independent
+review confirms the new desktop visibility batching is outside HaloPad's GLES
+path and all existing guarded integration sites remain valid.
+
+Clean PadMint player checks pass for **iOS and Mac**, from source `1b27088`,
+using current PadMint main `37c2c50`, Apple Python 3.9.6, fresh source checkouts
+and empty PadMint folders. Each took about 250 seconds. Both exported packages
+pass strict signatures, engine/network identity, all 35 component notices and
+all 49 embedded runtime-source hashes. The independently compiled guest images
+have identical executable code; their only differing bytes are two digits in
+the diagnostic compilation timestamp.
+
+The [GitHub player build](https://github.com/chrissotraidis/projectreach/actions/runs/40206438513)
+also passes on that source for both platforms. Its downloaded 0.3.12/build-5
+archives match the workflow checksums and pass the same signature, notices,
+engine/network and runtime-source audits. This validates the hosted route
+available to players without a Mac; it does not add a native Windows target.
+
+The exact clean-player Mac app passes separate 50-second menu and a10 campaign
+opening runs with reviewed rendered frames, zero GL errors and unchanged input
+maps and save sentinels.
+
+**Physical validation:** the exact clean-player iOS package was installed over
+0.3.10 on an iPhone 14 with the same signer and full entitlements. Two independent
+pre-install backups matched 253 files (4,567,968,167 bytes each). Tests used
+isolated data and save directories on both machines.
+
+The iPhone downloaded the Custom Edition Blood Gulch map and its three resource
+maps from the clean-player Mac app, then joined live gameplay over the USB
+network interface. The 240-second transfer/match run recorded 48 Mac and 45
+iPhone samples containing both players. A separate 90-second cached rejoin
+recorded 81 two-player samples per endpoint, including shooting, death and
+respawn, with zero GL errors on both endpoints. Rendered frames were reviewed;
+the iPhone capture shows the weapon, HUD and sky, while the Mac capture also
+shows the map and players. This is bounded automated physical gameplay.
+
+All four downloaded files (179,594,477 bytes) match the independent originals,
+the test UI map and save sentinel are unchanged, and no partial downloads remain.
+The cached rejoin reused those files without another transfer. Final iPhone
+readback matches all 246 normal protected files (4,567,515,429 bytes), including
+the original game maps, saves, backups and preferences. The updated app remains
+installed and stopped; private evidence is retained locally under
+`generated/opence-273-validation/` and is not committed.
+
+No public release, tag, IPA, network-policy publication or announcement is part
+of this source update. The existing exact-version policy defaults to 38 for this
+engine even when the published policy has no row for it. Broad campaign,
+manual touch/controller, Wi-Fi/internet interoperability, the new game modes
+and sustained thermal/audio acceptance are not claimed.
 
 ## HaloPad 0.3.11: OpenCE 244
 
