@@ -85,7 +85,8 @@ Pick the path for the computer you have. Both are free.
 | Mac with Apple silicon | Xbox edition, or both editions | [PadMint](#on-an-apple-silicon-mac) |
 | Windows, Linux, an Intel Mac, or anything else | Xbox edition | [GitHub, in your browser](#on-windows-linux-or-any-computer) |
 
-The current release is [HaloPad 0.3.11](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.11).
+The published release is [HaloPad 0.3.11](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.11).
+Current `main` prepares 0.3.12 with OpenCE 273 (network version 38).
 
 ### On an Apple silicon Mac
 
@@ -152,8 +153,8 @@ identity or Apple ID you used before.
   over the old one.
 
 **Online play requires compatible game engines.** Each HaloPad release builds the OpenCE
-revision recorded in `config/xbox-release.json`. HaloPad 0.3.11 uses OpenCE
-build 244, network version 32. **Updates…** on the edition
+revision recorded in `config/xbox-release.json`. Current `main` builds OpenCE
+273, network version 38; the published 0.3.11 release uses OpenCE 244, network 32. **Updates…** on the edition
 picker shows your installed engine and network version.
 
 HaloPad's corrected policy keeps each engine on its actual network version. A signed compatibility
@@ -164,6 +165,9 @@ Xbox checkpoints may need a level restart after an engine change.
 
 ## What's new
 
+- **0.3.12 (on `main`): OpenCE 273 and network version 38.** Updates the Xbox engine
+  for current multiplayer compatibility, with upstream game-mode, co-op, texture
+  and visibility fixes. See [validation status](docs/STATUS.md) for tested paths.
 - **0.3.11: OpenCE 244 and current multiplayer compatibility.** Updates the Xbox edition
   to network version 32, with upstream co-op, rendering, audio and map-sharing fixes.
   Files now accepts discs reported as generic disk images, and copied read-only resources

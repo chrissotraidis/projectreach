@@ -18,6 +18,8 @@ REV73 = 'd1c7243cb20eab4488efa1266e259b1f4d5240f6'
 REV66 = 'f2ba71d9af4c6fc65d7419cc22e8f4899b16da88'
 REV206 = '8102e711c353068d22d62efe6bf67ebc8a90a22e'
 REV208 = 'f90d95552797039383049c1f8f79a35ddbe98b2d'
+REV244 = '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4'
+REV273 = '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d'
 
 
 class ReviewedRendererTests(unittest.TestCase):
@@ -59,6 +61,27 @@ class ReviewedRendererTests(unittest.TestCase):
             for name in ('render-camera-v1', 'network-policy-v1'):
                 self.assertEqual(guest.identity(name, REV208), guest.identity(name, REV206))
                 self.assertNotIn('reviewed', guest.identity(name, REV208))
+
+    def test_build273_pins_its_shader_without_relabeling_build244(self):
+        with patch.dict(os.environ, {'HALOPAD_XBOX_LATEST': '0'}), \
+             patch.object(guest, '_latest_source', side_effect=AssertionError('must use reviewed inputs')):
+            old = guest.identity('network-policy-v1', REV244)
+            new = guest.identity('network-policy-v1', REV273)
+        self.assertEqual(old['recipe_sha256'],
+                         '2c9d2b3b064db3831b3897152fe95bd76cd10eca1547bcb095ecf705dbd15137')
+        self.assertEqual(new['upstream_renderer_sha256'],
+                         'ab6721446effb99ad96e4b90782f217142fb2994d6fac341770ff004d17db080')
+        self.assertEqual(guest.border_sampling.shader_hash(new['upstream_renderer_sha256']),
+                         '2a5d0ccb8786b85f596934d062f1d4200b3d0866542bbb127a54f47bad06c0cc')
+        self.assertEqual(new['upstream_camera_sha256'], old['upstream_camera_sha256'])
+        self.assertNotEqual(new['recipe_sha256'], old['recipe_sha256'])
+        self.assertNotIn('reviewed', new)
+        # Both revisions require the newer layout, including the render-target
+        # filtering exclusion and the newer-server count in the network policy.
+        for recipe in (guest.scale_recipe, guest.filtering_recipe,
+                       guest.counting_recipe, guest.presentation_recipe):
+            self.assertEqual(recipe(new['upstream_renderer_sha256']),
+                             recipe(old['upstream_renderer_sha256']))
 
     def test_environment_and_default_pin_select_same_identity(self):
         with tempfile.TemporaryDirectory() as tmp, patch.dict(os.environ, {}, clear=True):

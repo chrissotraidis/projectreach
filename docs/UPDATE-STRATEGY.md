@@ -1,11 +1,11 @@
 # HaloPad updates without daily maintainer work
 
-## Current decision, 2026-10-21
+## Current decision, 2026-10-26
 
 ### Network compatibility policy
 
-**Match the actual engine's network version.** The OpenCE 244 release pin uses network
-version 32. An older engine cannot gain map downloading or understand a changed map
+**Match the actual engine's network version.** The OpenCE 273 source pin uses network
+version 38. An older engine cannot gain map downloading or understand a changed map
 identity merely by advertising a newer version. Compatibility classifications from
 another fork do not establish compatibility for HaloPad's OpenCE implementation.
 

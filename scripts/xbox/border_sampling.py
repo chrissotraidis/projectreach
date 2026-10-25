@@ -16,13 +16,23 @@ GLES_SHADER_SHA256 = 'ca415f565417b484a851585a2b6685aab545f5ab873e711eaa9dfc6a93
 # Build244 adds DOT_ZW fragment depth; the border sampling anchors are intact.
 GLES_244_RENDERER_SHA256 = 'd0fd284845d21cd5fcff93ec40d8f4063743e9e295449b044b41579d89d55905'
 GLES_244_SHADER_SHA256 = '987afdffb84d3a1bbb551064621c27c8f9c05a17e0ba0e633c2392d8be0985ec'
+# Build273 retains those anchors and adds Custom Edition HUD meter channels.
+GLES_273_RENDERER_SHA256 = 'ab6721446effb99ad96e4b90782f217142fb2994d6fac341770ff004d17db080'
+GLES_273_SHADER_SHA256 = '2a5d0ccb8786b85f596934d062f1d4200b3d0866542bbb127a54f47bad06c0cc'
+
+
+def is_gles_244_family(renderer):
+    """Reviewed renderers sharing 244's query, HDR and sampler layout."""
+    return renderer in (GLES_244_RENDERER_SHA256, GLES_273_RENDERER_SHA256)
 
 
 def is_gles(renderer):
-    return renderer in (GLES_RENDERER_SHA256, GLES_244_RENDERER_SHA256)
+    return renderer == GLES_RENDERER_SHA256 or is_gles_244_family(renderer)
 
 
 def shader_hash(renderer):
+    if renderer == GLES_273_RENDERER_SHA256:
+        return GLES_273_SHADER_SHA256
     if renderer == GLES_244_RENDERER_SHA256:
         return GLES_244_SHADER_SHA256
     return GLES_SHADER_SHA256 if is_gles(renderer) else SHADER_SHA256
@@ -114,7 +124,7 @@ GLES_SHADER_EDITS = tuple((a.replace(b'HALO_ANDROID', b'HALO_GLES'),
 
 def renderer_edits(renderer=None):
     edits = GLES_RENDERER_EDITS if is_gles(renderer) else RENDERER_EDITS
-    if renderer == GLES_244_RENDERER_SHA256:
+    if is_gles_244_family(renderer):
         # Upstream excludes render targets from its new anisotropic setting.
         # Preserve that extra argument while attaching our border uniforms.
         old = b'configure_sampler(stage, description.levels > 1, description.hires);'

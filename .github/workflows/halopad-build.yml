@@ -62,14 +62,14 @@ jobs:
           selection=()
           if [ "$SKIP_RETAINED" = true ]; then selection=(--skip-retained); fi
           python3 scripts/xbox/check_update.py --channel "$ENGINE_CHANNEL" \
-            --app-version 0.3.11 "${selection[@]}" > selection.json
+            --app-version 0.3.12 "${selection[@]}" > selection.json
       - name: Look up an identical failed automatic build
         id: failed
         if: env.SKIP_RETAINED == 'true' && steps.engine.outputs.build == 'true'
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: generated/halopad-build-failure.txt
-          key: halopad-failure-v1-0.3.11-${{ github.sha }}-${{ fromJSON(steps.engine.outputs.record).release }}-${{ fromJSON(steps.engine.outputs.record).revision }}
+          key: halopad-failure-v1-0.3.12-${{ github.sha }}-${{ fromJSON(steps.engine.outputs.record).release }}-${{ fromJSON(steps.engine.outputs.record).revision }}
           lookup-only: true
           enableCrossOsArchive: true
       - name: Finalize build decision
@@ -126,14 +126,14 @@ jobs:
         id: candidate_build
         run: |
           python3 -c 'import json,os,pathlib; pathlib.Path("selected-engine.json").write_text(json.dumps(json.loads(os.environ["ENGINE_RECORD"])))'
-          python3 scripts/xbox/candidate.py --app-version 0.3.11 \
+          python3 scripts/xbox/candidate.py --app-version 0.3.12 \
             --first-build "$((1000 + GITHUB_RUN_NUMBER))" \
             --record selected-engine.json > candidate-result.json
       - name: Stage installer source and app-update metadata
         run: |
           python3 scripts/xbox/update_source.py \
             --candidate generated/xbox-candidates/latest-built.json \
-            --out generated/release-stage --tag "halopad-0.3.11-$((1000 + GITHUB_RUN_NUMBER))"
+            --out generated/release-stage --tag "halopad-0.3.12-$((1000 + GITHUB_RUN_NUMBER))"
       - name: Retain exact candidate privately for signing
         # GITHUB_TOKEN cannot create a release targeting unmerged workflow changes.
         # Drafts become available only to repository writers, never the player feed.

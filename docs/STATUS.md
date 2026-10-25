@@ -1,5 +1,17 @@
 # HaloPad status
 
+## HaloPad 0.3.12 on main: OpenCE 273
+
+The source update selects OpenCE build 273
+(`7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d`), network version 38.
+The published release remains 0.3.11 until a separate source/recipe release.
+Renderer and shader adaptations are reviewed against the exact source; camera,
+input and host imports are unchanged from 244. The new upstream Android texture
+cache and geometry streaming paths remain intact. Older reviewed adaptation
+identities are preserved. The PC Custom Edition engine is unchanged.
+
+Validation is in progress on 2026-10-26; results will be recorded before merge.
+
 ## HaloPad 0.3.11: OpenCE 244
 
 **Published 2026-10-21:** [HaloPad 0.3.11](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.11)

@@ -54,6 +54,11 @@ REVIEWED_RENDERERS = {
     # Build244: reviewed GLES query lifecycle, HDR presentation and samplers.
     '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4':
         border_sampling.GLES_244_RENDERER_SHA256,
+    # Build273 keeps 244's GLES query lifecycle and adaptation sites. Desktop
+    # batching changes stay upstream; preserve Android streaming, CE texture
+    # state refresh, ASTC support and the read-FBO reset before presentation.
+    '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d':
+        border_sampling.GLES_273_RENDERER_SHA256,
 }
 ENGINE_LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
 ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/vol/engine'
@@ -90,7 +95,7 @@ SCALE_244_INSERT = INSERT + b'\tscreen_supersampling = scale[1];\n'
 
 
 def scale_recipe(renderer):
-    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+    if border_sampling.is_gles_244_family(renderer):
         return SCALE_244_ANCHOR, SCALE_244_INSERT
     return ANCHOR, INSERT
 # World-filtering policy follows the reviewed idea in Tyberious's upstream
@@ -137,7 +142,7 @@ CACHED_FILTER_INSERT = (b'#ifdef HALO_ANDROID\n' + FILTER_INSERT
 
 
 def filtering_recipe(renderer, revision=None, original=None):
-    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+    if border_sampling.is_gles_244_family(renderer):
         return CACHED_FILTER_ANCHOR, CACHED_FILTER_INSERT.replace(
             b'!hires && mipmapped &&', b'!hires && mipmapped && !rendered &&')
     if renderer in CACHED_FILTER_RENDERERS:
@@ -215,7 +220,7 @@ COUNT_244_REPLACE = (ASYNC_COUNT_REPLACE.split(b'#else\n', 1)[0] +
 
 
 def counting_recipe(renderer):
-    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+    if border_sampling.is_gles_244_family(renderer):
         return COUNT_244_ANCHOR, COUNT_244_REPLACE
     if renderer == border_sampling.GLES_RENDERER_SHA256:
         return ASYNC_COUNT_ANCHOR, ASYNC_COUNT_REPLACE
@@ -257,7 +262,7 @@ PRESENT_244_REPLACE = (b'\t\ty = (window_height - height) / 2;\n' + PRESENT_READ
 
 
 def presentation_recipe(renderer):
-    if renderer == border_sampling.GLES_244_RENDERER_SHA256:
+    if border_sampling.is_gles_244_family(renderer):
         return PRESENT_244_ANCHOR, PRESENT_244_REPLACE
     return PRESENT_ANCHOR, PRESENT_REPLACE
 # Direct first-person camera on iOS: upstream compiles display.direct_camera out of
@@ -280,6 +285,9 @@ REVIEWED_CAMERA = {
     'f90d95552797039383049c1f8f79a35ddbe98b2d':
         'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
     '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4':
+        'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
+    # Build273 leaves the camera and its Android guard unchanged.
+    '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d':
         'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
 }
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
@@ -322,11 +330,11 @@ def identity(name=None, revision=None):
     if name in CAMERA_ADAPTATIONS:
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
         if not camera:
-            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208 and 244; review render_interpolation.c first')
+            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208, 244 and 273; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = camera
     if name in NETWORK_ADAPTATIONS:
-        recipe += network_bridge.recipe(newer=renderer == border_sampling.GLES_244_RENDERER_SHA256)
+        recipe += network_bridge.recipe(newer=border_sampling.is_gles_244_family(renderer))
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()

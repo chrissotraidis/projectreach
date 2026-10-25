@@ -1,4 +1,4 @@
-"""Asset-free regressions for OpenCE 244's changed adaptation boundaries."""
+"""Asset-free regressions for the reviewed OpenCE 244/273 adaptation layout."""
 import hashlib
 import pathlib
 import subprocess
@@ -55,8 +55,11 @@ int main(void) {
     return 0;
 }
 '''
-        self.run_c(source.replace('FRAGMENT', guest.COUNT_244_ANCHOR.decode()), expected=2)
-        self.run_c(source.replace('FRAGMENT', guest.COUNT_244_REPLACE.decode()))
+        for renderer in (border.GLES_244_RENDERER_SHA256, border.GLES_273_RENDERER_SHA256):
+            with self.subTest(renderer=renderer):
+                original, adapted = guest.counting_recipe(renderer)
+                self.run_c(source.replace('FRAGMENT', original.decode()), expected=2)
+                self.run_c(source.replace('FRAGMENT', adapted.decode()))
 
     def test_hdr_presentation_cannot_redirect_the_drawable_on_fbo_cache_miss(self):
         source = r'''
@@ -97,23 +100,33 @@ int main(void) {
 }
 '''
         source = source.replace('READ_BIND', guest.PRESENT_READ.decode())
-        self.run_c(source.replace('FRAGMENT', guest.PRESENT_244_ANCHOR.decode()), expected=1)
-        self.run_c(source.replace('FRAGMENT', guest.PRESENT_244_REPLACE.decode()))
+        for renderer in (border.GLES_244_RENDERER_SHA256, border.GLES_273_RENDERER_SHA256):
+            with self.subTest(renderer=renderer):
+                original, adapted = guest.presentation_recipe(renderer)
+                self.run_c(source.replace('FRAGMENT', original.decode()), expected=1)
+                self.run_c(source.replace('FRAGMENT', adapted.decode()))
 
-    def test_border_244_preserves_render_target_flag_and_checks_exact_shader(self):
-        renderer = border.GLES_244_RENDERER_SHA256
-        edits = border.renderer_edits(renderer)
-        source = b'\n'.join(a for a, _ in edits)
-        patched = border.apply_edits(source, edits)
-        self.assertIn(b'description.hires, target != NULL);', patched)
-        self.assertIn(b'hp_border_configure(stage, gl_target, description.levels, description.hires);', patched)
-        shader = b'\n'.join(a for a, _ in border.GLES_SHADER_EDITS)
-        with patch.object(border, 'GLES_244_SHADER_SHA256', hashlib.sha256(shader).hexdigest()):
-            self.assertIn(b'hp_border_sample', border.adapt_shader(shader, renderer))
-            with self.assertRaises(ValueError):
-                border.adapt_shader(shader + b'unreviewed', renderer)
-            with self.assertRaises(ValueError):
-                border.adapt_shader(shader, border.GLES_RENDERER_SHA256)
+    def test_border_preserves_render_target_flag_and_checks_exact_shader(self):
+        for build in (244, 273):
+            with self.subTest(build=build):
+                renderer = getattr(border, f'GLES_{build}_RENDERER_SHA256')
+                edits = border.renderer_edits(renderer)
+                source = b'\n'.join(a for a, _ in edits)
+                patched = border.apply_edits(source, edits)
+                self.assertIn(b'description.hires, target != NULL);', patched)
+                self.assertIn(b'hp_border_configure(stage, gl_target, description.levels, description.hires);', patched)
+                shader = b'\n'.join(a for a, _ in border.GLES_SHADER_EDITS)
+                with patch.object(border, f'GLES_{build}_SHADER_SHA256', hashlib.sha256(shader).hexdigest()):
+                    self.assertIn(b'hp_border_sample', border.adapt_shader(shader, renderer))
+                    with self.assertRaises(ValueError):
+                        border.adapt_shader(shader + b'unreviewed', renderer)
+                    for other in (206, 244, 273):
+                        if other == build:
+                            continue
+                        other_renderer = (border.GLES_RENDERER_SHA256 if other == 206 else
+                                          getattr(border, f'GLES_{other}_RENDERER_SHA256'))
+                        with self.assertRaises(ValueError):
+                            border.adapt_shader(shader, other_renderer)
 
     def test_newer_lobby_count_uses_the_same_policy_and_rejects_unreviewed_sites(self):
         with tempfile.TemporaryDirectory() as tmp:
