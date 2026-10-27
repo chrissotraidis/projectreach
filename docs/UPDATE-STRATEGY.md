@@ -1,13 +1,17 @@
 # HaloPad updates without daily maintainer work
 
-## Current decision, 2026-10-26
+## Current decision, 2026-10-27
 
 ### Network compatibility policy
 
-**Match the actual engine's network version.** The OpenCE 273 source pin uses network
-version 38. An older engine cannot gain map downloading or understand a changed map
+**Match the actual engine's network version.** The OpenCE 294 source pin uses network
+version 39. An older engine cannot gain map downloading or understand a changed map
 identity merely by advertising a newer version. Compatibility classifications from
 another fork do not establish compatibility for HaloPad's OpenCE implementation.
+
+HaloPad 0.3.13 requires exact network version 39. With no matching policy row,
+the app still defaults to exact version 39; a policy refresh cannot make an
+older engine understand the new protocol.
 
 - `scripts/xbox/network_policy.py` now uses an explicit local list of reviewed
   transitions. That list is empty: no real cross-version tests currently justify

@@ -85,8 +85,8 @@ Pick the path for the computer you have. Both are free.
 | Mac with Apple silicon | Xbox edition, or both editions | [PadMint](#on-an-apple-silicon-mac) |
 | Windows, Linux, an Intel Mac, or anything else | Xbox edition | [GitHub, in your browser](#on-windows-linux-or-any-computer) |
 
-The published release is [HaloPad 0.3.12](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.12),
-with OpenCE 273 (network version 38).
+This version is [HaloPad 0.3.13](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13),
+with OpenCE 294 (network version 39) and dedicated server browsing through native HTTPS.
 
 ### On an Apple silicon Mac
 
@@ -111,7 +111,7 @@ If you built both editions, PadMint also makes a **HaloPad game data** folder. C
 
 ### On Windows, Linux or any computer
 
-The Xbox edition of the app contains no Halo files. You add your disc inside the app after
+The Xbox edition can be built without your game files. You add your disc inside the app after
 installing it, so GitHub can build the app for you on its free Mac computers. This works for
 iPhone, iPad and Mac. Custom Edition still needs an Apple silicon Mac.
 
@@ -153,8 +153,8 @@ identity or Apple ID you used before.
   over the old one.
 
 **Online play requires compatible game engines.** Each HaloPad release builds the OpenCE
-revision recorded in `config/xbox-release.json`. HaloPad 0.3.12 builds OpenCE
-273, network version 38. **Updates…** on the edition picker shows your installed
+revision recorded in `config/xbox-release.json`. HaloPad 0.3.13 builds OpenCE
+294, network version 39. **Updates…** on the edition picker shows your installed
 engine and network version.
 
 HaloPad's corrected policy keeps each engine on its actual network version. A signed compatibility
@@ -165,6 +165,10 @@ Xbox checkpoints may need a level restart after an engine change.
 
 ## What's new
 
+- **0.3.13: OpenCE 294 and network version 39.** Adds native HTTPS
+  support for OpenCE's dedicated server browser. Includes upstream's fix for plasma
+  rifles and plasma pistols that could not fire in Gun Game, plus the Recon and
+  Fishsticks controller layouts. See [validation status](docs/STATUS.md) for tested paths.
 - **0.3.12: OpenCE 273 and network version 38.** Updates the Xbox engine
   for current multiplayer compatibility, with upstream game-mode, co-op, texture
   and visibility fixes. See [validation status](docs/STATUS.md) for tested paths.
@@ -225,6 +229,11 @@ Some Xbox textures look softer or different from the original. A few players hav
 stop responding after reconnecting it; if that happens, please share the diagnostic log. Changing
 Halo's resolution is tested on iPhone, not yet on iPad, so 800 × 600 is the safest choice there.
 Measurements and open checks are in [docs/STATUS.md](docs/STATUS.md).
+
+One player reports a crash with Xbox **Original** graphics on an iPhone 17 Pro Max
+running iOS 27.2; **Sharper** works for that player. The crash has not reproduced on
+the tested M2 iPad running iPadOS 27.0.1. It remains unresolved; 0.3.13 does not claim
+to fix it.
 
 ## Playing
 
