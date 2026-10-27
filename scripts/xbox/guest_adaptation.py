@@ -59,6 +59,10 @@ REVIEWED_RENDERERS = {
     # state refresh, ASTC support and the read-FBO reset before presentation.
     '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d':
         border_sampling.GLES_273_RENDERER_SHA256,
+    # Build294's desktop shader cache/pacing leaves the GLES adaptation sites
+    # intact; its new browser requires the separately reviewed network bridge.
+    '337b05cfdf203e7c3e3d8af0b1b37894c0b5b057':
+        border_sampling.GLES_294_RENDERER_SHA256,
 }
 ENGINE_LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
 ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/vol/engine'
@@ -289,6 +293,9 @@ REVIEWED_CAMERA = {
     # Build273 leaves the camera and its Android guard unchanged.
     '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d':
         'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
+    # Build294 leaves the camera and its Android guard unchanged.
+    '337b05cfdf203e7c3e3d8af0b1b37894c0b5b057':
+        'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
 }
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
 CAMERA_REPLACE = (b'#if 0 /* HaloPad: the view turns the frame the finger moves (display.direct_camera) */\n'
@@ -330,11 +337,12 @@ def identity(name=None, revision=None):
     if name in CAMERA_ADAPTATIONS:
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
         if not camera:
-            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208, 244 and 273; review render_interpolation.c first')
+            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208, 244, 273 and 294; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = camera
     if name in NETWORK_ADAPTATIONS:
-        recipe += network_bridge.recipe(newer=border_sampling.is_gles_244_family(renderer))
+        recipe += network_bridge.recipe(newer=border_sampling.is_gles_244_family(renderer),
+                                        browser=renderer == border_sampling.GLES_294_RENDERER_SHA256)
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()

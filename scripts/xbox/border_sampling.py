@@ -19,11 +19,16 @@ GLES_244_SHADER_SHA256 = '987afdffb84d3a1bbb551064621c27c8f9c05a17e0ba0e633c2392
 # Build273 retains those anchors and adds Custom Edition HUD meter channels.
 GLES_273_RENDERER_SHA256 = 'ab6721446effb99ad96e4b90782f217142fb2994d6fac341770ff004d17db080'
 GLES_273_SHADER_SHA256 = '2a5d0ccb8786b85f596934d062f1d4200b3d0866542bbb127a54f47bad06c0cc'
+# Build294 adds desktop-only program caching and pacing; the GLES layout and
+# pixel shader generator remain unchanged from 273.
+GLES_294_RENDERER_SHA256 = '1be243e7ec92cce823051e217fba2c6ef1a90dcd4f58e6eecdeb156f480c5ba9'
+GLES_294_SHADER_SHA256 = GLES_273_SHADER_SHA256
 
 
 def is_gles_244_family(renderer):
     """Reviewed renderers sharing 244's query, HDR and sampler layout."""
-    return renderer in (GLES_244_RENDERER_SHA256, GLES_273_RENDERER_SHA256)
+    return renderer in (GLES_244_RENDERER_SHA256, GLES_273_RENDERER_SHA256,
+                        GLES_294_RENDERER_SHA256)
 
 
 def is_gles(renderer):
@@ -31,6 +36,8 @@ def is_gles(renderer):
 
 
 def shader_hash(renderer):
+    if renderer == GLES_294_RENDERER_SHA256:
+        return GLES_294_SHADER_SHA256
     if renderer == GLES_273_RENDERER_SHA256:
         return GLES_273_SHADER_SHA256
     if renderer == GLES_244_RENDERER_SHA256:

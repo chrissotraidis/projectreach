@@ -1,4 +1,4 @@
-"""Asset-free regressions for the reviewed OpenCE 244/273 adaptation layout."""
+"""Asset-free regressions for the reviewed OpenCE 244/273/294 adaptation layout."""
 import hashlib
 import pathlib
 import subprocess
@@ -55,7 +55,7 @@ int main(void) {
     return 0;
 }
 '''
-        for renderer in (border.GLES_244_RENDERER_SHA256, border.GLES_273_RENDERER_SHA256):
+        for renderer in (border.GLES_244_RENDERER_SHA256, border.GLES_273_RENDERER_SHA256, border.GLES_294_RENDERER_SHA256):
             with self.subTest(renderer=renderer):
                 original, adapted = guest.counting_recipe(renderer)
                 self.run_c(source.replace('FRAGMENT', original.decode()), expected=2)
@@ -100,14 +100,14 @@ int main(void) {
 }
 '''
         source = source.replace('READ_BIND', guest.PRESENT_READ.decode())
-        for renderer in (border.GLES_244_RENDERER_SHA256, border.GLES_273_RENDERER_SHA256):
+        for renderer in (border.GLES_244_RENDERER_SHA256, border.GLES_273_RENDERER_SHA256, border.GLES_294_RENDERER_SHA256):
             with self.subTest(renderer=renderer):
                 original, adapted = guest.presentation_recipe(renderer)
                 self.run_c(source.replace('FRAGMENT', original.decode()), expected=1)
                 self.run_c(source.replace('FRAGMENT', adapted.decode()))
 
     def test_border_preserves_render_target_flag_and_checks_exact_shader(self):
-        for build in (244, 273):
+        for build in (244, 273, 294):
             with self.subTest(build=build):
                 renderer = getattr(border, f'GLES_{build}_RENDERER_SHA256')
                 edits = border.renderer_edits(renderer)
@@ -120,8 +120,8 @@ int main(void) {
                     self.assertIn(b'hp_border_sample', border.adapt_shader(shader, renderer))
                     with self.assertRaises(ValueError):
                         border.adapt_shader(shader + b'unreviewed', renderer)
-                    for other in (206, 244, 273):
-                        if other == build:
+                    for other in (206, 244, 273, 294):
+                        if other == build or {other, build} == {273, 294}:
                             continue
                         other_renderer = (border.GLES_RENDERER_SHA256 if other == 206 else
                                           getattr(border, f'GLES_{other}_RENDERER_SHA256'))
