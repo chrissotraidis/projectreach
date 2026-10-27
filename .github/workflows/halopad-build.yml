@@ -61,7 +61,8 @@ jobs:
         run: |
           python3 scripts/xbox/prepare_release.py --version 0.3.13
           for pattern in test_xbox_check_update.py test_xbox_build_decision.py \
-              test_xbox_select_delivery.py test_xbox_prepare_release.py; do
+              test_xbox_select_delivery.py test_xbox_prepare_release.py \
+              test_xbox_candidate.py test_xbox_package_audit.py; do
             python3 -m unittest discover -s tests -p "$pattern"
           done
       - name: Resolve engine once and skip completed upstream work

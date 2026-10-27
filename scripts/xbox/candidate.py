@@ -5,6 +5,7 @@ Safe to invoke repeatedly on one Mac. No upload, signing account, device install
 feed promotion or gameplay-acceptance claim. All packages remain private.
 """
 import argparse
+from contextlib import contextmanager
 import datetime
 import hashlib
 import json
@@ -16,6 +17,8 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
+import unicodedata
 import zipfile
 
 import release
@@ -87,6 +90,60 @@ def command(argv, log):
             raise
 
 
+@contextmanager
+def timed_stage(result, name, state_path, run):
+    """Keep completed and failed stage timings even if a later stage fails."""
+    started = time.monotonic()
+    stage = result['timings']['stages'][name] = {'status': 'running'}
+    write_json(run / 'result.json', result)
+    write_json(state_path, result)
+    try:
+        yield
+    except BaseException:
+        stage['status'] = 'failed'
+        raise
+    else:
+        stage['status'] = 'passed'
+    finally:
+        stage['seconds'] = round(time.monotonic() - started, 6)
+        write_json(run / 'result.json', result)
+        write_json(state_path, result)
+
+
+def timing_summary(result):
+    """A timing receipt is build evidence, never gameplay acceptance."""
+    lines = ['## HaloPad candidate timing', '',
+             f'Build {result["build"]}: {result["status"]}.', '']
+    if result.get('unchanged'):
+        lines += ['Reused the saved result; stage timings below belong to the original attempt.',
+                  f'Reuse check: {result.get("reuse_check_seconds", 0):.3f} seconds.', '']
+    timings = result.get('timings', {})
+    if timings:
+        lines += ['| Stage | Result | Seconds |', '| --- | --- | ---: |']
+        for name, stage in timings.get('stages', {}).items():
+            duration = stage.get('seconds')
+            lines.append(f'| {name} | {stage["status"]} | {duration:.3f} |' if duration is not None
+                         else f'| {name} | {stage["status"]} | unfinished |')
+        if 'total_seconds' in timings:
+            lines += ['', f'Candidate execution total: {timings["total_seconds"]:.3f} seconds.']
+    else:
+        lines += ['This older candidate has no stage timing receipt.']
+    lines += ['', 'Excludes GitHub runner queue/setup, initial source/engine selection, private retention, clean PadMint player checks '
+              'and physical-device acceptance.']
+    return '\n'.join(lines) + '\n'
+
+
+def record_timing_summary(result, path):
+    if path:
+        try:
+            with Path(path).open('a') as stream:
+                stream.write(timing_summary(result))
+        except OSError as error:
+            # The JSON receipt is authoritative. Optional CI presentation must
+            # neither hide a build error nor strand a successful candidate.
+            print(f'Warning: could not write candidate timing summary: {error}', file=sys.stderr)
+
+
 def audit(path, platform, selected, version, build, *, allow_profile=False, require_notices=False):
     """Inspect the delivered archive, not a possibly different build directory."""
     mac = platform == 'mac'
@@ -97,10 +154,26 @@ def audit(path, platform, selected, version, build, *, allow_profile=False, requ
         names = archive.namelist()
         if len(set(names)) != len(names):
             raise ValueError('duplicate archive entries')
+        normalized_names = set()
+        path_spellings = {}
         for item in archive.infolist():
             parts = PurePosixPath(item.filename)
             if parts.is_absolute() or '..' in parts.parts or '\\' in item.filename:
                 raise ValueError('unsafe archive path')
+            canonical = str(parts) + ('/' if item.is_dir() else '')
+            if not parts.parts or item.filename != canonical:
+                raise ValueError('noncanonical archive path')
+            # macOS filesystems may ignore case and Unicode normalization. The
+            # bytes inspected above must be the same files codesign sees below.
+            normalized = unicodedata.normalize('NFC', str(parts)).casefold()
+            if normalized in normalized_names:
+                raise ValueError('colliding archive paths')
+            normalized_names.add(normalized)
+            for depth in range(1, len(parts.parts) + 1):
+                prefix = '/'.join(parts.parts[:depth])
+                key = unicodedata.normalize('NFC', prefix).casefold()
+                if path_spellings.setdefault(key, prefix) != prefix:
+                    raise ValueError('colliding archive path components')
             if stat.S_ISLNK(item.external_attr >> 16):
                 raise ValueError('unexpected archive symlink')
         if not allow_profile and any(name.endswith('embedded.mobileprovision') for name in names):
@@ -149,7 +222,7 @@ def audit(path, platform, selected, version, build, *, allow_profile=False, requ
             'signature': 'verified; consumer signing not tested'}
 
 
-def iterate(out, version, first_build, record=None, retry=False):
+def iterate(out, version, first_build, record=None, retry=False, *, summary_path=None):
     validate(version, str(first_build))
     source = source_identity()
     selected = release.read_record(record) if record else release.resolve(json.loads(release.LOCK.read_text()))
@@ -158,15 +231,22 @@ def iterate(out, version, first_build, record=None, retry=False):
     key = hashlib.sha256(json.dumps(cache_identity, sort_keys=True).encode()).hexdigest()
     state_path = out / 'states' / (key + '.json')
     if state_path.exists():
+        reuse_started = time.monotonic()
         previous = json.loads(state_path.read_text())
         if previous['status'] == 'built-awaiting-acceptance':
             for artifact in previous['artifacts'].values():
                 path = Path(artifact['path'])
                 if not path.is_file() or digest(path) != artifact['sha256']:
                     raise ValueError('retained candidate changed; inspect it before retrying')
-            return {**previous, 'unchanged': True}
+            reused = {**previous, 'unchanged': True,
+                      'reuse_check_seconds': round(time.monotonic() - reuse_started, 6)}
+            record_timing_summary(reused, summary_path)
+            return reused
         if not retry:
-            return {**previous, 'unchanged': True}
+            reused = {**previous, 'unchanged': True,
+                      'reuse_check_seconds': round(time.monotonic() - reuse_started, 6)}
+            record_timing_summary(reused, summary_path)
+            return reused
     counter = out / 'next-build.json'
     number = json.loads(counter.read_text()) if counter.exists() else first_build
     if type(number) is not int or number < first_build:
@@ -179,12 +259,15 @@ def iterate(out, version, first_build, record=None, retry=False):
     record_path = run / 'xbox-release.json'
     write_json(record_path, selected)
     result = {**identity, 'build': str(number), 'run': str(run), 'status': 'building',
-              'started': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'artifacts': {}}
+              'started': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'artifacts': {},
+              'timings': {'clock': 'monotonic', 'scope': 'tests through final candidate verification', 'stages': {}}}
     write_json(state_path, result)
+    cycle_started = time.monotonic()
     try:
-        for pattern in ('test_xbox*.py', 'test_builder_updates.py'):
-            command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', pattern],
-                    run / ('tests-' + pattern.replace('*', 'all') + '.log'))
+        for name, pattern in (('tests_xbox', 'test_xbox*.py'), ('tests_builder', 'test_builder_updates.py')):
+            with timed_stage(result, name, state_path, run):
+                command([sys.executable, '-m', 'unittest', 'discover', '-s', 'tests', '-p', pattern],
+                        run / ('tests-' + pattern.replace('*', 'all') + '.log'))
         for platform in ('mac', 'ios'):
             package = run / ('HaloPad-Mac.zip' if platform == 'mac' else 'HaloPad.ipa')
             argv = ['/bin/bash', 'scripts/builder/build.sh', '--xbox-only',
@@ -193,23 +276,28 @@ def iterate(out, version, first_build, record=None, retry=False):
             if platform == 'mac':
                 argv.append('--mac')
             print(f'Building {selected["release"]} for {platform}; log: {run / (platform + ".log")}', flush=True)
-            command(argv, run / (platform + '.log'))
-            result['artifacts'][platform] = audit(package, platform, selected, version, str(number))
-        if result['artifacts']['mac']['network_version'] != result['artifacts']['ios']['network_version']:
-            raise ValueError('Mac and iOS multiplayer versions differ')
-        if {k: v for k, v in source_identity().items() if k != 'commit'} != cache_identity['source']:
-            raise ValueError('HaloPad source changed during build; candidate is not reproducible')
+            with timed_stage(result, 'build_' + platform, state_path, run):
+                command(argv, run / (platform + '.log'))
+            with timed_stage(result, 'audit_' + platform, state_path, run):
+                result['artifacts'][platform] = audit(package, platform, selected, version, str(number))
+        with timed_stage(result, 'verify_candidate', state_path, run):
+            if result['artifacts']['mac']['network_version'] != result['artifacts']['ios']['network_version']:
+                raise ValueError('Mac and iOS multiplayer versions differ')
+            if {k: v for k, v in source_identity().items() if k != 'commit'} != cache_identity['source']:
+                raise ValueError('HaloPad source changed during build; candidate is not reproducible')
         result['status'] = 'built-awaiting-acceptance'
         result['acceptance'] = {'gameplay': False, 'consumer_upgrade': False, 'publication': False}
-        write_json(run / 'result.json', result)
-        write_json(state_path, result)
-        # This is a private built-candidate pointer, NEVER a player update feed.
-        write_json(out / 'latest-built.json', result)
-    except (OSError, ValueError, KeyError, zipfile.BadZipFile, subprocess.SubprocessError, KeyboardInterrupt) as error:
+    except BaseException as error:
         result.update(status='failed', error=str(error) or type(error).__name__)
+        raise
+    finally:
+        result['timings']['total_seconds'] = round(time.monotonic() - cycle_started, 6)
+        result['finished'] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         write_json(run / 'result.json', result)
         write_json(state_path, result)
-        raise
+        record_timing_summary(result, summary_path)
+    # This is a private built-candidate pointer, NEVER a player update feed.
+    write_json(out / 'latest-built.json', result)
     return result
 
 
@@ -231,7 +319,8 @@ def main():
         with build_lock.acquire() as fd:
             LOCK_FD = fd
             try:
-                result = iterate(out, args.app_version, args.first_build, args.record, args.retry_failed)
+                result = iterate(out, args.app_version, args.first_build, args.record, args.retry_failed,
+                                 summary_path=os.environ.get('GITHUB_STEP_SUMMARY'))
             finally:
                 LOCK_FD = None
         print(json.dumps(result, indent=2))

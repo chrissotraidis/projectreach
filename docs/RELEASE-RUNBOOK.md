@@ -59,6 +59,27 @@ acceptance state. The candidate's source commit, engine revision, app version an
 build number must remain attached to every test result. A package built before a
 source or version change cannot stand in for the final release package.
 
+### Read the timing receipt
+
+New `candidate.py` attempts record monotonic seconds for the Xbox and builder test
+suites, each platform's build, each archive audit, and the final source/network
+consistency check. `result.json` records each stage as it starts and finishes,
+including a failed stage. The final receipt also includes the attempt's total
+execution time and UTC finish time. The same table appears in the GitHub job
+summary, including when the attempt fails.
+
+A reused candidate retains its original measurements; the current invocation
+reports a separate `reuse_check_seconds`. A hard interruption can leave a stage
+marked `running` without a duration. Missing or unfinished timings are not zero
+seconds or a successful stage. Historical candidates without timings remain
+readable. Timings do not affect cache identity or acceptance.
+
+These measurements cover tests through final candidate verification. They exclude
+initial source/engine selection, GitHub's runner queue, runner/tool setup, private
+retention, clean PadMint checks and device testing. Use the Actions job/step
+timestamps for those outer stages. Compare like-for-like builds before adding
+caches; the required player checks must still use empty PadMint folders.
+
 ## Check and stage a source release
 
 After choosing the next version and updating the recipe/workflow fields, run:
@@ -92,6 +113,51 @@ Only those two files are intended as public release assets. A separate
 `preparation.json` records their hashes, source identity and pre/post-check command
 arguments. Its acceptance fields remain `not_checked`: staging is not a release
 approval, and the command does not publish, tag, install or bump versions.
+
+## Audit the exact release packages
+
+Run the reusable auditor from the final HaloPad source checkout against the
+archives produced by the clean player checks. Supply their actual app version
+and build number, plus an already accessible OpenCE Git checkout at the exact
+revision in the release record with clean tracked source:
+
+```sh
+/usr/bin/python3 scripts/xbox/package_audit.py \
+  --record config/xbox-release.json \
+  --version "$RELEASE_VERSION" --build "$RELEASE_BUILD" \
+  --engine-checkout "$OPENCE_CHECKOUT" \
+  --mac "$MAC_ARCHIVE" --ios "$IOS_ARCHIVE" \
+  --output "$AUDIT_REPORT"
+```
+
+The tool reads upstream files with `git show` at that immutable revision; it does
+not switch, mount, download or change the checkout. It regenerates the complete
+notice inventory from the prepared engine dependencies, pinned ANGLE source and
+Khronos headers, using the same collector as the builder. ANGLE must also be at
+its expected revision with clean tracked source. By default, dependency paths
+match the local builder; use `--headers` and `--angle-source` for prepared inputs
+in other locations. Missing inputs fail rather than weakening the notice check.
+It derives the expected
+network version from upstream's exact header. `--expected-network N` optionally
+checks an independently recorded number too. The JSON report path must be new;
+an existing report is never overwritten. One platform may be supplied alone, but
+then the report explicitly omits the cross-platform comparison.
+
+Checks cover archive paths, application identity, strict signatures, guest
+checksum, the complete expected notice inventory/text, SDK, runtime-source hashes, ANGLE identity and overrides,
+reviewed adaptation identity, exact renderer/camera/shader sources, and counted
+visibility metadata. Mac/iOS guests must match byte for byte except for the one
+diagnostic build timestamp in read-only, non-executable data. Changed code,
+ambiguous timestamps and malformed ELF metadata, including out-of-range guest
+addresses, fail the audit. The report names
+the auditor's source checkout and whether it is dirty; matching runtime hashes
+do not establish that every other repository file produced the old archive.
+
+This strict release audit requires reviewed renderer/camera inputs. Automatic
+experimental candidates keep their existing base archive audit and remain
+unaccepted pending review. Visibility output digests are checked for valid,
+consistent metadata; this is not an independent reconstruction of the compiled
+renderer. Neither audit replaces physical gameplay or the pre/post PadMint checks.
 
 ## Release work that remains
 
@@ -144,8 +210,9 @@ exclude upstream adaptation, hardware testing and GitHub runner queues, and are
 not a promise about future builds.
 
 The immediate savings come from skipping irrelevant builds, retaining candidates,
-avoiding unintended IPA preparation, checking version drift early and staging
-release files consistently. A broader reusable package auditor and automated
-evidence collection are subsequent work. Device acceptance and an unfamiliar
-upstream adaptation still need investigation. Routine compatibility releases can
-use short notes; Discord announcements and new artwork can be batched separately.
+avoiding unintended IPA preparation, checking version drift early, staging
+release files consistently and reusing the package auditor. Per-stage timings now
+identify the next build optimization; broader automated evidence collection is
+subsequent work. Device acceptance and an unfamiliar upstream adaptation still
+need investigation. Routine compatibility releases can use short notes; Discord
+announcements and new artwork can be batched separately.

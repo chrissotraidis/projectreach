@@ -1,7 +1,10 @@
 """Candidate updates must preserve previous builds and audit the actual archive."""
 import importlib.util
+import io
 import hashlib
 import json
+import itertools
+import os
 from pathlib import Path
 import plistlib
 import subprocess
@@ -75,6 +78,29 @@ class AuditTests(unittest.TestCase):
                     self.assertRaises(subprocess.CalledProcessError):
                 candidate.audit(path, 'ios', SELECTED, '0.3.8', '9')
 
+    def test_zip_aliases_cannot_replace_the_file_that_was_inspected(self):
+        for alias in ('Payload/HaloPad.app/./Info.plist', 'Payload//HaloPad.app/Info.plist',
+                      'Payload/HaloPad.app/info.plist', 'payload/HaloPad.app/uninspected-file'):
+            with self.subTest(alias=alias), tempfile.TemporaryDirectory() as folder:
+                path = Path(folder) / 'aliased.ipa'
+                package(path, 'ios')
+                with zipfile.ZipFile(path, 'a') as archive:
+                    archive.writestr(alias, plistlib.dumps({'CFBundleShortVersionString': '9.9.9'}))
+                with patch.object(candidate.subprocess, 'run') as sign, self.assertRaises(ValueError):
+                    candidate.audit(path, 'ios', SELECTED, '0.3.8', '9')
+                sign.assert_not_called()
+
+    def test_unicode_path_collision_is_rejected_before_extracting(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'aliased.ipa'
+            package(path, 'ios')
+            with zipfile.ZipFile(path, 'a') as archive:
+                archive.writestr('Payload/HaloPad.app/caf\u00e9', 'one')
+                archive.writestr('Payload/HaloPad.app/cafe\u0301', 'two')
+            with patch.object(candidate.subprocess, 'run') as sign, self.assertRaisesRegex(ValueError, 'colliding'):
+                candidate.audit(path, 'ios', SELECTED, '0.3.8', '9')
+            sign.assert_not_called()
+
 
 class CycleTests(unittest.TestCase):
     def setUp(self):
@@ -112,6 +138,101 @@ class CycleTests(unittest.TestCase):
         self.assertEqual(json.loads((self.out / 'next-build.json').read_text()), 10)
         self.assertEqual(set(first['artifacts']), {'ios', 'mac'})
 
+    def test_per_stage_timings_persist_and_use_a_monotonic_clock(self):
+        clock = itertools.count(100, 0.25)
+        with patch.object(candidate.time, 'monotonic', side_effect=lambda: next(clock)):
+            result = self.run_cycle()
+        stages = result['timings']['stages']
+        self.assertEqual(list(stages), ['tests_xbox', 'tests_builder', 'build_mac', 'audit_mac',
+                                        'build_ios', 'audit_ios', 'verify_candidate'])
+        self.assertTrue(all(stage == {'status': 'passed', 'seconds': 0.25} for stage in stages.values()))
+        self.assertEqual(result['timings']['clock'], 'monotonic')
+        self.assertGreaterEqual(result['timings']['total_seconds'], sum(stage['seconds'] for stage in stages.values()))
+        self.assertIn('finished', result)
+        self.assertEqual(json.loads((Path(result['run']) / 'result.json').read_text()), result)
+        self.assertEqual(json.loads((self.out / 'latest-built.json').read_text()), result)
+        summary = candidate.timing_summary(result)
+        self.assertIn('| audit_ios | passed | 0.250 |', summary)
+        self.assertIn('Excludes GitHub runner queue/setup', summary)
+
+    def test_reuse_preserves_original_timings_and_does_not_rewrite_receipts(self):
+        first = self.run_cycle()
+        paths = [Path(first['run']) / 'result.json', self.out / 'latest-built.json',
+                 next((self.out / 'states').iterdir()), self.out / 'next-build.json']
+        original = {path: path.read_bytes() for path in paths}
+        with patch.object(candidate.time, 'monotonic', side_effect=[200.0, 200.5]):
+            second = self.run_cycle(summary_path=self.out / 'summary')
+        self.assertTrue(second['unchanged'])
+        self.assertEqual(second['reuse_check_seconds'], 0.5)
+        self.assertEqual(second['timings'], first['timings'])
+        self.assertEqual(original, {path: path.read_bytes() for path in paths})
+        self.assertIn('original attempt', (self.out / 'summary').read_text())
+
+    def test_library_calls_do_not_pollute_the_hosted_job_summary(self):
+        summary = self.out / 'summary'
+        with patch.dict(os.environ, {'GITHUB_STEP_SUMMARY': str(summary)}):
+            self.run_cycle()
+        self.assertFalse(summary.exists())
+
+    def test_optional_summary_failure_cannot_strand_a_successful_candidate(self):
+        with patch('sys.stderr', new_callable=io.StringIO) as warning:
+            result = self.run_cycle(summary_path=self.out / 'missing/summary')
+            reused = self.run_cycle(summary_path=self.out / 'missing/summary')
+        self.assertEqual(result['status'], 'built-awaiting-acceptance')
+        self.assertEqual(json.loads((self.out / 'latest-built.json').read_text()), result)
+        self.assertTrue(reused['unchanged'])
+        self.assertIn('could not write candidate timing summary', warning.getvalue())
+
+    def test_optional_summary_failure_cannot_hide_the_original_build_error(self):
+        with patch.object(candidate, 'command', side_effect=subprocess.CalledProcessError(7, 'build')), \
+                patch('sys.stderr', new_callable=io.StringIO), self.assertRaises(subprocess.CalledProcessError) as error:
+            self.run_cycle(summary_path=self.out / 'missing/summary')
+        self.assertEqual(error.exception.returncode, 7)
+        failed = json.loads(next((self.out / 'states').iterdir()).read_text())
+        self.assertEqual(failed['timings']['stages']['tests_xbox']['status'], 'failed')
+        self.assertFalse((self.out / 'latest-built.json').exists())
+
+    def test_failed_build_retains_completed_timings_without_touching_previous_pointer(self):
+        candidate.write_json(self.out / 'latest-built.json', {'previous': True})
+        original_command = self.command
+        def fail_mac(argv, log):
+            if argv[0] == '/bin/bash':
+                raise subprocess.CalledProcessError(1, argv)
+            original_command(argv, log)
+        with patch.object(candidate, 'command', side_effect=fail_mac), self.assertRaises(subprocess.CalledProcessError):
+            self.run_cycle()
+        failed = json.loads(next((self.out / 'states').iterdir()).read_text())
+        self.assertEqual(failed['status'], 'failed')
+        self.assertEqual(list(failed['timings']['stages']), ['tests_xbox', 'tests_builder', 'build_mac'])
+        self.assertEqual(failed['timings']['stages']['tests_builder']['status'], 'passed')
+        self.assertEqual(failed['timings']['stages']['build_mac']['status'], 'failed')
+        self.assertGreaterEqual(failed['timings']['stages']['build_mac']['seconds'], 0)
+        self.assertEqual(json.loads((self.out / 'latest-built.json').read_text()), {'previous': True})
+        self.assertEqual(json.loads((Path(failed['run']) / 'result.json').read_text()), failed)
+
+    def test_failed_audit_timeout_and_interrupt_are_recorded(self):
+        for error in (ValueError('bad archive'), subprocess.TimeoutExpired('audit', 1), KeyboardInterrupt()):
+            with self.subTest(error=type(error).__name__):
+                with patch.object(candidate, 'audit', side_effect=error), self.assertRaises(type(error)):
+                    self.run_cycle(retry=True)
+                failed = json.loads(next((self.out / 'states').iterdir()).read_text())
+                self.assertEqual(failed['status'], 'failed')
+                self.assertEqual(failed['timings']['stages']['audit_mac']['status'], 'failed')
+                self.assertNotIn('build_ios', failed['timings']['stages'])
+                self.assertIn('total_seconds', failed['timings'])
+                self.assertFalse((self.out / 'latest-built.json').exists())
+
+    def test_old_cached_candidate_without_timings_remains_readable(self):
+        result = self.run_cycle()
+        state = next((self.out / 'states').iterdir())
+        previous = json.loads(state.read_text())
+        previous.pop('timings')
+        candidate.write_json(state, previous)
+        reused = self.run_cycle()
+        self.assertTrue(reused['unchanged'])
+        self.assertNotIn('timings', reused)
+        self.assertIn('older candidate has no stage timing', candidate.timing_summary(reused))
+
     def test_failure_preserves_previous_pointer_and_skips_until_retry(self):
         previous = {'status': 'previous fixture'}
         candidate.write_json(self.out / 'latest-built.json', previous)
@@ -129,6 +250,8 @@ class CycleTests(unittest.TestCase):
         with patch.object(candidate, 'source_identity', side_effect=[SOURCE, {**SOURCE, 'tree_sha256': 'changed'}]):
             with self.assertRaisesRegex(ValueError, 'source changed'): self.run_cycle()
         self.assertFalse((self.out / 'latest-built.json').exists())
+        failed = json.loads(next((self.out / 'states').iterdir()).read_text())
+        self.assertEqual(failed['timings']['stages']['verify_candidate']['status'], 'failed')
 
     def test_metadata_only_commit_change_does_not_rebuild(self):
         self.run_cycle(); count = len(self.calls)
