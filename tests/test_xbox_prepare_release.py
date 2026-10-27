@@ -152,6 +152,8 @@ class PreparationTests(unittest.TestCase):
         for text in (original.replace('        run: |',
                                       '        env:\n          APP_VERSION: 9.9.9\n        run: |', 1),
                      original.replace('        run: |',
+                                      '        env: {APP_VERSION: 9.9.9}\n        run: |', 1),
+                     original.replace('        run: |',
                                       '        run: |\n          APP_VERSION=9.9.9', 1),
                      original.replace('        run: |',
                                       '        run: |\n          export APP_VERSION=9.9.9', 1)):

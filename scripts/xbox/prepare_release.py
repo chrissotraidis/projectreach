@@ -139,14 +139,15 @@ def check_versions(recipe, build_workflow, player_workflow, version):
             'player workflow APP_VERSION differs')
     # Keep this small checker tied to the simple current workflow: a step env or
     # shell assignment can shadow the job's value. New binding syntax needs review.
-    bindings = [line for line in player_workflow.splitlines()
-                if re.match(r'^\s*APP_VERSION:', line)]
-    require(len(bindings) == 1, 'player workflow must have only its job-level APP_VERSION binding')
+    bindings = 0
     for line in player_workflow.splitlines():
-        if re.search(r'\bAPP_VERSION\s*=', line):
+        if re.search(r'\bAPP_VERSION[\'\"]?\s*[:=]', line):
             tokens = shlex.split(line.rstrip().rstrip('\\'), comments=True)
-            require(not re.search(r'\bAPP_VERSION\s*=', ' '.join(tokens)),
+            content = ' '.join(tokens)
+            bindings += len(re.findall(r'\bAPP_VERSION\s*:', content))
+            require(not re.search(r'\bAPP_VERSION\s*=', content),
                     'player workflow must not reassign APP_VERSION')
+    require(bindings == 1, 'player workflow must have only its job-level APP_VERSION binding')
     player_builds = [args for args in commands(player_workflow) if args[0] == 'scripts/builder/build.sh']
     require(len(player_builds) == 2, 'expected both player workflow builds')
     require(all(argument(args, '--app-version') == '$APP_VERSION' for args in player_builds),
