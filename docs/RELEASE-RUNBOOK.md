@@ -80,6 +80,35 @@ retention, clean PadMint checks and device testing. Use the Actions job/step
 timestamps for those outer stages. Compare like-for-like builds before adding
 caches; the required player checks must still use empty PadMint folders.
 
+### Reuse unchanged renderer compilation
+
+Hosted candidates use a compiler cache for ANGLE's C, C++ and Objective-C++
+objects. OpenCE guest code, generated engine code, app packaging and audits still
+run normally. The first Mac stage also includes shared source setup and the first
+guest build, so its entire duration is not Mac-specific renderer work.
+
+The cache key includes the runner architecture, Xcode/compiler/SDK versions,
+build-tool versions, ANGLE pin, renderer recipe, launcher wiring and cache config.
+An OpenCE revision alone does not invalidate unchanged ANGLE compilation. Only
+compiler results are retained; source checkouts, CMake/Ninja build trees and game
+outputs are excluded. Each hosted run configures a fresh renderer build. A missing
+or evicted cache produces a regular compilation.
+
+The checked-in ccache config hashes the compiler's contents and preprocesses every
+input before reuse, including SDK headers. It enables no relaxed checks. See
+[ccache's compiler and preprocessor checks](https://ccache.dev/manual/latest.html#_how_ccache_works)
+and [CMake's compiler launchers](https://cmake.org/cmake/help/latest/prop_tgt/LANG_COMPILER_LAUNCHER.html).
+The build report includes `angle-cache-toolchain.txt`, `angle-cache-config.txt`
+and cache statistics; use these alongside the stage timings to distinguish a
+cache hit from a faster runner. The initial fill can cost a little extra work.
+
+Local and PadMint builds keep this cache off by default. For an engineering build
+only, opt in with an absolute `HALOPAD_ANGLE_CCACHE` executable path, a dedicated
+`CCACHE_DIR`, and `CCACHE_CONFIGPATH` pointing to `config/xbox-angle-ccache.conf`.
+Unset `HALOPAD_ANGLE_CCACHE` to disable it; the next configure explicitly clears
+all three compiler launchers, even in an existing build tree. Do not set it for
+the required clean player checks. Cache reuse does not change acceptance gates.
+
 ## Check and stage a source release
 
 After choosing the next version and updating the recipe/workflow fields, run:

@@ -62,7 +62,7 @@ jobs:
           python3 scripts/xbox/prepare_release.py --version 0.3.13
           for pattern in test_xbox_check_update.py test_xbox_build_decision.py \
               test_xbox_select_delivery.py test_xbox_prepare_release.py \
-              test_xbox_candidate.py test_xbox_package_audit.py; do
+              test_xbox_candidate.py test_xbox_package_audit.py test_xbox_angle_ccache.py; do
             python3 -m unittest discover -s tests -p "$pattern"
           done
       - name: Resolve engine once and skip completed upstream work
@@ -126,9 +126,40 @@ jobs:
         run: |
           xcodebuild -version
           xcrun --sdk iphoneos --show-sdk-version
-          brew install llvm lld cmake ninja sdl3
+          brew install llvm lld cmake ninja sdl3 ccache
           echo "/opt/homebrew/opt/llvm/bin" >> "$GITHUB_PATH"
           echo "/opt/homebrew/opt/lld/bin" >> "$GITHUB_PATH"
+      - name: Identify the ANGLE compiler cache
+        id: angle_toolchain
+        run: |
+          mkdir -p generated
+          {
+            echo "HALOPAD_ANGLE_CCACHE=$(command -v ccache)"
+            echo "CCACHE_DIR=$RUNNER_TEMP/halopad-angle-ccache"
+            echo "CCACHE_CONFIGPATH=$GITHUB_WORKSPACE/config/xbox-angle-ccache.conf"
+          } >> "$GITHUB_ENV"
+          {
+            xcodebuild -version
+            xcrun clang --version
+            shasum -a 256 "$(xcrun --find clang)" "$(xcrun --find clang++)"
+            xcrun --sdk macosx --show-sdk-build-version
+            xcrun --sdk iphoneos --show-sdk-build-version
+            cmake --version
+            ninja --version
+            ccache --version
+          } > generated/angle-cache-toolchain.txt
+          echo "identity=$(shasum -a 256 generated/angle-cache-toolchain.txt | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Reuse only ANGLE compiler results
+        id: angle_cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          # No OpenCE checkout, guest objects, build trees, apps or player data.
+          path: ${{ env.CCACHE_DIR }}
+          key: halopad-angle-ccache-v1-${{ runner.os }}-${{ runner.arch }}-${{ steps.angle_toolchain.outputs.identity }}-${{ hashFiles('config/xbox-angle.lock.json', 'config/xbox-angle-ccache.conf', 'scripts/xbox/angle/**', 'scripts/xbox/build-ios.sh') }}
+      - name: Start fresh cache statistics
+        run: |
+          ccache --show-config > generated/angle-cache-config.txt
+          ccache --zero-stats
       - name: Check real keychain setup with disposable fixtures
         run: python3 tools/testflight/smoke_keychain.py
       - name: Build the selected engine and audit both packages
@@ -153,6 +184,17 @@ jobs:
           python3 scripts/xbox/draft_release.py \
             --candidate generated/xbox-candidates/latest-built.json \
             --out generated/private-handoff > private-handoff.json
+      - name: Record ANGLE compiler cache statistics
+        if: always() && steps.angle_toolchain.outcome == 'success'
+        continue-on-error: true
+        run: |
+          ccache --show-stats > generated/angle-cache-stats.txt
+          ccache --print-stats --format=json > generated/angle-cache-stats.json
+          {
+            printf '\n### ANGLE compiler cache\n\n```text\n'
+            cat generated/angle-cache-stats.txt
+            printf '```\n'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Save build report only
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -165,6 +207,8 @@ jobs:
             generated/xbox-candidates/runs/*/xbox-release.json
             generated/xbox-candidates/runs/*/*.log
             generated/release-stage/halopad-update.json
+            generated/angle-cache-*.txt
+            generated/angle-cache-stats.json
           if-no-files-found: warn
           retention-days: 14
       - name: Record a failed automatic candidate build

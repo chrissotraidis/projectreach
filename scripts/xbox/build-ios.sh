@@ -60,6 +60,20 @@ esac
 case "$RENDERER" in
 apple-gles) ;;
 angle-metal)
+    # Optional compiler cache for ANGLE only; never cache the guest or build tree.
+    ANGLE_CCACHE=${HALOPAD_ANGLE_CCACHE:-}
+    if [ -n "$ANGLE_CCACHE" ]; then
+        case "$ANGLE_CCACHE" in
+        /*) ;;
+        *) echo "HALOPAD_ANGLE_CCACHE must be an absolute executable path" >&2; exit 2 ;;
+        esac
+        case "$ANGLE_CCACHE" in
+        *';'*|*'$<'*) echo "HALOPAD_ANGLE_CCACHE must be one literal executable path" >&2; exit 2 ;;
+        esac
+        [ -f "$ANGLE_CCACHE" ] && [ -x "$ANGLE_CCACHE" ] || {
+            echo "HALOPAD_ANGLE_CCACHE is not an executable file: $ANGLE_CCACHE" >&2; exit 2;
+        }
+    fi
     ANGLE_REV=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['revision'])" "$ROOT/config/xbox-angle.lock.json")
     if [ -z "${XBOX_ANGLE_SOURCE:-}" ]; then
         # the pinned ANGLE from WebKit (a sparse checkout, fetched once into the ignored generated/)
@@ -102,14 +116,19 @@ if [ "$RENDERER" = angle-metal ]; then
         APP="$OUT/$BUILD_SDK/HaloPadXbox.app"
         ANGLE_BUILD="$COUNTED_BUILD"
     fi
+    # Always pass launcher values: empty explicitly clears a previously enabled cache.
     if [ "$SDK" = maccatalyst ]; then
         cmake -S "$ROOT/scripts/xbox/angle" -B "$ANGLE_BUILD" -G Ninja \
+            "-DCMAKE_C_COMPILER_LAUNCHER=$ANGLE_CCACHE" "-DCMAKE_CXX_COMPILER_LAUNCHER=$ANGLE_CCACHE" \
+            "-DCMAKE_OBJCXX_COMPILER_LAUNCHER=$ANGLE_CCACHE" \
             -DHALOPAD_ANGLE_COUNTED_VISIBILITY=$COUNTED -DANGLE_SOURCE_DIR="$XBOX_ANGLE_SOURCE" \
             -DHALOPAD_ANGLE_CATALYST=ON -DCMAKE_OSX_SYSROOT=macosx -DCMAKE_OSX_ARCHITECTURES=arm64 \
             "-DCMAKE_C_FLAGS=-target $TARGET $CATALYST" "-DCMAKE_CXX_FLAGS=-target $TARGET $CATALYST" \
             "-DCMAKE_OBJCXX_FLAGS=-target $TARGET $CATALYST" -DCMAKE_BUILD_TYPE=Release
     else
         cmake -S "$ROOT/scripts/xbox/angle" -B "$ANGLE_BUILD" -G Ninja \
+            "-DCMAKE_C_COMPILER_LAUNCHER=$ANGLE_CCACHE" "-DCMAKE_CXX_COMPILER_LAUNCHER=$ANGLE_CCACHE" \
+            "-DCMAKE_OBJCXX_COMPILER_LAUNCHER=$ANGLE_CCACHE" \
             -DHALOPAD_ANGLE_COUNTED_VISIBILITY=$COUNTED \
             -DANGLE_SOURCE_DIR="$XBOX_ANGLE_SOURCE" -DCMAKE_SYSTEM_NAME=iOS \
             -DCMAKE_OSX_SYSROOT=$SDK -DCMAKE_OSX_ARCHITECTURES=arm64 \
