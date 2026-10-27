@@ -85,7 +85,7 @@ Pick the path for the computer you have. Both are free.
 | Mac with Apple silicon | Xbox edition, or both editions | [PadMint](#on-an-apple-silicon-mac) |
 | Windows, Linux, an Intel Mac, or anything else | Xbox edition | [GitHub, in your browser](#on-windows-linux-or-any-computer) |
 
-This version is [HaloPad 0.3.13](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13),
+The published release is [HaloPad 0.3.13](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13),
 with OpenCE 294 (network version 39) and dedicated server browsing through native HTTPS.
 
 ### On an Apple silicon Mac

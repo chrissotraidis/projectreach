@@ -1,7 +1,7 @@
 # Xbox engine (second HaloPad engine)
 
-**Current build policy, 2026-10-26:** normal builds replay
-`config/xbox-release.json` (OpenCE 273, network version 38) with the
+**Current build policy, 2026-10-27:** normal builds replay
+`config/xbox-release.json` (OpenCE 294, network version 39) with the
 `network-policy-v1` adaptation. Compatibility requires the engine's actual network
 version; the reader clamps stale policy rows that widened it. A policy cannot
 supply missing engine features ([UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy)).
@@ -10,6 +10,11 @@ workflow handles that selection separately. Public app delivery is not enabled.
 See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) and [STATUS.md](STATUS.md) for current
 candidate and acceptance evidence. The dated engine investigations below are
 historical and do not change the current default.
+
+OpenCE 294's master-server GET uses Foundation with system TLS verification,
+bounded responses/timeouts and no redirects; the guest verifies the signed
+server list. The official master is built into the engine, so a missing
+`masters.txt` does not prevent discovery.
 
 The UIKit and Mac Catalyst Xbox hosts discover compatible HaloPad peers on the
 local network using the declared Bonjour service `_halopad._udp`. Bonjour finds

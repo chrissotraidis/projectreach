@@ -13,6 +13,11 @@ HaloPad 0.3.13 requires exact network version 39. With no matching policy row,
 the app still defaults to exact version 39; a policy refresh cannot make an
 older engine understand the new protocol.
 
+**Published 2026-10-27:** [run 40442482311](https://github.com/chrissotraidis/projectreach/actions/runs/40442482311)
+adds exact version 39 in policy commit `4bd2d3b`, signed serial `1793070514`.
+Older exact 24/25/29/32/38 rows are unchanged. The API and anonymous raw-CDN
+responses match and both signatures verify; repeating the plan makes no change.
+
 - `scripts/xbox/network_policy.py` now uses an explicit local list of reviewed
   transitions. That list is empty: no real cross-version tests currently justify
   widening a HaloPad engine's range. Known breaks at network versions 28 and 29

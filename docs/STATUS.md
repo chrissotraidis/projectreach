@@ -2,6 +2,30 @@
 
 ## HaloPad 0.3.13: OpenCE 294
 
+**Published 2026-10-27:** [HaloPad 0.3.13](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13)
+is released from `9181591`. Final clean PadMint checks passed on that merged
+source before tagging: iOS in 216 seconds and Mac in 218 seconds. Required
+post-publication checks also passed, in 217 seconds each, with no supplied
+checkout; both automatically selected public `v0.3.13` at `9181591`.
+
+All four final builds used current PadMint main `88cda562`, Apple Python 3.9.6
+and fresh empty PadMint folders. Package audits pass strict signatures,
+OpenCE 294/network 39, version 0.3.13/build 1, all 36 notices and all 50
+runtime-source hashes. Post-publication guest images are byte-identical to each
+other; comparison with the physically tested candidate differs only in diagnostic
+build timestamps. Only documentation changed after runtime commit `0ece38e`.
+
+Anonymous latest-release and asset readbacks verify exactly the PadMint recipe
+and `SHA256SUMS`, byte-identical to the staged files. There are no public app or
+game-data assets. Final release evidence is retained privately under
+`generated/release-0.3.13-validation/`.
+
+The [network-policy rollout](https://github.com/chrissotraidis/projectreach/actions/runs/40442482311)
+passed from the merged release source. Signed serial `1793070514` at policy
+commit `4bd2d3b` adds exact version 39 and leaves exact 24/25/29/32/38 unchanged.
+Signature-verified API and anonymous raw-CDN responses match byte for byte;
+a repeated plan makes no change.
+
 Validated 2026-10-27. The Xbox edition selects OpenCE build 294
 (`337b05cfdf203e7c3e3d8af0b1b37894c0b5b057`), network version 39. The
 new dedicated-server browser uses a native HTTPS bridge with system certificate
@@ -10,8 +34,8 @@ list still undergoes upstream signature verification. Network filtering, labels,
 join checks and rejection explanations use the engine's exact protocol.
 
 Renderer and shader adaptations are reviewed against the exact source. The
-shader, camera and adapted SDL input sources are unchanged from 273; the new desktop shader
-cache and frame pacing are outside HaloPad's GLES path. Historical adaptation
+shader, camera and adapted SDL input sources are unchanged from 273; the new
+desktop shader cache and frame pacing are outside HaloPad's GLES path. Historical adaptation
 identities are retained, and the PC Custom Edition engine is unchanged. Public
 delivery remains source and recipe only, without public app binaries or game data.
 
@@ -59,8 +83,8 @@ death and respawn. Both endpoints use Original graphics, stay running until
 explicitly stopped, and report zero GL errors. Reviewed frames show rendered
 terrain, weapons and HUD. All four downloaded files (179,594,477 bytes) match
 the independent originals. A separate 90-second cached rejoin passes with
-50 Mac and 26 iPad two-player samples across the full check, reusing those files without another
-transfer and with zero GL errors on both endpoints.
+50 Mac and 26 iPad two-player samples across the full check, reusing those files
+without another transfer and with zero GL errors on both endpoints.
 
 Final iPad readback preserves all 980 protected preexisting files
 (16,175,736,737 bytes), including normal maps, saves, backups, preferences and
