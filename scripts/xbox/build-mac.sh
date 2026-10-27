@@ -22,6 +22,7 @@ for f in xg_memory xg_thread xg_syscall xg_gl xg_sdl xg_posix xg_main_macos; do
 done
 clang $CFLAGS -c "$OUT/xg_gl_gen.c" -o "$OBJ/xg_gl_gen.o"
 clang $CFLAGS -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
+clang $CFLAGS -fobjc-arc -c "$ROOT/port/xbox/xg_https.m" -o "$OBJ/xg_https.o"
 for f in posix_files posix_net; do
 	clang -O2 -w -include "$ROOT/port/xbox/xg_darwin_compat.h" -I"$ENGINE/port/linux/src" \
 		-c "$ENGINE/port/linux/src/$f.c" -o "$OBJ/upstream_$f.o"
@@ -39,7 +40,7 @@ if [ -f "$ENGINE/port/linux/src/posix_dtls.c" ]; then
 fi
 clang -c "$ROOT/port/xbox/xg_runtime.s" -o "$OBJ/xg_runtime.o"
 clang -c "$OUT/guest.s" -o "$OBJ/guest.o"
-clang -o "$OUT/halopad-xbox" "$OBJ"/*.o -L/opt/homebrew/lib -lSDL3 -mmacosx-version-min=14.4
+clang -o "$OUT/halopad-xbox" "$OBJ"/*.o -L/opt/homebrew/lib -lSDL3 -framework Foundation -mmacosx-version-min=14.4
 # The translated executable and loaded guest must come from the same build.
 python3 - "$ENGINE" "$OUT" <<'PY'
 import datetime, hashlib, json, pathlib, subprocess, sys

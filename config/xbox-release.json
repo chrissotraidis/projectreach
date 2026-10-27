@@ -1,5 +1,5 @@
 {
-  "revision": "7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d",
-  "release": "build-273",
-  "note": "OpenCE build 273, network version 38. See docs/STATUS.md for validation. Moving upstream releases do not change this record."
+  "revision": "337b05cfdf203e7c3e3d8af0b1b37894c0b5b057",
+  "release": "build-294",
+  "note": "OpenCE build 294, network version 39. See docs/STATUS.md for validation. Moving upstream releases do not change this record."
 }

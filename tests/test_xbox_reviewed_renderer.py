@@ -20,6 +20,7 @@ REV206 = '8102e711c353068d22d62efe6bf67ebc8a90a22e'
 REV208 = 'f90d95552797039383049c1f8f79a35ddbe98b2d'
 REV244 = '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4'
 REV273 = '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d'
+REV294 = '337b05cfdf203e7c3e3d8af0b1b37894c0b5b057'
 
 
 class ReviewedRendererTests(unittest.TestCase):
@@ -78,6 +79,24 @@ class ReviewedRendererTests(unittest.TestCase):
         self.assertNotIn('reviewed', new)
         # Both revisions require the newer layout, including the render-target
         # filtering exclusion and the newer-server count in the network policy.
+        for recipe in (guest.scale_recipe, guest.filtering_recipe,
+                       guest.counting_recipe, guest.presentation_recipe):
+            self.assertEqual(recipe(new['upstream_renderer_sha256']),
+                             recipe(old['upstream_renderer_sha256']))
+
+    def test_build294_preserves_gles_recipes_and_separates_new_browser_identity(self):
+        with patch.dict(os.environ, {'HALOPAD_XBOX_LATEST': '0'}), \
+             patch.object(guest, '_latest_source', side_effect=AssertionError('must use reviewed inputs')):
+            old = guest.identity('render-camera-v1', REV273)
+            new = guest.identity('render-camera-v1', REV294)
+            old_network = guest.identity('network-policy-v1', REV273)
+            new_network = guest.identity('network-policy-v1', REV294)
+        self.assertEqual(new['upstream_renderer_sha256'],
+                         '1be243e7ec92cce823051e217fba2c6ef1a90dcd4f58e6eecdeb156f480c5ba9')
+        self.assertEqual(new['upstream_camera_sha256'], old['upstream_camera_sha256'])
+        self.assertEqual(new['recipe_sha256'], old['recipe_sha256'])
+        self.assertNotEqual(new_network['recipe_sha256'], old_network['recipe_sha256'])
+        self.assertNotIn('reviewed', new_network)
         for recipe in (guest.scale_recipe, guest.filtering_recipe,
                        guest.counting_recipe, guest.presentation_recipe):
             self.assertEqual(recipe(new['upstream_renderer_sha256']),

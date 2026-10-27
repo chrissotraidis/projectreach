@@ -11,7 +11,7 @@ import subprocess
 COMPONENTS = {
     'tomlc17': 'LICENSE', 'expat': 'COPYING', 'kcp': 'LICENSE',
     'zlib': 'LICENSE', 'stb': 'LICENSE', 'smaa': 'LICENSE', 'musl-math': 'COPYRIGHT',
-    'mbedtls': 'LICENSE',
+    'mbedtls': 'LICENSE', 'jsmn': 'LICENSE',
     'opus': 'COPYING', 'stb_vorbis': 'LICENSE', 'miniupnpc': 'LICENSE',
     'english-words': 'LICENSE.md',
 }

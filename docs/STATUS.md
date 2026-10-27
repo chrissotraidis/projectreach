@@ -1,9 +1,91 @@
 # HaloPad status
 
+## HaloPad 0.3.13: OpenCE 294
+
+Validated 2026-10-27. The Xbox edition selects OpenCE build 294
+(`337b05cfdf203e7c3e3d8af0b1b37894c0b5b057`), network version 39. The
+new dedicated-server browser uses a native HTTPS bridge with system certificate
+validation, bounded responses and timeouts, and no redirects. Its signed master
+list still undergoes upstream signature verification. Network filtering, labels,
+join checks and rejection explanations use the engine's exact protocol.
+
+Renderer and shader adaptations are reviewed against the exact source. The
+shader, camera and adapted SDL input sources are unchanged from 273; the new desktop shader
+cache and frame pacing are outside HaloPad's GLES path. Historical adaptation
+identities are retained, and the PC Custom Edition engine is unchanged. Public
+delivery remains source and recipe only, without public app binaries or game data.
+
+**Build validation:** the configured suite runs 529 tests: 512 pass, with 16
+native-package harness tests and one case-sensitive-filesystem test explicitly
+skipped. Native HTTPS tests and network negative controls include ASan/UBSan.
+The full adaptation applies to the exact upstream checkout and restores cleanly;
+independent reviews found no blocking source issues.
+
+Required clean PadMint player checks pass for **iOS and Mac** from source
+`0ece38e`, using current PadMint main `88cda562`, Apple Python 3.9.6, fresh source
+checkouts and empty PadMint folders. They take 196 and 213 seconds respectively.
+Both exported packages pass strict signatures, exact engine/network identity,
+all 36 component notices and all 50 embedded runtime-source hashes. Their guest
+executable code matches; only four diagnostic compilation-timestamp bytes differ.
+
+The [GitHub player build](https://github.com/chrissotraidis/projectreach/actions/runs/40437573228)
+also passes on that exact source. The downloaded 0.3.13/build-6 packages match
+both workflow checksums and pass the same identity, notices and runtime-source
+audits; their guest images are byte-identical. This verifies the hosted build
+route available to Windows and Linux users.
+
+The exact clean-player Mac app passes separate 50-second menu and 65-second a10
+campaign-opening runs, with reviewed rendered frames, zero GL errors, unchanged
+input maps and unchanged save sentinels.
+
+The packaged Mac app also accepts the official master server's signed list of
+18 servers through the new HTTPS bridge, joins a live network-39 dedicated
+match, and records 67 gameplay tick samples during a 90-second run. Its final
+frame shows rendered multiplayer gameplay, with zero GL errors and no crash.
+
+**Physical graphics checks:** the attached M2 iPad Pro runs iPadOS 27.0.1.
+Two full pre-install reads match all 996 files (16,946,245,794 bytes each). The
+0.3.12 baseline and exact clean-player 0.3.13 package are installed in place with
+the same signer and full entitlements. Tests use isolated data and save folders.
+Original graphics (1x resolution, 1x filtering) passes a 75-second a10 opening
+on both versions. The candidate also passes separate 65-second runs at 2x/4x
+(Sharper), 1x/4x and 2x/1x, with rendered frames and zero detected GL errors.
+
+**Physical multiplayer:** the iPad discovers the exact clean-player Mac app
+through Bonjour and downloads the missing Custom Edition Blood Gulch map and
+its three resource maps. The 240-second transfer/match check records 131 Mac
+and 128 iPad samples containing both players, including movement, shooting,
+death and respawn. Both endpoints use Original graphics, stay running until
+explicitly stopped, and report zero GL errors. Reviewed frames show rendered
+terrain, weapons and HUD. All four downloaded files (179,594,477 bytes) match
+the independent originals. A separate 90-second cached rejoin passes with
+50 Mac and 26 iPad two-player samples across the full check, reusing those files without another
+transfer and with zero GL errors on both endpoints.
+
+Final iPad readback preserves all 980 protected preexisting files
+(16,175,736,737 bytes), including normal maps, saves, backups, preferences and
+historical test data. No files are missing and no partial downloads remain.
+Six runtime changes and 17 new native cache/snapshot files are individually
+reviewed and explained. The new test fixture's UI/a10/b30 maps and save sentinel
+match their originals. No HaloPad crash report appears in the post-test device
+crash-log index. The updated app remains installed and stopped. The Mac's 28
+original input maps/resources, both isolated fixture copies and save sentinels
+are also unchanged.
+
+**Open report:** an iPhone 17 Pro Max user reports an Original-only crash on
+iOS 27.2, with Sharper working. No crash report or affected device is available.
+The iPad checks do not reproduce it and do not establish an iPhone-specific fix.
+Keep using Sharper if affected; the cause remains unconfirmed. These bounded
+checks do not establish broad campaign, manual controller/touch, sustained
+thermal/audio or all-device acceptance.
+
+Private validation evidence is retained under `generated/opence-294-validation/`
+and is not committed.
+
 ## HaloPad 0.3.12: OpenCE 273
 
 **Published 2026-10-26:** [HaloPad 0.3.12](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.12)
-is the latest source/recipe release at `96a92cb`. Anonymous latest-release and
+was published as a source/recipe release at `96a92cb`. Anonymous latest-release and
 asset readbacks verify exactly its PadMint recipe and `SHA256SUMS`, byte-identical
 to the audited files. Required pre-publication player checks passed for iOS and
 Mac from that clean source using current PadMint main `d5aab6d`, Apple Python
