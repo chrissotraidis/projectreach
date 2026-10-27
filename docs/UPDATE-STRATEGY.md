@@ -1,5 +1,10 @@
 # HaloPad updates without daily maintainer work
 
+For the current candidate-selection policy and release procedure, use
+[Preparing the next HaloPad update](RELEASE-RUNBOOK.md). The historical designs
+below explain previous experiments; they do not enable public binary delivery
+or replace the clean PadMint and physical-device checks.
+
 ## Current decision, 2026-10-27
 
 ### Network compatibility policy

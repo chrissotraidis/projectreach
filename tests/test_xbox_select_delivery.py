@@ -88,6 +88,47 @@ class SelectionTests(unittest.TestCase):
                     patch.object(select_delivery.subprocess,'run'), self.assertRaises(ValueError):
                 select_delivery.select('workflow_run',self.event,'',self.out,resume_retained=True)
 
+    def test_current_engine_and_same_network_do_not_start_delivery(self):
+        record = {'revision': 'c' * 40, 'release': 'build-294', 'channel': 'latest'}
+        for reason, network in (('current-engine', None),
+                                ('current-engine', {'current': 39, 'upstream': 39}),
+                                ('same-network-version', {'current': 39, 'upstream': 39})):
+            selection = {'build': False, 'candidate': '', 'commit': '',
+                         'record': record, 'reason': reason}
+            if network is not None:
+                selection['network'] = network
+            (self.out/'selection.json').write_text(json.dumps(selection))
+            with self.subTest(reason=reason, network=network), \
+                    patch.object(select_delivery.subprocess, 'check_output', return_value=self.jobs('skipped')), \
+                    patch.object(select_delivery.subprocess, 'run'), \
+                    patch.object(select_delivery.publish_ipa, 'completed') as completion:
+                result = select_delivery.select('workflow_run', self.event, '', self.out, resume_retained=True)
+                self.assertEqual(result, {'ready': 'false', 'tag': '', 'commit': 'a' * 40})
+                completion.assert_not_called()
+
+    def test_invalid_network_skip_is_not_treated_as_a_successful_noop(self):
+        selection = {'build': False, 'candidate': '', 'commit': '',
+                     'record': {'revision': 'c' * 40, 'release': 'build-294'},
+                     'reason': 'same-network-version', 'network': {'current': 39, 'upstream': 39}}
+        changes = ({'build': True}, {'candidate': self.tag}, {'commit': 'b' * 40},
+                   {'reason': 'unknown'}, {'reason': 'network-version-change'},
+                   {'record': None}, {'record': {'revision': 'main', 'release': 'build-294'}},
+                   {'record': {'revision': 'c' * 40, 'release': 'latest'}},
+                   {'network': None}, {'network': {}}, {'network': {'current': 39, 'upstream': 40}},
+                   {'network': {'current': True, 'upstream': True}},
+                   {'network': {'current': 0, 'upstream': 0}},
+                   {'network': {'current': 65536, 'upstream': 65536}},
+                   {'network': {'current': 39, 'upstream': 39, 'extra': 39}})
+        for change in changes:
+            (self.out/'selection.json').write_text(json.dumps({**selection, **change}))
+            with self.subTest(change=change), \
+                    patch.object(select_delivery.subprocess, 'check_output', return_value=self.jobs('skipped')), \
+                    patch.object(select_delivery.subprocess, 'run'), \
+                    patch.object(select_delivery.publish_ipa, 'completed') as completion, \
+                    self.assertRaises(ValueError):
+                select_delivery.select('workflow_run', self.event, '', self.out, resume_retained=True)
+            completion.assert_not_called()
+
     def test_failed_incomplete_missing_or_ambiguous_build_cannot_deliver(self):
         data = json.loads(self.jobs())
         data[-1]['jobs'] *= 2
