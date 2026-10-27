@@ -40,9 +40,26 @@ def select(event_name, event, tag, out, *, resume_retained=False, publish=False)
                             '--name', f'halopad-selection-{number}-{attempt}', '--dir', str(out)],
                            check=True, timeout=120)
             selection = json.loads((out / 'selection.json').read_text())
-            if selection.get('reason') == 'previous-build-failure':
-                if selection['build'] is not False or selection['candidate'] or selection['commit']:
-                    raise ValueError('invalid failed-build selection')
+            reason = selection.get('reason')
+            if reason in ('previous-build-failure', 'current-engine', 'same-network-version'):
+                if (selection.get('build') is not False or selection.get('candidate') != ''
+                        or selection.get('commit') != ''):
+                    raise ValueError('invalid no-candidate selection')
+                if reason != 'previous-build-failure':
+                    record = selection.get('record')
+                    if (not isinstance(record, dict)
+                            or not isinstance(record.get('revision'), str)
+                            or not re.fullmatch(r'[0-9a-f]{40}', record['revision'])
+                            or not isinstance(record.get('release'), str)
+                            or not re.fullmatch(r'build-[0-9]+', record['release'])):
+                        raise ValueError('invalid unchanged-engine record')
+                    network = selection.get('network')
+                    if network is not None or reason == 'same-network-version':
+                        if (not isinstance(network, dict) or set(network) != {'current', 'upstream'}
+                                or any(type(value) is not int or not 1 <= value <= 65535
+                                       for value in network.values())
+                                or network['current'] != network['upstream']):
+                            raise ValueError('invalid unchanged-network selection')
                 return {'ready': 'false', 'tag': '', 'commit': commit}
             tag, commit = selection['candidate'], selection['commit']
             if selection['build'] is not False or not re.fullmatch(r'[0-9a-f]{40}', commit):

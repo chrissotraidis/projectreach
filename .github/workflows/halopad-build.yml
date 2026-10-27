@@ -13,7 +13,7 @@ on:
   repository_dispatch:
     types: [opence-release]
   schedule:
-    - cron: '17 */6 * * *'
+    - cron: '17 * * * *'
 permissions:
   contents: read
 concurrency:
@@ -21,8 +21,8 @@ concurrency:
   cancel-in-progress: false
 jobs:
   delivery-tests:
-    # Players' forks use halopad-player-build.yml; this pipeline needs HaloPad's own secrets.
-    if: github.repository == 'chrissotraidis/projectreach' && (github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true')
+    needs: select
+    if: needs.select.outputs.build == 'true'
     runs-on: ubuntu-latest
     env:
       BUNDLE_GEMFILE: tools/testflight/Gemfile
@@ -38,8 +38,9 @@ jobs:
           bundler-cache: true
       - run: bundle exec ruby tools/testflight/test_delivery.rb
   select:
-    # One-time opt-in stays off until a consumer delivery route is accepted.
-    if: github.repository == 'chrissotraidis/projectreach' && (github.event_name != 'schedule' || vars.HALOPAD_PREVIEW_ENABLED == 'true')
+    # Private candidate checks have their own opt-in, independent of delivery.
+    # Players' forks use halopad-player-build.yml.
+    if: github.repository == 'chrissotraidis/projectreach' && ((github.event_name != 'schedule' && github.event_name != 'repository_dispatch') || vars.HALOPAD_CANDIDATES_ENABLED == 'true')
     runs-on: ubuntu-latest
     permissions:
       # GitHub hides draft releases from read-only tokens, defeating deduplication.
@@ -50,17 +51,24 @@ jobs:
       failure_key: ${{ steps.failed.outputs.cache-primary-key }}
     env:
       GH_TOKEN: ${{ github.token }}
-      ENGINE_CHANNEL: ${{ (github.event_name == 'schedule' || github.event_name == 'repository_dispatch') && 'upstream' || inputs.engine || (github.ref == 'refs/heads/main' && 'upstream' || 'release') }}
+      ENGINE_CHANNEL: ${{ (github.event_name == 'schedule' || github.event_name == 'repository_dispatch') && 'upstream' || inputs.engine || 'release' }}
       SKIP_RETAINED: ${{ github.event_name == 'schedule' || github.event_name == 'repository_dispatch' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+      - name: Validate release inputs and candidate routing
+        run: |
+          python3 scripts/xbox/prepare_release.py --version 0.3.13
+          for pattern in test_xbox_check_update.py test_xbox_build_decision.py \
+              test_xbox_select_delivery.py test_xbox_prepare_release.py; do
+            python3 -m unittest discover -s tests -p "$pattern"
+          done
       - name: Resolve engine once and skip completed upstream work
         id: engine
         run: |
           selection=()
-          if [ "$SKIP_RETAINED" = true ]; then selection=(--skip-retained); fi
+          if [ "$SKIP_RETAINED" = true ]; then selection=(--network-change-only --skip-retained); fi
           python3 scripts/xbox/check_update.py --channel "$ENGINE_CHANNEL" \
             --app-version 0.3.13 "${selection[@]}" > selection.json
       - name: Look up an identical failed automatic build
