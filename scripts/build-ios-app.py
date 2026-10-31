@@ -163,12 +163,52 @@ def compile_icon(app, out, target, minimum):
     else:
         platform = ['--platform', 'iphonesimulator' if 'simulator' in target else 'iphoneos',
                     '--minimum-deployment-target', minimum, '--target-device', 'iphone', '--target-device', 'ipad']
-    subprocess.run([
+    result = subprocess.run([
         'xcrun', 'actool', '--compile', str(app), *platform,
         '--app-icon', 'AppIcon', '--output-partial-info-plist', str(partial),
         str(ROOT / 'assets' / 'Assets.xcassets'),
-    ], check=True, capture_output=True)
-    return plistlib.loads(partial.read_bytes())
+    ], capture_output=True)
+    if result.returncode == 0:
+        return plistlib.loads(partial.read_bytes())
+    # actool can abort (SIGABRT) on a Mac whose Xcode first-launch setup or simulator services
+    # are not ready, after the whole game has compiled (issue padmint#220). The icon is not worth
+    # losing that build for: say why, then give the app plain icon files instead.
+    detail = (result.stderr or result.stdout or b'').decode('utf-8', 'replace').strip()
+    print(f'warning: actool could not compile the app icon (exit {result.returncode}); '
+          'HaloPad uses a plain icon instead. Running "xcodebuild -runFirstLaunch" usually fixes actool.'
+          + (f'\n{detail[-1200:]}' if detail else ''), file=sys.stderr)
+    return plain_icon(app, target)
+
+
+# The plain icons: (file name, pixel size). iPhone and iPad read CFBundleIconFiles; a Mac reads an .icns.
+PLAIN_IOS_ICONS = (('AppIcon60x60@2x.png', 120), ('AppIcon60x60@3x.png', 180),
+                   ('AppIcon76x76@2x~ipad.png', 152), ('AppIcon83.5x83.5@2x~ipad.png', 167))
+PLAIN_MAC_ICONS = tuple((f'icon_{size}x{size}{suffix}.png', size * scale)
+                        for size in (16, 32, 128, 256, 512) for suffix, scale in (('', 1), ('@2x', 2)))
+
+
+def plain_icon(app, target):
+    """Icon files made with macOS's own sips and iconutil, which need no asset catalog compiler."""
+    source = ROOT / 'assets' / 'Assets.xcassets' / 'AppIcon.appiconset' / 'AppIcon.png'
+
+    def scaled(size, path):
+        subprocess.run(['sips', '-z', str(size), str(size), str(source), '--out', str(path)],
+                       check=True, capture_output=True)
+
+    if 'macabi' in target:
+        iconset = app / 'AppIcon.iconset'
+        iconset.mkdir(exist_ok=True)
+        for name, size in PLAIN_MAC_ICONS:
+            scaled(size, iconset / name)
+        subprocess.run(['iconutil', '-c', 'icns', str(iconset), '-o', str(app / 'AppIcon.icns')],
+                       check=True, capture_output=True)
+        shutil.rmtree(iconset)
+        return {'CFBundleIconFile': 'AppIcon'}
+    for name, size in PLAIN_IOS_ICONS:
+        scaled(size, app / name)
+    return {'CFBundleIcons': {'CFBundlePrimaryIcon': {'CFBundleIconFiles': ['AppIcon60x60']}},
+            'CFBundleIcons~ipad': {'CFBundlePrimaryIcon': {
+                'CFBundleIconFiles': ['AppIcon60x60', 'AppIcon76x76', 'AppIcon83.5x83.5']}}}
 
 
 PRODUCT_ID_PATH = 'HKLM\\Software\\Microsoft\\Microsoft Games\\Halo CE'
