@@ -165,6 +165,11 @@ Xbox checkpoints may need a level restart after an engine change.
 
 ## What's new
 
+- **0.3.14: builds finish when Apple's icon tool crashes.** On some Macs, Xcode's
+  `actool` crashed while compiling HaloPad's Mac app icon and stopped the build at
+  its last step ([padmint#220](https://github.com/chrissotraidis/padmint/issues/220)).
+  HaloPad now falls back to a plain app icon and finishes. The Xbox engine is
+  unchanged: still OpenCE 294, network version 39.
 - **0.3.13: OpenCE 294 and network version 39.** Adds native HTTPS
   support for OpenCE's dedicated server browser. Includes upstream's fix for plasma
   rifles and plasma pistols that could not fire in Gun Game, plus the Recon and
