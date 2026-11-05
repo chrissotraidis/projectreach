@@ -112,6 +112,58 @@ class XboxManifestTests(unittest.TestCase):
     def test_exact_pin(self):
         self.assertIn(self.lib, builder.xbox_parts(builder.TARGET))
 
+    def service_record_fixture(self):
+        feature = builder.xbox_runtime_manifest.guest_adaptation.service_record
+        patch.dict(os.environ, {'HALOPAD_SERVICE_RECORD': '1', 'XBOX_REV': feature.REVISION}).start()
+        self.manifest['revision'] = feature.REVISION
+        self.manifest['guest_adaptation'] = builder.xbox_runtime_manifest.guest_adaptation.identity()
+        self.manifest['service_record'] = feature.identity(feature.REVISION)
+        self.save_manifest()
+
+    def test_service_record_links_only_with_matching_opt_in(self):
+        self.service_record_fixture()
+        parts = builder.xbox_parts(builder.TARGET)
+        self.assertIn('-DHALOPAD_SERVICE_RECORD=1', parts)
+        self.assertIn('-lsqlite3', parts)
+        self.assertIn('CoreText', parts)
+        for source in builder.SERVICE_RECORD_SOURCES:
+            self.assertIn(ROOT / 'port/ios' / source, parts)
+
+    def test_default_build_does_not_link_service_record(self):
+        parts = builder.xbox_parts(builder.TARGET)
+        self.assertNotIn('-DHALOPAD_SERVICE_RECORD=1', parts)
+        self.assertNotIn('-lsqlite3', parts)
+
+    def test_service_record_requires_explicit_supported_revision(self):
+        with patch.dict(os.environ, {'HALOPAD_SERVICE_RECORD': '1'}):
+            with self.assertRaisesRegex(ValueError, 'requires explicit XBOX_REV'):
+                builder.xbox_parts(builder.TARGET)
+
+    def test_service_record_missing_library_cannot_fall_back_to_pc(self):
+        self.service_record_fixture()
+        self.lib.unlink()
+        with self.assertRaisesRegex(ValueError, 'Service Record Xbox library is missing'):
+            builder.xbox_parts(builder.TARGET)
+
+    def test_service_record_manifest_mismatch_rejected(self):
+        self.service_record_fixture()
+        self.manifest['service_record']['event_size'] = 319
+        self.save_manifest()
+        with self.assertRaisesRegex(ValueError, 'capability differs'):
+            builder.xbox_parts(builder.TARGET)
+
+    def test_service_record_guest_cannot_be_packaged_without_native_sinks(self):
+        self.service_record_fixture()
+        with patch.dict(os.environ, {'HALOPAD_SERVICE_RECORD': '0'}):
+            with self.assertRaisesRegex(ValueError, 'capability differs'):
+                builder.xbox_parts(builder.TARGET)
+
+    def test_service_record_rejects_pc_only_request(self):
+        self.service_record_fixture()
+        with patch.dict(os.environ, {'HALOPAD_XBOX': 'off'}):
+            with self.assertRaisesRegex(ValueError, 'cannot be off'):
+                builder.xbox_parts(builder.TARGET)
+
     def test_adaptation_requires_explicit_opt_in(self):
         self.manifest['guest_adaptation'] = builder.xbox_runtime_manifest.guest_adaptation.identity('render-scale-v1')
         self.save_manifest()

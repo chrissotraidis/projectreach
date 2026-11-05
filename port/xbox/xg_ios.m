@@ -37,6 +37,9 @@
 #include "xg_ios.h"
 #include "xg_lan.h"
 #include "xg_scancode_names.h"
+#ifndef XG_SERVICE_RECORD
+#define XG_SERVICE_RECORD 0
+#endif
 #if TARGET_OS_SIMULATOR
 #include "xg_audio_capture.h"
 static void audio_capture_flush(void);
@@ -44,8 +47,33 @@ static void audio_capture_flush(void);
 
 void xg_gl_load(void);
 void xg_gl_frame_dump(int width, int height);
+static void pads_start(void);
+static void window_focus_created(void);
 
 struct xg_paths xg_paths;
+
+/* Optional native Service Record sinks. A standalone host rejects rather than
+ * retries events; HaloPad supplies strong definitions when the feature is on.
+ * noinline keeps calls interposable when this source is in a static archive. */
+__attribute__((weak, noinline)) uint32_t xh_host_halopad_progress_kill_v1(
+    uint32_t path, uint32_t path_length, uint32_t event, uint32_t event_length)
+{
+    (void)path; (void)path_length; (void)event; (void)event_length;
+    return 2;
+}
+__attribute__((weak, noinline)) uint32_t xh_host_halopad_progress_menu_v1(
+    uint32_t path, uint32_t path_length, uint32_t kind, uint32_t local_player)
+{
+    (void)path; (void)path_length; (void)kind; (void)local_player;
+    return 0;
+}
+__attribute__((weak, noinline)) uint32_t xh_host_halopad_career_event_v1(
+    uint32_t path, uint32_t path_length, uint32_t event, uint32_t event_length)
+{
+    (void)path; (void)path_length; (void)event; (void)event_length;
+    return 2;
+}
+__attribute__((weak, noinline)) void xg_progress_frame_presented(void) {}
 
 /* ---------- the view */
 
@@ -79,6 +107,8 @@ static pthread_mutex_t layer_lock = PTHREAD_MUTEX_INITIALIZER;
 
 UIView *xg_ios_make_view(CGRect frame)
 {
+	NSCAssert(NSThread.isMainThread, @"Make the game view on the main thread");
+	if (XG_SERVICE_RECORD) pads_start();
 	game_view = [[XGGameView alloc] initWithFrame:frame];
 	/* Apple's software renderer on the Simulator needs only point resolution.
 	 * Physical devices retain their native pixel resolution. */
@@ -430,6 +460,7 @@ long long xh_host_sdl_thread_id(void)
 uint32_t xh_host_sdl_create_window(uint32_t title, int width, int height, long long flags)
 {
 	(void)title; (void)width; (void)height; (void)flags;
+	if (XG_SERVICE_RECORD) window_focus_created();
 	return game_view ? 1 : 0;
 }
 
@@ -630,6 +661,7 @@ int xh_host_sdl_gl_swap_window(uint32_t window)
 	glBindRenderbuffer(GL_RENDERBUFFER, drawable_color);
 	[context presentRenderbuffer:GL_RENDERBUFFER];
 #endif
+	xg_progress_frame_presented();
 	drawable_update();
 #if TARGET_OS_SIMULATOR
 	diagnostic_depth_tick();
@@ -721,11 +753,24 @@ static __strong GCController *pads[PADS + 1];
 static uint8_t pad_announced[PADS + 1];
 static pthread_mutex_t pad_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct xg_touch_input touch_input;
+/* Lifecycle inputs are main-thread-only; the combined state is pad_lock-owned. */
+static int pad_application_active, pad_native_modal_active;
+#include "xg_focus_input.h"
+static struct xg_focus_input pad_focus = XG_FOCUS_INPUT_INITIALIZER;
+#define pad_active (!XG_SERVICE_RECORD || pad_focus.active)
 #include "xg_profile_input.h"
 static struct xg_profile_input touch_profile;
 static float touch_look_x, touch_look_y;
 #include "xg_scoreboard_input.h"
 static struct xg_scoreboard_input touch_scoreboard;
+
+int xg_ios_game_menu_visible(void)
+{
+	pthread_mutex_lock(&pad_lock);
+	int visible = !touch_profile.received || !touch_profile.valid || touch_profile.menu != 0;
+	pthread_mutex_unlock(&pad_lock);
+	return visible;
+}
 
 void xh_host_halopad_input_context_v1(uint32_t menu, uint32_t low, uint32_t high, uint32_t sticks)
 {
@@ -766,7 +811,7 @@ uint32_t xh_host_halopad_network_accepts_v1(uint32_t built_in, uint32_t theirs)
 void xg_ios_scroll_scoreboard(float points)
 {
 	pthread_mutex_lock(&pad_lock);
-	if (touch_input.current.buttons & (1u << SDL_GAMEPAD_BUTTON_BACK))
+	if (pad_active && (touch_input.current.buttons & (1u << SDL_GAMEPAD_BUTTON_BACK)))
 		xg_scoreboard_drag(&touch_scoreboard, points);
 	pthread_mutex_unlock(&pad_lock);
 }
@@ -774,7 +819,7 @@ void xg_ios_scroll_scoreboard(float points)
 void xg_ios_add_touch_look(float dx, float dy)
 {
 	pthread_mutex_lock(&pad_lock);
-	if (isfinite(dx) && isfinite(dy)) { touch_look_x += dx; touch_look_y += dy; }
+	if (pad_active && isfinite(dx) && isfinite(dy)) { touch_look_x += dx; touch_look_y += dy; }
 	pthread_mutex_unlock(&pad_lock);
 }
 
@@ -783,11 +828,63 @@ void xg_ios_add_touch_look(float dx, float dy)
 #define HW_EVENTS 128
 static SDL_Event hw_events[HW_EVENTS];
 static unsigned hw_head, hw_tail;
+/* OpenCE337's remapper requires window focus. Retain a loss until consumed,
+ * even across a rapid resume, independently of the bounded key/mouse queue. */
+
+static void window_focus_created(void)
+{
+	pthread_mutex_lock(&pad_lock);
+	xg_focus_created(&pad_focus);
+	pthread_mutex_unlock(&pad_lock);
+}
+
+static void pads_set_active(int active)
+{
+	NSCAssert(NSThread.isMainThread, @"Window focus follows the UIKit lifecycle");
+	pad_application_active = !!active;
+	active = pad_application_active && !pad_native_modal_active;
+	pthread_mutex_lock(&pad_lock);
+	xg_focus_set(&pad_focus, active);
+	if (!active)
+	{
+		hw_head = hw_tail;
+		xg_profile_cancel(&touch_profile, &touch_input);
+		touch_look_x = touch_look_y = 0;
+		xg_scoreboard_clear(&touch_scoreboard);
+	}
+	pthread_mutex_unlock(&pad_lock);
+}
+
+void xg_ios_set_native_modal_active(int active)
+{
+	if (!XG_SERVICE_RECORD) return;
+	NSCAssert(NSThread.isMainThread, @"Native modal focus follows the UIKit lifecycle");
+	pad_native_modal_active = !!active;
+	/* Dismissal in the background must not restore guest input. */
+	pads_set_active(pad_application_active);
+}
+
+static void pads_start(void)
+{
+	static dispatch_once_t once;
+	static id foreground, background, resigned;
+	dispatch_once(&once, ^{
+		NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+		foreground = [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { (void)note; pads_set_active(1); }];
+		background = [center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { (void)note; pads_set_active(0); }];
+		resigned = [center addObserverForName:UIApplicationWillResignActiveNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) { (void)note; pads_set_active(0); }];
+	});
+	(void)foreground; (void)background; (void)resigned;
+	pads_set_active(UIApplication.sharedApplication.applicationState == UIApplicationStateActive);
+}
 
 static void hw_push(const SDL_Event *e)
 {
 	pthread_mutex_lock(&pad_lock);
-	if (hw_tail - hw_head < HW_EVENTS) hw_events[hw_tail++ % HW_EVENTS] = *e;
+	if (pad_active && hw_tail - hw_head < HW_EVENTS) hw_events[hw_tail++ % HW_EVENTS] = *e;
 	pthread_mutex_unlock(&pad_lock);
 }
 
@@ -855,6 +952,11 @@ static int touch_trace;
 void xg_ios_set_touch_pad(const struct xg_touch_pad *state)
 {
 	pthread_mutex_lock(&pad_lock);
+	if (!pad_active) {
+		xg_profile_cancel(&touch_profile, &touch_input);
+		pthread_mutex_unlock(&pad_lock);
+		return;
+	}
 	if (touch_trace && (state->buttons != touch_input.current.buttons ||
 		fabsf(state->axes[0] - touch_input.current.axes[0]) > 0.1f ||
 		fabsf(state->axes[1] - touch_input.current.axes[1]) > 0.1f ||
@@ -967,18 +1069,22 @@ int xh_host_sdl_gamepad_axis(uint32_t pad, int axis)
 		values[SDL_GAMEPAD_AXIS_LEFT_TRIGGER] = g.leftTrigger.value;
 		values[SDL_GAMEPAD_AXIS_RIGHT_TRIGGER] = g.rightTrigger.value;
 	}
+	pthread_mutex_lock(&pad_lock);
+	if (!pad_active) {
+		pthread_mutex_unlock(&pad_lock);
+		return 0;
+	}
 	if (pad == 1)
 	{
-		pthread_mutex_lock(&pad_lock);
 		if (axis >= 0 && axis < 6)
 			values[axis] = stronger(values[axis], xg_touch_axis(&touch_input, axis));
-		pthread_mutex_unlock(&pad_lock);
 		if (touch_trace && axis >= 0 && axis < 6 && fabsf(values[axis] - traced[axis]) > 0.1f)
 		{
 			fprintf(stderr, "[xbox] touch poll axis=%d value=%.2f\n", axis, values[axis]);
 			traced[axis] = values[axis];
 		}
 	}
+	pthread_mutex_unlock(&pad_lock);
 	return axis >= 0 && axis < 6 ? axis_value(values[axis]) : 0;
 }
 
@@ -1009,12 +1115,13 @@ static int hardware_button(GCExtendedGamepad *g, int button)
 int xh_host_sdl_gamepad_button(uint32_t pad, int button)
 {
 	int pressed = hardware_button(hardware_pad(pad).extendedGamepad, button);
-	if (pad == 1 && button >= 0 && button < 32)
+	pthread_mutex_lock(&pad_lock);
+	if (!pad_active) pressed = 0;
+	else if (pad == 1 && button >= 0 && button < 32)
 	{
-		pthread_mutex_lock(&pad_lock);
 		pressed |= xg_touch_button(&touch_input, button);
-		pthread_mutex_unlock(&pad_lock);
 	}
+	pthread_mutex_unlock(&pad_lock);
 	return pressed;
 }
 
@@ -1038,6 +1145,20 @@ int xh_host_sdl_poll_event(uint32_t event)
 	SDL_Event *out = G(SDL_Event *, event);
 	int index;
 	pthread_mutex_lock(&pad_lock);
+	int focus_active;
+	if (XG_SERVICE_RECORD && xg_focus_next(&pad_focus, &focus_active))
+	{
+		memset(out, 0, sizeof(*out));
+		out->window.type = focus_active ? SDL_EVENT_WINDOW_FOCUS_GAINED : SDL_EVENT_WINDOW_FOCUS_LOST;
+		out->window.timestamp = (Uint64)xh_host_sdl_ticks() * 1000000ull;
+		out->window.windowID = 1;
+		pthread_mutex_unlock(&pad_lock);
+		return 1;
+	}
+	if (!pad_active) {
+		pthread_mutex_unlock(&pad_lock);
+		return 0;
+	}
 	if (hw_head != hw_tail)
 	{
 		*out = hw_events[hw_head++ % HW_EVENTS];
@@ -1077,6 +1198,10 @@ int xh_host_sdl_poll_event(uint32_t event)
 	pthread_mutex_unlock(&pad_lock);
 	pads_refresh();
 	pthread_mutex_lock(&pad_lock);
+	if (!pad_active) {
+		pthread_mutex_unlock(&pad_lock);
+		return 0;
+	}
 	for (index = 1; index <= PADS; index++)
 		if (pads[index] && !pad_announced[index])
 		{

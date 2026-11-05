@@ -31,6 +31,12 @@ void xg_ios_mouse_wheel(float steps);
 int xg_ios_controller_connected(void);
 /* frames presented since the game started (any thread) */
 int xg_ios_frames_presented(void);
+/* Main-thread native sheets temporarily release guest focus and clear queued
+ * input. UIKit foreground/background state remains a separate condition. */
+void xg_ios_set_native_modal_active(int active);
+/* A locked copy from the optional guest input-context bridge. Unknown context
+ * counts as a menu so in-game notifications fail closed. Any thread. */
+int xg_ios_game_menu_visible(void);
 
 /* the Xbox-layout touch gamepad; add it above the game view */
 @interface XGTouchPad : UIView

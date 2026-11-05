@@ -407,6 +407,9 @@ lower-level `scripts/xbox/build-ios.sh` steps.
 [Graphics contract](docs/GRAPHICS-CONTRACT.md) · [D3D9 inventory](docs/D3D9-INVENTORY.md) ·
 [Runtime and networking](docs/G3-RUNTIME.md) · [Rights status](docs/RIGHTS-STATUS.md)
 
+[Experimental Service Record](docs/SERVICE-RECORD.md) documents the opt-in native statistics UI,
+its exact guest revision requirement, local progression policy, and source-only test harness.
+
 ## Credits
 
 HaloPad stands on a lot of other people's work. Thank you to:

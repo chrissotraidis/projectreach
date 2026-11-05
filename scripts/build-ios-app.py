@@ -68,6 +68,21 @@ STATE = ROOT / 'generated' / 'halopad-disk-ios'
 # the Xbox engine, when it was built on this Mac (scripts/xbox/build-ios.sh; docs/XBOX-ENGINE.md)
 XBOX_OUT = ROOT / 'ref' / 'xbox-build' / 'out'
 
+# Original host UI/storage only. No game data or third-party rank images.
+SERVICE_RECORD_SOURCES = (
+    'HPCareerStatsStore.m', 'HPHaloCareerStatsIntegration.m', 'HPHaloCareerStatsModels.m',
+    'HPHaloCareerStatsViewController.m', 'HPHaloMatchHistoryViewController.m',
+    'HPHaloMedalCatalog.m', 'HPHaloMedalOverlay.m', 'HPHaloMedalsViewController.m',
+    'HPHaloProgressStore.m', 'HPHaloProgressViewController.m', 'HPHaloRankProgressModels.m',
+    'HPHaloRankProgressViewController.m', 'HPHaloServiceRecordStyle.m',
+    'HPHaloServiceRecordRanks.m', 'HPHaloTheme.m',
+)
+
+
+def service_record_identity():
+    revision = os.environ.get('XBOX_REV', json.loads((ROOT / 'config/xbox-engine.lock.json').read_text())['revision'])
+    return xbox_runtime_manifest.guest_adaptation.service_record.identity(revision)
+
 def shown(path):
     """A path for messages: relative inside this checkout, absolute for outputs elsewhere."""
     return path.relative_to(ROOT) if path.is_relative_to(ROOT) else path
@@ -104,11 +119,16 @@ def xbox_build_folder(target):
 
 def xbox_parts(target):
     """Link inputs for the launch picker and the Xbox engine, or [] without a local engine build."""
+    service_record = service_record_identity()
     if os.environ.get('HALOPAD_XBOX') == 'off':       # the Windows edition alone (scripts/builder/build.sh)
+        if service_record:
+            raise ValueError('Service Record requires the Xbox edition; HALOPAD_XBOX cannot be off')
         return []
     adaptation = xbox_runtime_manifest.guest_adaptation.identity()
     lib = xbox_build_folder(target) / 'libhalopad-xbox.a'
     if not lib.exists():
+        if service_record:
+            raise ValueError('Service Record Xbox library is missing; build the opted-in guest before packaging')
         if os.environ.get('HALOPAD_XBOX') == 'on':
             raise ValueError('Xbox edition was requested but its library is missing; refusing a PC-only app')
         if adaptation['name'] != 'none':
@@ -133,6 +153,8 @@ def xbox_parts(target):
     expected = os.environ.get('XBOX_REV', revision)
     if manifest['revision'] != expected:
         raise ValueError('Xbox library revision differs from the pin; run scripts/xbox/build-ios.sh')
+    if manifest.get('service_record') != service_record:
+        raise ValueError('Xbox Service Record capability differs or is unrecorded; rebuild with the intended opt-in')
     if manifest.get('guest_adaptation') != adaptation:
         raise ValueError('Xbox guest adaptation differs or is unrecorded; rebuild with the intended adaptation')
     if adaptation['name'] in xbox_runtime_manifest.guest_adaptation.COUNTED_ADAPTATIONS:
@@ -150,9 +172,11 @@ def xbox_parts(target):
     graphics = ['-lc++', '-lz', '-framework', 'Metal', '-framework', 'IOSurface'] if renderer == 'angle-metal' else ['-framework', 'OpenGLES']
     if 'macabi' in target:
         graphics += ['-framework', 'IOKit']
+    feature = ([ROOT / 'port/ios' / name for name in SERVICE_RECORD_SOURCES] +
+               ['-DHALOPAD_SERVICE_RECORD=1', '-lsqlite3', '-framework', 'CoreText']) if service_record else []
     # Security verifies the signed network policy (port/ios/HaloPadXboxNetworkPolicy.h).
     return [ROOT / 'port' / 'ios' / 'HaloPadXbox.m', lib, '-I', str(ROOT / 'port' / 'xbox'), '-I', '/opt/homebrew/include',
-            *graphics, '-framework', 'Security', '-DGLES_SILENCE_DEPRECATION']
+            *graphics, '-framework', 'Security', '-DGLES_SILENCE_DEPRECATION', *feature]
 
 
 def compile_icon(app, out, target, minimum):
