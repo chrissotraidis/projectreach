@@ -85,7 +85,7 @@ Pick the path for the computer you have. Both are free.
 | Mac with Apple silicon | Xbox edition, or both editions | [PadMint](#on-an-apple-silicon-mac) |
 | Windows, Linux, an Intel Mac, or anything else | Xbox edition | [GitHub, in your browser](#on-windows-linux-or-any-computer) |
 
-The published release is [HaloPad 0.3.13](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13),
+The published release is [HaloPad 0.3.14](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.14),
 with OpenCE 294 (network version 39) and dedicated server browsing through native HTTPS.
 
 ### On an Apple silicon Mac
@@ -153,7 +153,7 @@ identity or Apple ID you used before.
   over the old one.
 
 **Online play requires compatible game engines.** Each HaloPad release builds the OpenCE
-revision recorded in `config/xbox-release.json`. HaloPad 0.3.13 builds OpenCE
+revision recorded in `config/xbox-release.json`. HaloPad 0.3.14 builds OpenCE
 294, network version 39. **Updates…** on the edition picker shows your installed
 engine and network version.
 

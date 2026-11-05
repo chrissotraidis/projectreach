@@ -1,5 +1,34 @@
 # HaloPad status
 
+## HaloPad 0.3.14: builds finish when actool crashes
+
+**Published 2026-11-05:** [HaloPad 0.3.14](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.14)
+is released from `cf875b3`. It ships [#37](https://github.com/chrissotraidis/projectreach/pull/37):
+when Xcode's `actool` aborts while compiling the app icon, the build gives the
+app plain icon files and finishes ([padmint#220](https://github.com/chrissotraidis/padmint/issues/220)).
+The engine pin in `config/xbox-release.json` is unchanged from 0.3.13 (OpenCE
+294, `337b05c`, network version 39).
+
+- **Tests:** 599 pass, 25 skipped. `prepare_release.py --version 0.3.14` passes.
+- **Clean PadMint checks** (PadMint main `612bf7a`, Apple Python 3.9, empty
+  folders) passed for iOS and Mac before tagging, with the checkout at `cf875b3`,
+  and after publishing, without a checkout. Both post-publication checks selected
+  public `v0.3.14` at `cf875b3`. They used a labeled placeholder `.iso`
+  because no Halo disc image was on the release Mac: the Xbox-only build checks
+  only that the selected file exists and never reads it.
+- **Package audits** pass for all four packages: strict identity, OpenCE 294,
+  network 39, version 0.3.14/build 1, reviewed renderer sources and notices.
+  Pre-tag Mac and iOS guests are bit-identical; post-publication guests differ
+  only in the three-byte diagnostic build timestamp, with identical executable
+  text.
+- **Release files:** only `HaloPad-v0.3.14-padmint.json` and `SHA256SUMS`,
+  passing PadMint's audit and the private release gate. Anonymous latest-release
+  downloads match the staged files byte for byte.
+- **Not covered:** `actool` did not crash on the release Mac, so the fallback is
+  covered by `tests/test_icon_fallback.py` only. 0.3.14 was not installed on a
+  device; its engine is the one 0.3.13's iPad and Mac checks covered. The
+  iPhone 17 Pro Max Original-graphics report remains open.
+
 ## HaloPad 0.3.13: OpenCE 294
 
 **Published 2026-10-27:** [HaloPad 0.3.13](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.13)
