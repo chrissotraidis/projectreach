@@ -7,6 +7,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -45,7 +46,9 @@ path.write_text(json.dumps(sys.argv[1:]))
 ''')
         self.bin.mkdir(exist_ok=True)
         (self.root / '.venv/bin').mkdir(parents=True)
-        (self.root / '.venv/bin/python').symlink_to(shutil.which('python3'))
+        # /usr/bin/python3 is an Xcode dispatch shim: naming it "python" asks
+        # current Xcode for a removed tool. Link the running interpreter itself.
+        (self.root / '.venv/bin/python').symlink_to(pathlib.Path(sys.executable).resolve())
         self.write('bin/git', '''#!/bin/sh
 [ "$1" = -C ] && shift 2
 case "$1" in
@@ -164,6 +167,14 @@ fi
     def test_adapted_guest_cannot_promote_upstream_pin(self):
         result = self.run_update('--simulator', 'fixture-sim', '--accept',
                                  HALOPAD_XBOX_GUEST_ADAPTATION='render-scale-v1')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('unadapted guest', result.stderr)
+        self.assertEqual(self.events(), [])
+        self.assert_old_pin()
+
+    def test_service_record_guest_cannot_promote_upstream_pin(self):
+        result = self.run_update('--simulator', 'fixture-sim', '--accept',
+                                 HALOPAD_SERVICE_RECORD='1')
         self.assertEqual(result.returncode, 2)
         self.assertIn('unadapted guest', result.stderr)
         self.assertEqual(self.events(), [])

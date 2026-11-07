@@ -25,6 +25,9 @@ _input_spec.loader.exec_module(profile_input)
 _network_spec = importlib.util.spec_from_file_location('network_bridge', pathlib.Path(__file__).with_name('network_bridge.py'))
 network_bridge = importlib.util.module_from_spec(_network_spec)
 _network_spec.loader.exec_module(network_bridge)
+_service_spec = importlib.util.spec_from_file_location('service_record', pathlib.Path(__file__).with_name('service_record.py'))
+service_record = importlib.util.module_from_spec(_service_spec)
+_service_spec.loader.exec_module(service_record)
 
 RENDERER = pathlib.Path('port/linux/src/d3d8_gl.c')
 SOURCE_SHA256 = '5c8c132048b1efaa57d322b9c8a0ef65df07c1755df653c0f1a178ce96831cc6'
@@ -339,12 +342,13 @@ WATER_ADAPTATIONS = ('render-water-v1', *BORDER_ADAPTATIONS)
 
 def identity(name=None, revision=None):
     name = os.environ.get('HALOPAD_XBOX_GUEST_ADAPTATION', 'none') if name is None else name
-    if name == 'none':
-        return {'name': 'none'}
-    if name not in ('render-scale-v1', *QUALITY_ADAPTATIONS):
-        raise ValueError('Unknown HALOPAD_XBOX_GUEST_ADAPTATION')
     if revision is None:
         revision = os.environ.get('XBOX_REV') or json.loads(ENGINE_LOCK.read_text())['revision']
+    service = service_record.identity(revision)
+    if name == 'none':
+        return {'name': 'none', **({'service_record': service} if service else {})}
+    if name not in ('render-scale-v1', *QUALITY_ADAPTATIONS):
+        raise ValueError('Unknown HALOPAD_XBOX_GUEST_ADAPTATION')
     renderer = REVIEWED_RENDERERS.get(revision) or _latest_hash(revision, RENDERER) or SOURCE_SHA256
     recipe = b''.join(scale_recipe(renderer))
     if name in QUALITY_ADAPTATIONS:
@@ -374,6 +378,8 @@ def identity(name=None, revision=None):
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
+    if service:
+        result['service_record'] = service
     return result
 
 
@@ -424,15 +430,17 @@ def adapted_source(original, name='render-scale-v1'):
 
 @contextmanager
 def renderer_adaptation(engine, adaptation):
-    if adaptation['name'] == 'none':
+    if adaptation['name'] == 'none' and 'service_record' not in adaptation:
         yield
         return
     if adaptation != identity(adaptation['name']):
         raise ValueError('Renderer adaptation identity differs from the requested revision/recipe')
-    path = engine / RENDERER
-    original = path.read_bytes()
-    modified = adapted_source(original, adaptation['name'])
-    changes = [(path, original, modified)]
+    changes = []
+    if adaptation['name'] != 'none':
+        path = engine / RENDERER
+        original = path.read_bytes()
+        modified = adapted_source(original, adaptation['name'])
+        changes.append((path, original, modified))
     if adaptation['name'] in BORDER_ADAPTATIONS:
         shader_path = engine / border_sampling.SHADER
         shader = shader_path.read_bytes()
@@ -454,6 +462,8 @@ def renderer_adaptation(engine, adaptation):
         camera_path = engine / CAMERA_SOURCE
         camera = camera_path.read_bytes()
         changes.append((camera_path, camera, adapted_camera(camera)))
+    if 'service_record' in adaptation:
+        changes = service_record.compose_changes(engine, changes)
     try:
         for path, original, modified in changes:
             path.write_bytes(modified)
@@ -467,7 +477,7 @@ def renderer_adaptation(engine, adaptation):
                 # Fresh mtime makes the next unadapted Ninja recompile it.
                 path.write_bytes(original)
         if changed:
-            raise RuntimeError('Renderer changed during build; preserving it for manual review')
+            raise RuntimeError('Guest source changed during build; preserving it for manual review')
 
 
 def build(engine, ndk, compiler, out):
@@ -479,6 +489,10 @@ def build(engine, ndk, compiler, out):
             ['git', 'status', '--porcelain', '--untracked-files=no'], cwd=engine, text=True)
         if dirty:
             raise ValueError('Xbox upstream checkout has local edits; preserve them before rebuilding')
+        if 'service_record' in adaptation:
+            actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=engine, text=True).strip()
+            if actual != adaptation['service_record']['upstream_revision']:
+                raise ValueError('Service Record checkout differs from its explicit reviewed revision')
         subprocess.run(['python3', 'configure.py', '--release', '--android-ndk', str(ndk),
                         '--android-guest-cc', str(compiler)], cwd=engine, check=True,
                        stdout=subprocess.DEVNULL)

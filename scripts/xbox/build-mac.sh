@@ -3,6 +3,10 @@
 #   scripts/xbox/build-mac.sh     -> ref/xbox-build/out/halopad-xbox
 set -eu
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+if [ "${HALOPAD_SERVICE_RECORD:-0}" != 0 ]; then
+    echo "Service Record requires the UIKit host; use scripts/xbox/build-ios.sh --mac for Mac Catalyst" >&2
+    exit 2
+fi
 # Scheduled and manual builds must not rewrite the shared engine concurrently.
 if ! python3 "$ROOT/scripts/xbox/build_lock.py" --check; then
     exec python3 "$ROOT/scripts/xbox/build_lock.py" -- /bin/sh "$0" "$@"

@@ -18,6 +18,15 @@ WORK="$ROOT/ref/xbox-build"
 LLVM=${XBOX_LLVM_BIN:-/opt/homebrew/opt/llvm/bin}
 LOCK="$ROOT/config/xbox-engine.lock.json"
 REV=${XBOX_REV:-}; [ -n "$REV" ] || REV=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['revision'])" "$LOCK")
+# Validate opt-in capabilities before creating a volume or fetching sources.
+if [ "${HALOPAD_SERVICE_RECORD:-0}" != 0 ]; then
+python3 - "$ROOT/scripts/xbox" "$REV" <<'PY'
+import sys
+sys.path.insert(0, sys.argv[1])
+import service_record
+service_record.identity(sys.argv[2])
+PY
+fi
 URL=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['url'])" "$LOCK")
 mkdir -p "$WORK/out" "$WORK/vol"
 

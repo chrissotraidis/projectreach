@@ -26,6 +26,11 @@
 #import "HaloPadXboxNetworkPolicy.h"
 #include "xg_overlay_input.h"
 #include "../runtime/halopad_log.h"
+#if HALOPAD_SERVICE_RECORD
+#import "HPHaloProgressStore.h"
+#import "HPHaloProgressViewController.h"
+#import "HPHaloMedalOverlay.h"
+#endif
 
 #if TARGET_OS_MACCATALYST
 /* On a Mac the keyboard and mouse play the Xbox edition as on a PC: keys go to the engine,
@@ -120,6 +125,19 @@ static NSDictionary *xbox_build(void)
 	return data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : @{};
 }
 
+#if HALOPAD_SERVICE_RECORD
+/* Hide the UI unless the packaged guest explicitly provides the versioned ABI.
+ * The packager also checks the recipe hash and exact upstream revision. */
+static BOOL xbox_supports_service_record(void)
+{
+	NSDictionary *capability = xbox_build()[@"service_record"];
+	return [capability isKindOfClass:NSDictionary.class] &&
+		[capability[@"name"] isEqual:@"service-record-v1"] &&
+		[capability[@"upstream_revision"] isEqual:@"899219cc0a14b03bc12f0517a1e9ee4c37158af8"] &&
+		[capability[@"event_version"] isEqual:@1] && [capability[@"event_size"] isEqual:@320];
+}
+#endif
+
 /* "build 85" for an upstream release tag, else the short revision */
 static NSString *xbox_release(NSDictionary *build)
 {
@@ -211,6 +229,9 @@ static BOOL xbox_backup_saves(NSError **error)
 	UIButton *back_button;
 	NSTimer *fps_timer;
 	BOOL started;
+#if HALOPAD_SERVICE_RECORD
+	UIViewController *service_record;
+#endif
 }
 
 - (void)loadView
@@ -230,6 +251,22 @@ static BOOL xbox_backup_saves(NSError **error)
 	[link_button addTarget:self action:@selector(showLink) forControlEvents:UIControlEventTouchUpInside];
 	[root addSubview:link_button];
 	self.view = root;
+#if HALOPAD_SERVICE_RECORD
+	if (xbox_supports_service_record())
+	{
+		__weak HPXboxViewController *weak = self;
+		service_record = HPHaloProgressControllerMakeWithDismissal(^{
+			HPXboxViewController *owner = weak;
+			if (owner) [owner->pad clearTouchInput];
+			xg_ios_set_native_modal_active(1);
+		}, ^{ xg_ios_set_native_modal_active(0); });
+		[self addChildViewController:service_record];
+		service_record.view.frame = root.bounds;
+		service_record.view.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+		[root insertSubview:service_record.view belowSubview:link_button];
+		[service_record didMoveToParentViewController:self];
+	}
+#endif
 }
 
 - (void)viewSafeAreaInsetsDidChange
@@ -345,7 +382,18 @@ static BOOL xbox_backup_saves(NSError **error)
 		[self configureControllerGuide];
 		[pad refreshControllerVisibility];
 		pad.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+#if HALOPAD_SERVICE_RECORD
+		[self.view insertSubview:pad belowSubview:service_record ? service_record.view : link_button];
+		if (service_record)
+			HPHaloMedalOverlayAttach(self, ^BOOL {
+				HPXboxViewController *owner = weak;
+				return owner && owner->started && owner->pad && owner->pad.inGame &&
+					!xg_ios_game_menu_visible() && !owner->pad.softwareKeyboardVisible &&
+					!owner.presentedViewController && (!owner->import_panel || owner->import_panel.hidden);
+			});
+#else
 		[self.view insertSubview:pad belowSubview:link_button];
+#endif
 		link_button.hidden = YES;
 		fps_timer = [NSTimer scheduledTimerWithTimeInterval:1 repeats:YES block:^(NSTimer *timer) {
 			static int last;
@@ -357,6 +405,9 @@ static BOOL xbox_backup_saves(NSError **error)
 		}];
 	}
 	[NSFileManager.defaultManager createDirectoryAtPath:xbox_saves() withIntermediateDirectories:YES attributes:nil error:nil];
+#if HALOPAD_SERVICE_RECORD
+	if (service_record) HPHaloProgressConfigure(xbox_saves());
+#endif
 	{
 		/* online play's MQTT brokers (network.brokers_file, beside config.toml): written at each
 		   start, as upstream's Android app and desktop updates do. Without it the server browser

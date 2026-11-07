@@ -29,6 +29,15 @@ while [ $# -gt 0 ]; do
 done
 }
 parse_options "$@"
+# Reject an unsupported Service Record request before any downloads/builds.
+if [ "${HALOPAD_SERVICE_RECORD:-0}" != 0 ]; then
+python3 - "$ROOT/scripts/xbox" "$ROOT/config/xbox-engine.lock.json" <<'PY'
+import json, os, sys
+sys.path.insert(0, sys.argv[1])
+import service_record
+service_record.identity(os.environ.get('XBOX_REV') or json.load(open(sys.argv[2]))['revision'])
+PY
+fi
 if [ -n "$LAUNCH" ] && [ "$SDK" != iphonesimulator ]; then
     echo "--launch is Simulator-only; device builds are not installed by this script" >&2
     exit 2
@@ -142,6 +151,7 @@ fi
 SYSROOT=$(xcrun --sdk $XSDK --show-sdk-path)
 CC="xcrun --sdk $XSDK clang -target $TARGET -isysroot $SYSROOT $CATALYST"
 CFLAGS="-O2 -g -Wall -Wno-unused-function -DGLES_SILENCE_DEPRECATION -DXG_BONJOUR=1 -fobjc-arc -I$ROOT/port/xbox -I$OUT -I/opt/homebrew/include $ANGLE_FLAGS"
+[ "${HALOPAD_SERVICE_RECORD:-0}" != 1 ] || CFLAGS="$CFLAGS -DXG_SERVICE_RECORD=1"
 mkdir -p "$OBJ" "$APP"
 for f in xg_memory xg_thread xg_syscall xg_gl xg_posix xg_xiso; do
 	$CC $CFLAGS -I"$INC" -c "$ROOT/port/xbox/$f.c" -o "$OBJ/$f.o"
@@ -193,6 +203,8 @@ manifest = {
         (pathlib.Path(engine) / 'port/linux/include/halo_port_limits.h').read_text().splitlines()
         if line.startswith('#define HALO_PORT_NETWORK_VERSION ')), None),
 }
+if 'service_record' in manifest['guest_adaptation']:
+    manifest['service_record'] = manifest['guest_adaptation']['service_record']
 if sys.argv[4] == 'angle-metal':
     manifest['angle_source'] = json.loads(pathlib.Path(sys.argv[5]).read_text())
     manifest['angle_feature_overrides'] = ['hasTextureSwizzle'] if manifest['sdk'] == 'iphonesimulator' else []

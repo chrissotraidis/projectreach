@@ -2,3 +2,6 @@
 host_halopad_input_context_v1
 host_halopad_network_announce_v1
 host_halopad_network_accepts_v1
+host_halopad_progress_kill_v1
+host_halopad_progress_menu_v1
+host_halopad_career_event_v1
