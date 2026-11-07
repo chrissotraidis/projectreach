@@ -2,11 +2,35 @@
 
 ## HaloPad 0.3.15: OpenCE 343
 
-**Owner acceptance, 2026-11-07:** Chris confirmed the restored combined iPad
-build runs and loads, declined further gameplay testing, and explicitly authorized
-the 0.3.15 source/recipe release. This is launch/load acceptance only. Final clean
-PadMint pre-tag and post-publication checks remain required; their results will
-be recorded with the release.
+**Published 2026-11-07:** [HaloPad 0.3.15](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.15)
+is released from `0e5b7b4`, merging [#41](https://github.com/chrissotraidis/projectreach/pull/41).
+Chris confirmed the restored combined iPad build runs and loads, declined further
+gameplay testing, and explicitly authorized the source/recipe release. This is
+launch/load acceptance only; broader gameplay and multiplayer remain untested.
+
+Final release checks:
+
+| Clean PadMint check | iPhone/iPad | Mac |
+| --- | --- | --- |
+| Before tagging, final clean checkout | 293.35 s — pass | 294.37 s — pass |
+| After publication, no checkout supplied | 309.89 s — pass | 309.86 s — pass |
+
+- All four used current PadMint main `d200545` (0.5.32), Apple Python 3.9.6 and
+  empty folders. The existing clean `padmint` checkout was used; unrelated work
+  in `padforge` was preserved. A labeled placeholder disc exercises the Xbox-only
+  build route, which does not read disc contents; players import their real disc.
+- Both public checks selected `v0.3.15` at `0e5b7b4`. Strict pre/post package
+  audits pass for 0.3.15/build 1, OpenCE 343/network 41, signatures, all 50
+  runtime-source hashes, renderer/adaptation identities and 37 notices. Pre-tag
+  Mac/iOS guests differ only in one diagnostic timestamp byte; post-publication
+  guests are byte-identical.
+- Public assets are only `HaloPad-v0.3.15-padmint.json` and `SHA256SUMS`.
+  PadMint's content audit passes for staged files and anonymous downloads, which
+  match byte-for-byte. The public latest release resolves to `v0.3.15`.
+- Private packages, logs, receipts and retained temporary player-check checkout
+  paths are in `generated/release-0.3.15-final/`. Discord copy and generated
+  artwork are saved there separately for the owner to post; neither personal
+  apps nor game data were uploaded. The combined 0.3.15/build 2 remains on iPad.
 
 **Upstream review, 2026-11-07:** the latest published OpenCE is
 [build 343](https://github.com/OpenCommunityEdition/OpenCE/releases/tag/build-343),
@@ -55,12 +79,13 @@ Validation:
   The auditor ran from `4da90e5` with this status-document update uncommitted;
   all audited runtime inputs match the clean build source.
 - `prepare_release.py --version 0.3.15` passes. Independent code review found no
-  actionable issue. Device installation is recorded below; gameplay, consumer
-  sideloading, tagging, publication and post-publication checks remain unperformed.
+  actionable issue. These were candidate checks; final publication checks are
+  recorded above, and device installation is recorded below. Broader gameplay
+  and consumer sideloading remain untested.
 
 Private packages, test logs, audit receipt and retained clean-build checkout paths
 are under `generated/opence-343-review/` (`player-check-paths.json`). These are
-engineering candidate results; rerun the release gates on the final release source.
+engineering candidate results, separate from the final release gates above.
 
 **Initial iPad installation, 2026-11-07 — wrong edition selection:** the audited
 0.3.15/build 1 IPA was Xbox-only, while the owner's installed 0.3.13 included
@@ -116,8 +141,8 @@ iPad and deferred the wider gameplay checklist. He subsequently confirmed that
 the combined app runs and loads and authorized release without further testing.
 Campaign progression, both graphics modes, controller/touch feel, cross-device
 multiplayer, fresh map transfer and public-server account linking remain separate
-untested coverage. Follow [the release runbook](RELEASE-RUNBOOK.md) for final
-pre-tag and post-publication checks.
+untested coverage. The [release runbook](RELEASE-RUNBOOK.md)'s final pre-tag and
+post-publication checks passed as recorded above.
 
 ## HaloPad 0.3.14: builds finish when actool crashes
 
