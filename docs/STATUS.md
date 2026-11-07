@@ -21,14 +21,47 @@ compatibility rendering paths are preserved. Server-browser intake now uses the
 same exact-version rule as sorting, labels and joining. Dedicated-server-only
 version references remain excluded by checked source hashes and compile guards.
 The separate Custom Edition 1.10 engine and the historical build-125 rollback pin
-are unchanged. The unrelated Service Record contribution is not included.
+are unchanged.
 
-Validation is in progress. This is not a published release or gameplay acceptance.
-Before release, check campaign load, Original/Sharper graphics, touch/controller
+Validation:
+
+- **502 tests pass** with Apple Python 3.9.6: 476 Xbox, 23 builder-update and 3
+  icon-fallback tests. The exact-source renderer test ran (it was not skipped).
+- The full nine-file adaptation applies to the exact 343 sources with latest
+  mode disabled and restores all source bytes. All 88 supported historical
+  adaptation identities are unchanged. Native boundary and actual adapted
+  resolution-selection tests run with AddressSanitizer/UndefinedBehaviorSanitizer.
+- The reviewed guest compiles and translates successfully: 1,141,017 instructions,
+  233 host imports. New imports cover text input, opening a server-account link,
+  render policy and upstream-overlay device status. HaloPad keeps its own touch
+  bridge and game/controller keyboard. The new GT7 tone-mapping MIT notice is
+  collected from upstream.
+- **Clean PadMint checks pass** from committed source `4da90e5`: iOS in
+  253.48 seconds, Mac in 254.16 seconds. Both used current PadMint main `d200545`
+  (0.5.32), Apple Python 3.9.6 and separate empty folders. The existing clean
+  `padmint` checkout was used because `padforge` has unrelated branch work.
+  A clearly labeled placeholder `.iso` was used: the Xbox-only builder never
+  reads its contents; players import real game data after installation.
+- **Strict package audits pass** for both 0.3.15/build 1 archives: OpenCE 343,
+  network 41, signatures, all 50 runtime-source hashes, reviewed renderer/camera/
+  shader identities, counted visibility metadata and 37 component notices.
+  Mac/iOS guest code is identical; only three diagnostic timestamp bytes differ.
+  The auditor ran from `4da90e5` with this status-document update uncommitted;
+  all audited runtime inputs match the clean build source.
+- `prepare_release.py --version 0.3.15` passes. Independent code review found no
+  actionable issue. No device installation, gameplay, consumer signing, tag,
+  publication or post-publication check has been performed.
+
+Private packages, test logs, audit receipt and retained clean-build checkout paths
+are under `generated/opence-343-review/` (`player-check-paths.json`). These are
+engineering candidate results; rerun the release gates on the final release source.
+
+This is not a published release or gameplay acceptance. Before release, check
+campaign load, Original/Sharper graphics, touch/controller
 input, matching Mac/iPad multiplayer, fresh map transfer and cached rejoin, public
 network-41 servers and account linking where required. Preserve/read back saves
-before any in-place device update. Clean PadMint checks and strict package audits
-remain required by [the release runbook](RELEASE-RUNBOOK.md).
+before any in-place device update. Follow [the release runbook](RELEASE-RUNBOOK.md)
+for final pre-tag and post-publication checks.
 
 ## HaloPad 0.3.14: builds finish when actool crashes
 
