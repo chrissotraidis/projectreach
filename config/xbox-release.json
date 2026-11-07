@@ -1,5 +1,5 @@
 {
-  "revision": "337b05cfdf203e7c3e3d8af0b1b37894c0b5b057",
-  "release": "build-294",
-  "note": "OpenCE build 294, network version 39. See docs/STATUS.md for validation. Moving upstream releases do not change this record."
+  "revision": "fc9deb0b10eaae1d62caedb0710968b4e77e6e16",
+  "release": "build-343",
+  "note": "OpenCE build 343, network version 41. HaloPad 0.3.15; see docs/STATUS.md for validation and untested coverage. Moving upstream releases do not change this record."
 }

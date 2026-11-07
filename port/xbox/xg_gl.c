@@ -271,6 +271,11 @@ void xh_host_android_path(int which, uint32_t buffer, uint32_t size)
 	copy_out(buffer, size, which ? xg_paths.save_root : xg_paths.data_root);
 }
 
+/* OpenCE 343's SoC classification is Android-specific. Unknown (0) retains
+ * the geometry and Custom Edition texture compatibility paths that this
+ * translated guest used before chip-specific selection was introduced. */
+int xh_host_android_chip_family(void) { return 0; }
+
 /* XG_FRAME_DUMP=<path>: every XG_FRAME_DUMP_SECONDS (default 5), the frame
  * about to be shown (the platform drawable) is written to <path> as a PPM
  * image, for testing without capturing anything else on screen */

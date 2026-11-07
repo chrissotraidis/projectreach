@@ -23,12 +23,16 @@ GLES_273_SHADER_SHA256 = '2a5d0ccb8786b85f596934d062f1d4200b3d0866542bbb127a54f4
 # pixel shader generator remain unchanged from 273.
 GLES_294_RENDERER_SHA256 = '1be243e7ec92cce823051e217fba2c6ef1a90dcd4f58e6eecdeb156f480c5ba9'
 GLES_294_SHADER_SHA256 = GLES_273_SHADER_SHA256
+# Build343 retains the sampler, border-uniform and query layouts. Its shader
+# handles desktop reversed depth; GLES keeps the original depth convention.
+GLES_343_RENDERER_SHA256 = '8c274dfe13af0dd9040bc66bfb0e099394ea4e648f2ac6c9ce4edfa10cdd7617'
+GLES_343_SHADER_SHA256 = '75e20e1caaa2c2206e40a11d8ddf2c6cd400d5d49dd5180dc57aefd5822a9e2b'
 
 
 def is_gles_244_family(renderer):
     """Reviewed renderers sharing 244's query, HDR and sampler layout."""
     return renderer in (GLES_244_RENDERER_SHA256, GLES_273_RENDERER_SHA256,
-                        GLES_294_RENDERER_SHA256)
+                        GLES_294_RENDERER_SHA256, GLES_343_RENDERER_SHA256)
 
 
 def is_gles(renderer):
@@ -36,6 +40,8 @@ def is_gles(renderer):
 
 
 def shader_hash(renderer):
+    if renderer == GLES_343_RENDERER_SHA256:
+        return GLES_343_SHADER_SHA256
     if renderer == GLES_294_RENDERER_SHA256:
         return GLES_294_SHADER_SHA256
     if renderer == GLES_273_RENDERER_SHA256:

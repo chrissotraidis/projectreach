@@ -68,10 +68,14 @@ class CollectionTests(unittest.TestCase):
         notices.validate(result, text, SELECTED['revision'])
 
     def test_missing_known_license_fails_before_output(self):
-        (self.engine / 'port/third_party/expat').mkdir()
-        with self.assertRaises(FileNotFoundError):
-            self.collect()
-        self.assertFalse(self.out.exists())
+        for component in ('expat', 'gt7_tone_mapping'):
+            with self.subTest(component=component):
+                directory = self.engine / 'port/third_party' / component
+                directory.mkdir()
+                with self.assertRaises(FileNotFoundError):
+                    self.collect()
+                self.assertFalse(self.out.exists())
+                directory.rmdir()
 
     def test_current_engine_license_and_additional_notices_follow_selected_checkout(self):
         (self.engine / 'LICENSE.md').unlink()
@@ -79,7 +83,7 @@ class CollectionTests(unittest.TestCase):
         self.put(self.engine, 'LICENSES/CC0-1.0.txt', 'Retained CC0 fixture notice\n')
         self.put(self.engine, 'port/assets/icons/lucide/LICENSE', 'Lucide fixture permission\n')
         self.put(self.engine, 'port/assets/text_filter/README.md', 'MIT License\nCopyright Surge AI fixture\n')
-        for component in ('opus', 'stb_vorbis', 'miniupnpc', 'english-words', 'jsmn'):
+        for component in ('opus', 'stb_vorbis', 'miniupnpc', 'english-words', 'jsmn', 'gt7_tone_mapping'):
             self.put(self.engine, f'port/third_party/{component}/{notices.COMPONENTS[component]}',
                      f'{component} fixture permission\n')
         result = self.collect()
@@ -91,8 +95,12 @@ class CollectionTests(unittest.TestCase):
         self.assertIn(b'Retained CC0 fixture notice', text)
         self.assertIn(b'Lucide fixture permission', text)
         self.assertIn(b'Copyright Surge AI fixture', text)
-        for component in ('opus', 'stb_vorbis', 'miniupnpc', 'english-words', 'jsmn'):
+        for component in ('opus', 'stb_vorbis', 'miniupnpc', 'english-words', 'jsmn', 'gt7_tone_mapping'):
             self.assertIn(f'{component} fixture permission'.encode(), text)
+            source = f'OpenCE/port/third_party/{component}/{notices.COMPONENTS[component]}'
+            row = next(row for row in result['components'] if row['source'] == source)
+            self.assertEqual(row['source_sha256'], hashlib.sha256(
+                (self.engine / source.removeprefix('OpenCE/')).read_bytes()).hexdigest())
         notices.validate(result, text, SELECTED['revision'])
 
     def test_missing_engine_license_fails_before_output(self):

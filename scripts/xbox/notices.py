@@ -13,7 +13,7 @@ COMPONENTS = {
     'zlib': 'LICENSE', 'stb': 'LICENSE', 'smaa': 'LICENSE', 'musl-math': 'COPYRIGHT',
     'mbedtls': 'LICENSE', 'jsmn': 'LICENSE',
     'opus': 'COPYING', 'stb_vorbis': 'LICENSE', 'miniupnpc': 'LICENSE',
-    'english-words': 'LICENSE.md',
+    'english-words': 'LICENSE.md', 'gt7_tone_mapping': 'LICENSE',
 }
 CHROMIUM_REFERENCE = 'https://chromium.googlesource.com/chromium/src/+/2f2268b0cfbce9d99583621ac14b984528b15cd0/LICENSE'
 

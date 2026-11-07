@@ -1,5 +1,124 @@
 # HaloPad status
 
+## HaloPad 0.3.15: OpenCE 343
+
+**Owner acceptance, 2026-11-07:** Chris confirmed the restored combined iPad
+build runs and loads, declined further gameplay testing, and explicitly authorized
+the 0.3.15 source/recipe release. This is launch/load acceptance only. Final clean
+PadMint pre-tag and post-publication checks remain required; their results will
+be recorded with the release.
+
+**Upstream review, 2026-11-07:** the latest published OpenCE is
+[build 343](https://github.com/OpenCommunityEdition/OpenCE/releases/tag/build-343),
+`fc9deb0b10eaae1d62caedb0710968b4e77e6e16`, network version 41. Previous HaloPad
+0.3.14 uses build 294/network 39. The new engine is necessary for current
+OpenCE multiplayer: network 40 adds server admission/account-pass messages and
+41 adds voting messages. A policy refresh cannot implement those changes.
+
+The automatic [build-343 attempt](https://github.com/chrissotraidis/projectreach/actions/runs/42206656471)
+failed at the renderer adapter's guarded sampler insertion. The failure cache
+then correctly suppressed unchanged retries; the later successful selector runs
+were not successful engine builds.
+
+The 0.3.15 source pins the exact release and updates the native bridge,
+renderer/camera/shader review and network browser adaptation. Original/Sharper
+remain fixed at HaloPad's selected scale; upstream's GLES depth convention and
+compatibility rendering paths are preserved. Server-browser intake now uses the
+same exact-version rule as sorting, labels and joining. Dedicated-server-only
+version references remain excluded by checked source hashes and compile guards.
+The separate Custom Edition 1.10 engine and the historical build-125 rollback pin
+are unchanged.
+
+Validation:
+
+- **502 tests pass** with Apple Python 3.9.6: 476 Xbox, 23 builder-update and 3
+  icon-fallback tests. The exact-source renderer test ran (it was not skipped).
+- The full nine-file adaptation applies to the exact 343 sources with latest
+  mode disabled and restores all source bytes. All 88 supported historical
+  adaptation identities are unchanged. Native boundary and actual adapted
+  resolution-selection tests run with AddressSanitizer/UndefinedBehaviorSanitizer.
+- The reviewed guest compiles and translates successfully: 1,141,017 instructions,
+  233 host imports. New imports cover text input, opening a server-account link,
+  render policy and upstream-overlay device status. HaloPad keeps its own touch
+  bridge and game/controller keyboard. The new GT7 tone-mapping MIT notice is
+  collected from upstream.
+- **Clean PadMint checks pass** from committed source `4da90e5`: iOS in
+  253.48 seconds, Mac in 254.16 seconds. Both used current PadMint main `d200545`
+  (0.5.32), Apple Python 3.9.6 and separate empty folders. The existing clean
+  `padmint` checkout was used because `padforge` has unrelated branch work.
+  A clearly labeled placeholder `.iso` was used: the Xbox-only builder never
+  reads its contents; players import real game data after installation.
+- **Strict package audits pass** for both 0.3.15/build 1 archives: OpenCE 343,
+  network 41, signatures, all 50 runtime-source hashes, reviewed renderer/camera/
+  shader identities, counted visibility metadata and 37 component notices.
+  Mac/iOS guest code is identical; only three diagnostic timestamp bytes differ.
+  The auditor ran from `4da90e5` with this status-document update uncommitted;
+  all audited runtime inputs match the clean build source.
+- `prepare_release.py --version 0.3.15` passes. Independent code review found no
+  actionable issue. Device installation is recorded below; gameplay, consumer
+  sideloading, tagging, publication and post-publication checks remain unperformed.
+
+Private packages, test logs, audit receipt and retained clean-build checkout paths
+are under `generated/opence-343-review/` (`player-check-paths.json`). These are
+engineering candidate results; rerun the release gates on the final release source.
+
+**Initial iPad installation, 2026-11-07 — wrong edition selection:** the audited
+0.3.15/build 1 IPA was Xbox-only, while the owner's installed 0.3.13 included
+both editions. Installing it removed access to Custom Edition despite preserving
+the PC game files and saves. The ready Xbox picker alone was insufficient
+validation; the owner caught the missing Custom Edition engine. The IPA
+was signed with the existing development identity/profile and installed over
+0.3.13 without uninstalling. The original IPA still matches its audited SHA-256.
+Installed-app readback reports 0.3.15/build 1. A normal launch reaches the edition
+picker, visibly showing **OpenCE build 343 · Metal**, **Ready to play**, Original
+graphics and **Play Xbox**, but Custom Edition showed **Not included in this build**;
+no game or multiplayer session has been started during this installation.
+
+- A full private backup of Documents and accessible Library contains 1,125 files
+  (22.37 GB), with a SHA-256 manifest and matching remote file sizes.
+- Independent readback of the 111 active save/config/Library files matches the
+  backup before installation and matches again after installation, before launch.
+- All 1,068 Documents files retain their paths, sizes and modification times.
+  Imported map files were inventoried; their contents were not copied a third time.
+- Evidence and the preserved backup are in
+  `generated/opence-343-review/ipad-install/installation-receipt.json` and its
+  adjacent files. Nothing from that private directory is committed or uploaded.
+
+The device installer now checks for existing Custom Edition game files before
+signing an Xbox-only replacement and refuses the downgrade. Unreadable device
+information also stops installation; `--allow-edition-removal` is the explicit
+override for a deliberate switch. Fourteen installer tests and six archive
+extraction tests pass with Apple Python 3.9. The read-only check also correctly
+refuses the Xbox-only app on this physical iPad.
+
+**Restored both editions, 2026-11-07:** a personal combined 0.3.15/build 2
+was rebuilt and installed in place. The native Custom Edition 1.10 engine and
+OpenCE 343 are both present; a normal iPad launch visibly shows **Ready to play**
+and enabled **Play Custom Edition** / **Play Xbox** buttons. The existing PC game
+folder was recognized without reimporting it. No gameplay session was started.
+
+- All 78 preserved PC stock files match the new core identity; native inputs,
+  bundled data, arm64 architecture, signature and memory entitlements pass.
+- The combined app's Xbox payload and metadata exactly match the audited 343
+  iOS package, including all 50 runtime-source hashes and 37 component notices.
+- A refreshed pre-install backup preserves 135 save/config/Library files.
+  After installation, 130 match byte-for-byte; the only five changes are iPadOS
+  SplashBoard screenshot caches. Game saves and settings are unchanged.
+- All 1,128 pre-existing Documents files retain their paths, sizes and
+  modification times. The only added file is the matching private prepared-data
+  package. The original full backup remains available.
+- Private build/audit/install records and `picker-combined.png` are retained
+  under `generated/combined-restore/`. This personal combined build is separate
+  from the earlier clean Xbox-only PadMint release-gate checks.
+
+**Owner direction, 2026-11-07:** Chris chose a quick validation on his hardware
+iPad and deferred the wider gameplay checklist. He subsequently confirmed that
+the combined app runs and loads and authorized release without further testing.
+Campaign progression, both graphics modes, controller/touch feel, cross-device
+multiplayer, fresh map transfer and public-server account linking remain separate
+untested coverage. Follow [the release runbook](RELEASE-RUNBOOK.md) for final
+pre-tag and post-publication checks.
+
 ## HaloPad 0.3.14: builds finish when actool crashes
 
 **Published 2026-11-05:** [HaloPad 0.3.14](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.14)

@@ -73,12 +73,14 @@ elif name != 'device_profile.py':
     def test_failed_build_does_not_install_reported_path(self):
         self.run_install('17.4', build_exit=1)
 
-    def run_prebuilt(self, edition, package=False, sign_exit=0, ipa=False, check_only=False, unsafe=False):
+    def run_prebuilt(self, edition, package=False, sign_exit=0, ipa=False, check_only=False, unsafe=False,
+                     installed='none', allow_removal=False):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             (root / 'scripts').mkdir()
             shutil.copy2(ROOT / 'scripts/install-device.sh', root / 'scripts/install-device.sh')
             shutil.copy2(ROOT / 'scripts/extract-ipa.py', root / 'scripts/extract-ipa.py')
+            shutil.copy2(ROOT / 'scripts/device_editions.py', root / 'scripts/device_editions.py')
             app = root / 'input with spaces/HaloPad.app'
             (app / 'data').mkdir(parents=True)
             (app / 'Info.plist').write_bytes(plistlib.dumps({
@@ -102,14 +104,41 @@ name = Path(sys.argv[1]).name
 if name == 'sign-app.py':
     Path(os.environ['TEST_SIGNED']).write_text(sys.argv[2])
     sys.exit(int(os.environ['TEST_SIGN_EXIT']))
-if name == 'extract-ipa.py':
+if name in ('extract-ipa.py', 'device_editions.py'):
     os.execv(sys.executable, [sys.executable, *sys.argv[1:]])
 if name != 'device_profile.py':
     sys.exit('unexpected build or package step: ' + name)
 ''')
             py.chmod(0o755)
             xcrun = py.parent / 'xcrun'
-            xcrun.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$TEST_INSTALL"\n')
+            xcrun.write_text(f'''#!{sys.executable}
+import json, os, sys
+from pathlib import Path
+args = sys.argv[1:]
+if args[:3] == ['devicectl', 'device', 'info']:
+    state = os.environ['TEST_EXISTING_EDITION']
+    if state == 'unreadable':
+        sys.exit('device is unavailable')
+    output = Path(args[args.index('--json-output') + 1])
+    if state == 'malformed':
+        output.write_text('{{"result":{{"apps":{{}}}}}}')
+    elif args[3] == 'apps':
+        apps = [] if state == 'none' else [{{'bundleIdentifier': 'dev.halopad.HaloPad'}}]
+        output.write_text(json.dumps({{'result': {{'apps': apps}}}}))
+    else:
+        directory = args[args.index('--subdirectory') + 1]
+        files = []
+        if state == 'malformed-files':
+            files = [{{'relativePath': 'Halo Custom Edition', 'resources': {{'isDirectory': 'false'}}}}]
+        elif directory == 'Documents' and state in ('pc', 'empty'):
+            files = [{{'relativePath': 'Halo Custom Edition', 'resources': {{'isDirectory': True}}}}]
+        elif directory == 'Documents/Halo Custom Edition' and state == 'pc':
+            files = [{{'relativePath': 'haloce.exe', 'resources': {{'isDirectory': False}}}}]
+        output.write_text(json.dumps({{'result': {{'files': files}}}}))
+else:
+    with Path(os.environ['TEST_INSTALL']).open('a') as stream:
+        stream.write(' '.join(args) + '\\n')
+''')
             xcrun.chmod(0o755)
             arguments = []
             source_args = ['--app', str(app)]
@@ -124,18 +153,23 @@ if name != 'device_profile.py':
                 source_args = ['--ipa', str(archive)]
             if check_only:
                 arguments += ['--check-only']
+            if allow_removal:
+                arguments += ['--allow-edition-removal']
             if package:
                 path = root / 'matching.halopad.zip'
                 path.write_text('fixture')
                 arguments += ['--package', str(path)]
             env = dict(os.environ, PATH=f'{py.parent}:{os.environ["PATH"]}',
                        TEST_SIGNED=str(root / 'signed'), TEST_SIGN_EXIT=str(sign_exit),
+                       TEST_EXISTING_EDITION=installed,
                        TEST_INSTALL=str(root / 'installed'), TMPDIR=str(root))
             result = subprocess.run(['/bin/bash', str(root / 'scripts/install-device.sh'),
                                      '--identity', 'fixture', '--profile', str(root / 'profile'),
                                      '--device', 'fixture', *source_args, *arguments],
                                     env=env, capture_output=True, text=True)
-            success = (edition == 'xbox' or package) and not sign_exit and not unsafe
+            edition_blocked = (edition == 'xbox' and not allow_removal and not check_only
+                               and installed in ('pc', 'unreadable', 'malformed', 'malformed-files'))
+            success = (edition == 'xbox' or package) and not sign_exit and not unsafe and not edition_blocked
             if success:
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 staged = Path((root / 'signed').read_text())
@@ -153,6 +187,11 @@ if name != 'device_profile.py':
             else:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse((root / 'installed').exists())
+                if edition_blocked:
+                    self.assertFalse((root / 'signed').exists(), 'edition loss must stop before signing')
+                    self.assertIn('Edition preservation check failed', result.stderr)
+                    if installed == 'pc':
+                        self.assertIn('combined PC/Xbox build', result.stderr)
 
     def test_xbox_only_installs_without_pc_package(self):
         self.run_prebuilt('xbox')
@@ -179,6 +218,26 @@ if name != 'device_profile.py':
 
     def test_unsafe_ipa_is_rejected_before_signing(self):
         self.run_prebuilt('xbox', ipa=True, unsafe=True)
+
+    def test_xbox_update_preserves_existing_custom_edition_access(self):
+        for ipa in (False, True):
+            with self.subTest(ipa=ipa):
+                self.run_prebuilt('xbox', ipa=ipa, installed='pc')
+                self.run_prebuilt('xbox', ipa=ipa, installed='pc', allow_removal=True)
+
+    def test_xbox_update_allows_fresh_xbox_and_empty_pc_folder(self):
+        for installed in ('none', 'xbox', 'empty'):
+            with self.subTest(installed=installed):
+                self.run_prebuilt('xbox', installed=installed)
+
+    def test_unreadable_device_does_not_mean_custom_edition_is_absent(self):
+        for installed in ('unreadable', 'malformed', 'malformed-files'):
+            with self.subTest(installed=installed):
+                self.run_prebuilt('xbox', installed=installed)
+
+    def test_offline_preflight_and_combined_update_keep_existing_behavior(self):
+        self.run_prebuilt('xbox', installed='unreadable', check_only=True)
+        self.run_prebuilt('combined', package=True, installed='pc')
 
 
 if __name__ == '__main__':

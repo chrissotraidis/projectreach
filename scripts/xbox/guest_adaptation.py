@@ -63,6 +63,11 @@ REVIEWED_RENDERERS = {
     # intact; its new browser requires the separately reviewed network bridge.
     '337b05cfdf203e7c3e3d8af0b1b37894c0b5b057':
         border_sampling.GLES_294_RENDERER_SHA256,
+    # Build343 retains border/filter/count/present anchors and adds Android
+    # resolution selection. Preserve upstream's pooled/static geometry and
+    # visibility sequence bookkeeping; reversed depth stays desktop-only.
+    'fc9deb0b10eaae1d62caedb0710968b4e77e6e16':
+        border_sampling.GLES_343_RENDERER_SHA256,
 }
 ENGINE_LOCK = pathlib.Path(__file__).resolve().parents[2] / 'config/xbox-engine.lock.json'
 ENGINE_CHECKOUT = pathlib.Path(__file__).resolve().parents[2] / 'ref/xbox-build/vol/engine'
@@ -96,9 +101,26 @@ INSERT = b'''\t/* HaloPad private experiment: retain logical layout, scale only 
 '''
 SCALE_244_ANCHOR = b'\tscale[0] = scale[1] = 1.0f;\n\tscreen_supersampling = 1.0f;\n#else\n'
 SCALE_244_INSERT = INSERT + b'\tscreen_supersampling = scale[1];\n'
+# Build343 can select the window's native resolution. The native HaloPad
+# quality picker supplies an explicit 1/2 scale; keep that choice authoritative
+# over copied upstream settings while leaving an unset override to upstream.
+SCALE_343_ANCHOR = b'\tif (part <= 0.0f)\n\t\treturn;\n'
+SCALE_343_INSERT = b'''\t/* HaloPad's Original/Sharper choice keeps the game's logical size. */
+\t{
+\t\tconst char *requested = getenv("HALO_TEST_RENDER_SCALE");
+\t\tif (requested && (!strcmp(requested, "1") || !strcmp(requested, "2")))
+\t\t{
+\t\t\tscale[0] = scale[1] = !strcmp(requested, "2") ? 2.0f : 1.0f;
+\t\t\tscreen_supersampling = scale[1];
+\t\t\treturn;
+\t\t}
+\t}
+'''
 
 
 def scale_recipe(renderer):
+    if renderer == border_sampling.GLES_343_RENDERER_SHA256:
+        return SCALE_343_ANCHOR, SCALE_343_INSERT
     if border_sampling.is_gles_244_family(renderer):
         return SCALE_244_ANCHOR, SCALE_244_INSERT
     return ANCHOR, INSERT
@@ -296,6 +318,10 @@ REVIEWED_CAMERA = {
     # Build294 leaves the camera and its Android guard unchanged.
     '337b05cfdf203e7c3e3d8af0b1b37894c0b5b057':
         'c65fa8916f7a40e8c77f7fa4a56138b8402a9ca13e7bb068e09660174ec4d16a',
+    # Build343 fixes weapon-pose interpolation and drawn nav-marker positions;
+    # the direct-camera guard and first-person selection remain unchanged.
+    'fc9deb0b10eaae1d62caedb0710968b4e77e6e16':
+        'c132ab5846cc0154ea9ae5656a15437d484aef6e5dec04eb7d8c76eb1ff9f9dc',
 }
 CAMERA_ANCHOR = b'#ifdef HALO_ANDROID\n\t(void)local_player_index;\n\treturn observer;\n#else\n'
 CAMERA_REPLACE = (b'#if 0 /* HaloPad: the view turns the frame the finger moves (display.direct_camera) */\n'
@@ -337,12 +363,14 @@ def identity(name=None, revision=None):
     if name in CAMERA_ADAPTATIONS:
         camera = REVIEWED_CAMERA.get(revision) or _latest_hash(revision, CAMERA_SOURCE)
         if not camera:
-            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208, 244, 273 and 294; review render_interpolation.c first')
+            raise ValueError('Direct camera is reviewed only for builds 85, 119, 125, 206, 208, 244, 273, 294 and 343; review render_interpolation.c first')
         recipe += CAMERA_ANCHOR + CAMERA_REPLACE
         result['upstream_camera_sha256'] = camera
     if name in NETWORK_ADAPTATIONS:
         recipe += network_bridge.recipe(newer=border_sampling.is_gles_244_family(renderer),
-                                        browser=renderer == border_sampling.GLES_294_RENDERER_SHA256)
+                                        browser=renderer in (border_sampling.GLES_294_RENDERER_SHA256,
+                                                             border_sampling.GLES_343_RENDERER_SHA256),
+                                        queued=renderer == border_sampling.GLES_343_RENDERER_SHA256)
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
@@ -365,7 +393,9 @@ def adapted_source(original, name='render-scale-v1'):
         raise ValueError('Renderer adaptation input changed; review the new upstream source first')
     if name in QUALITY_ADAPTATIONS and original.count(filter_anchor) != 1:
         raise ValueError('Renderer filtering input changed; review the new upstream source first')
-    modified = original.replace(scale_anchor, scale_anchor[:-len(b'#else\n')] + scale_insert + b'#else\n')
+    replacement = (scale_insert + scale_anchor if scale_anchor == SCALE_343_ANCHOR else
+                   scale_anchor[:-len(b'#else\n')] + scale_insert + b'#else\n')
+    modified = original.replace(scale_anchor, replacement)
     if name in QUALITY_ADAPTATIONS:
         replacement = (filter_anchor + filter_insert if filter_anchor == CACHED_FILTER_ANCHOR
                        else filter_insert + filter_anchor)

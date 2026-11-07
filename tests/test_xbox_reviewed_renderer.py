@@ -3,6 +3,8 @@ import hashlib
 import json
 import os
 import pathlib
+import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -21,6 +23,7 @@ REV208 = 'f90d95552797039383049c1f8f79a35ddbe98b2d'
 REV244 = '6ec42856d73e258e5a8c7e9cd19161f46d89d0e4'
 REV273 = '7fb941b0b205edb1f7ecbb0aa6c2d7f5b884732d'
 REV294 = '337b05cfdf203e7c3e3d8af0b1b37894c0b5b057'
+REV343 = 'fc9deb0b10eaae1d62caedb0710968b4e77e6e16'
 
 
 class ReviewedRendererTests(unittest.TestCase):
@@ -110,6 +113,95 @@ class ReviewedRendererTests(unittest.TestCase):
                 self.assertEqual(guest.identity('render-present-v1'), guest.identity('render-present-v1', REV74))
                 with patch.dict(os.environ, {'XBOX_REV': REV73}):
                     self.assertEqual(guest.identity('render-present-v1'), guest.identity('render-present-v1', REV73))
+
+    def test_build343_pins_changed_sources_and_keeps_the_prior_recipe(self):
+        with patch.dict(os.environ, {'HALOPAD_XBOX_LATEST': '0'}), \
+             patch.object(guest, '_latest_source', side_effect=AssertionError('must use reviewed inputs')):
+            old = guest.identity('network-policy-v1', REV294)
+            new = guest.identity('network-policy-v1', REV343)
+        self.assertEqual(old['recipe_sha256'],
+                         'af8ed3dda17acf5167c3cd8a243dda32ad4e8d589ffb6d04f15acbf384193a2b')
+        self.assertEqual(new['upstream_renderer_sha256'], guest.border_sampling.GLES_343_RENDERER_SHA256)
+        self.assertEqual(new['upstream_camera_sha256'],
+                         'c132ab5846cc0154ea9ae5656a15437d484aef6e5dec04eb7d8c76eb1ff9f9dc')
+        self.assertEqual(guest.border_sampling.shader_hash(new['upstream_renderer_sha256']),
+                         '75e20e1caaa2c2206e40a11d8ddf2c6cd400d5d49dd5180dc57aefd5822a9e2b')
+        self.assertNotEqual(new['recipe_sha256'], old['recipe_sha256'])
+        self.assertNotIn('reviewed', new)
+
+    def test_exact343_renderer_preserves_quality_and_new_engine_bookkeeping(self):
+        checkout = pathlib.Path(os.environ.get('HALOPAD_TEST_ENGINE', guest.ENGINE_CHECKOUT))
+        sources = {}
+        for path in (guest.RENDERER, guest.border_sampling.SHADER, guest.CAMERA_SOURCE):
+            result = subprocess.run(['git', '-C', str(checkout), 'show', f'{REV343}:{path}'],
+                                    capture_output=True)
+            if result.returncode:
+                self.skipTest('exact OpenCE343 source unavailable; set HALOPAD_TEST_ENGINE')
+            sources[path] = result.stdout
+        with patch.dict(os.environ, {'XBOX_REV': REV343, 'HALOPAD_XBOX_LATEST': '0'}):
+            renderer = guest.adapted_source(sources[guest.RENDERER], 'render-camera-v1')
+            shader = guest.border_sampling.adapt_shader(sources[guest.border_sampling.SHADER],
+                                                        guest.border_sampling.GLES_343_RENDERER_SHA256)
+            camera = guest.adapted_camera(sources[guest.CAMERA_SOURCE])
+        # New visibility sequence numbers, pooled/static geometry, depth and
+        # first-person interpolation stay upstream's; our narrow edits survive.
+        for preserved in (b'device.visibility_counted[index] = device.query_tests[index];',
+                          b'web_chunks_begin_frame();', b'static_buffers_collect();'):
+            self.assertIn(preserved, renderer)
+        self.assertIn(b'xgpu_reversed_depth ? "1.0 - " : ""', shader)
+        self.assertIn(b'FIRST_PERSON_HALF_TURN_COSINE', camera)
+        self.assertIn(guest.CAMERA_REPLACE, camera)
+        self.assertIn(guest.COUNT_244_REPLACE, renderer)
+        self.assertIn(guest.WATER_RESTORE, renderer)
+        self.assertIn(guest.PRESENT_244_REPLACE, renderer)
+
+        # Compile the actual adapted function, not a synthetic copy. Explicit
+        # native-picker values must win over every saved upstream resolution.
+        choose = re.search(rb'static void screen_mode_choose\(long \*width, float scale\[2\]\)\n\{.*?\n\}',
+                           renderer, re.S).group().decode()
+        harness = r'''
+#include <assert.h>
+#include <stdlib.h>
+#include <string.h>
+#define HALO_ANDROID 1
+#define SCREEN_HEIGHT 480
+static float screen_supersampling, selected_part;
+static int maximum_target_size = 16384, drawable_calls;
+static long config_integer(const char *key) { (void)key; return 0; }
+static float resolution_scaling_part(void) { return selected_part; }
+static void platform_video_drawable_size(int *w, int *h) {
+    drawable_calls++; *w = 1920; *h = 1080;
+}
+''' + choose + r'''
+int main(void) {
+    long width;
+    float scale[2];
+    unsetenv("HALO_DISPLAY_WIDTH");
+    for (int mode = 1; mode <= 2; mode++) {
+        setenv("HALO_TEST_RENDER_SCALE", mode == 2 ? "2" : "1", 1);
+        for (int setting = 0; setting <= 4; setting++) {
+            selected_part = setting * 0.25f;
+            screen_mode_choose(&width, scale);
+            assert(width == 640 && scale[0] == mode && scale[1] == mode);
+            assert(screen_supersampling == mode && drawable_calls == 0);
+        }
+    }
+    unsetenv("HALO_TEST_RENDER_SCALE");
+    selected_part = 0.0f;
+    screen_mode_choose(&width, scale);
+    assert(scale[0] == 1.0f && scale[1] == 1.0f && drawable_calls == 0);
+    selected_part = 1.0f;
+    screen_mode_choose(&width, scale);
+    assert(scale[0] == 2.25f && scale[1] == 2.25f && drawable_calls == 1);
+}
+'''
+        with tempfile.TemporaryDirectory() as tmp:
+            binary = pathlib.Path(tmp) / 'screen-quality'
+            compiled = subprocess.run(['clang', '-x', 'c', '-', '-std=c11', '-Wall', '-Werror',
+                                       '-fsanitize=address,undefined', '-o', str(binary)],
+                                      input=harness, text=True, capture_output=True)
+            self.assertEqual(compiled.returncode, 0, compiled.stderr)
+            subprocess.run([str(binary)], check=True, capture_output=True)
 
     def test_revision_hash_and_transaction_identity_cannot_be_interchanged(self):
         original = b'/* synthetic reviewed74 */\n' + guest.ANCHOR

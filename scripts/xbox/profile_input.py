@@ -17,10 +17,16 @@ REVIEWED = {
               # Build244 adds host_sdl_show_message_box; input context is unchanged.
               '74535ea7db0610773c0e3470a61b7cf4225d8881807eb5ffb643c8d91bd33503',
               # Build294 adds host_https_get; input context remains unchanged.
-              '7b87537be69b4374c940c32409366f49cb6fe6b126abca04508644bc3bb61d56'},
+              '7b87537be69b4374c940c32409366f49cb6fe6b126abca04508644bc3bb61d56',
+              # Build343 adds text input, browser, render policy and Android
+              # overlay-device imports; HaloPad implements each on its hosts.
+              'f373b1ba6fc340334bb423f539135cf4e86840d14848786ae3208bdeb6ff1db2'},
     # Build206 only defers the key-repeat clock read until the key is down;
     # input_frame_begin and the preference fields consumed below are unchanged.
-    INPUT: {'67177fe1b16ba8e0962afd3423bd705ea6f306a6555c8ab56d3371daeaef5313'},
+    INPUT: {'67177fe1b16ba8e0962afd3423bd705ea6f306a6555c8ab56d3371daeaef5313',
+            # Build343 replaces fixed stick dead zones with per-stick settings.
+            # The frame-begin hook and controller preference layout are unchanged.
+            '9094fd2dff82ae4f4fbb8a837d0aaa6edb80c14046c96cd09652eb67cd88aaf7'},
 }
 ANCHOR = b'void input_frame_begin(\n\tvoid)\n{\n'
 HEADERS = b'#include "interface/player_ui.h"\n'
