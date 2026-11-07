@@ -39,6 +39,14 @@ same app identity and do not uninstall it.
    unchanged. Xbox-only builds need no `--package`; PC and combined builds
    still need their matching `.halopad.zip`. `--app /path/HaloPad.app` remains
    available for an already-unpacked app.
+
+   Before installing an Xbox-only app, the installer checks the device for
+   existing Custom Edition game files. If found, it stops and asks for a combined
+   PC/Xbox build so both editions remain playable. Add `--allow-edition-removal`
+   only to switch deliberately to Xbox-only: the PC game data stays in the app
+   container, but playing it again requires a combined build. An unreadable
+   device also stops installation. This edition check runs during installation,
+   not during `--check-only`.
 3. Put your own Xbox Halo ISO/XISO in Files. Open HaloPad, choose **Add Your
    Xbox Disc**, and select it. Wait for import, then choose Xbox to play.
 

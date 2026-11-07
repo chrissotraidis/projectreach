@@ -56,12 +56,16 @@ Private packages, test logs, audit receipt and retained clean-build checkout pat
 are under `generated/opence-343-review/` (`player-check-paths.json`). These are
 engineering candidate results; rerun the release gates on the final release source.
 
-**Installed on the physical iPad, 2026-11-07:** the audited 0.3.15/build 1 IPA
+**Initial iPad installation, 2026-11-07 — wrong edition selection:** the audited
+0.3.15/build 1 IPA was Xbox-only, while the owner's installed 0.3.13 included
+both editions. Installing it removed access to Custom Edition despite preserving
+the PC game files and saves. The ready Xbox picker alone was insufficient
+validation; the owner caught the missing Custom Edition engine. The IPA
 was signed with the existing development identity/profile and installed over
 0.3.13 without uninstalling. The original IPA still matches its audited SHA-256.
 Installed-app readback reports 0.3.15/build 1. A normal launch reaches the edition
 picker, visibly showing **OpenCE build 343 · Metal**, **Ready to play**, Original
-graphics and **Play Xbox**. The app is left there for the owner's quick check;
+graphics and **Play Xbox**, but Custom Edition showed **Not included in this build**;
 no game or multiplayer session has been started during this installation.
 
 - A full private backup of Documents and accessible Library contains 1,125 files
@@ -73,6 +77,33 @@ no game or multiplayer session has been started during this installation.
 - Evidence and the preserved backup are in
   `generated/opence-343-review/ipad-install/installation-receipt.json` and its
   adjacent files. Nothing from that private directory is committed or uploaded.
+
+The device installer now checks for existing Custom Edition game files before
+signing an Xbox-only replacement and refuses the downgrade. Unreadable device
+information also stops installation; `--allow-edition-removal` is the explicit
+override for a deliberate switch. Fourteen installer tests and six archive
+extraction tests pass with Apple Python 3.9. The read-only check also correctly
+refuses the Xbox-only app on this physical iPad.
+
+**Restored both editions, 2026-11-07:** a personal combined 0.3.15/build 2
+was rebuilt and installed in place. The native Custom Edition 1.10 engine and
+OpenCE 343 are both present; a normal iPad launch visibly shows **Ready to play**
+and enabled **Play Custom Edition** / **Play Xbox** buttons. The existing PC game
+folder was recognized without reimporting it. No gameplay session was started.
+
+- All 78 preserved PC stock files match the new core identity; native inputs,
+  bundled data, arm64 architecture, signature and memory entitlements pass.
+- The combined app's Xbox payload and metadata exactly match the audited 343
+  iOS package, including all 50 runtime-source hashes and 37 component notices.
+- A refreshed pre-install backup preserves 135 save/config/Library files.
+  After installation, 130 match byte-for-byte; the only five changes are iPadOS
+  SplashBoard screenshot caches. Game saves and settings are unchanged.
+- All 1,128 pre-existing Documents files retain their paths, sizes and
+  modification times. The only added file is the matching private prepared-data
+  package. The original full backup remains available.
+- Private build/audit/install records and `picker-combined.png` are retained
+  under `generated/combined-restore/`. This personal combined build is separate
+  from the earlier clean Xbox-only PadMint release-gate checks.
 
 **Owner direction, 2026-11-07:** Chris chose a quick validation on his hardware
 iPad for this candidate and deferred the wider gameplay checklist. Installation

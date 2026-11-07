@@ -13,6 +13,8 @@
 # Xbox-only apps need only --app; import the Xbox disc in HaloPad after installation.
 # Use --ipa HaloPad.ipa instead of --app to stage the IPA automatically.
 # Add --check-only to check the app/profile/device without signing or installing.
+# Xbox-only installation checks existing PC game data before replacing the app.
+# --allow-edition-removal explicitly permits losing access to that edition.
 #
 # Options: --device ID (default: the only connected device), --work RUN_DIR.
 # Development builds use the menu scene (tests/halo_app_scene.c, the scene the physical iPad and
@@ -21,7 +23,7 @@
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 PY="$ROOT/.venv/bin/python"; [[ -x "$PY" ]] || PY=python3
-IDENTITY="" PROFILE="" GAME="" DEVICE="" WORK="" PREBUILT="" PACKAGE="" IPA="" CHECK=0
+IDENTITY="" PROFILE="" GAME="" DEVICE="" WORK="" PREBUILT="" PACKAGE="" IPA="" CHECK=0 ALLOW_EDITION_REMOVAL=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --identity) IDENTITY=$2; shift 2 ;;
@@ -32,6 +34,7 @@ while [[ $# -gt 0 ]]; do
     --app) PREBUILT=$2; shift 2 ;;
     --ipa) IPA=$2; shift 2 ;;
     --check-only) CHECK=1; shift ;;
+    --allow-edition-removal) ALLOW_EDITION_REMOVAL=1; shift ;;
     --package) PACKAGE=$2; shift 2 ;;
     *) echo "unknown option $1" >&2; exit 2 ;;
   esac
@@ -75,6 +78,12 @@ if [[ "$CHECK" == 1 ]]; then
   "$PY" "$ROOT/scripts/sign-app.py" "$PREBUILT" --identity "$IDENTITY" --profile "$PROFILE" --check-only
   echo "Preflight passed. Nothing signed or installed; device launch remains untested."
   exit 0
+fi
+
+if [[ -n "$PREBUILT" && ! -f "$PREBUILT/data/core-identity.json" && "$ALLOW_EDITION_REMOVAL" == 0 ]]; then
+  # --check-only remains an offline archive/profile check. An actual Xbox-only
+  # install must inspect the device; an unreadable container is not an empty one.
+  "$PY" "$ROOT/scripts/device_editions.py" --device "$DEVICE"
 fi
 
 if [[ -n "$PREBUILT" ]]; then
