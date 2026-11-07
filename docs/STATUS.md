@@ -1,11 +1,17 @@
 # HaloPad status
 
-## HaloPad 0.3.15 candidate: OpenCE 343
+## HaloPad 0.3.15: OpenCE 343
+
+**Owner acceptance, 2026-11-07:** Chris confirmed the restored combined iPad
+build runs and loads, declined further gameplay testing, and explicitly authorized
+the 0.3.15 source/recipe release. This is launch/load acceptance only. Final clean
+PadMint pre-tag and post-publication checks remain required; their results will
+be recorded with the release.
 
 **Upstream review, 2026-11-07:** the latest published OpenCE is
 [build 343](https://github.com/OpenCommunityEdition/OpenCE/releases/tag/build-343),
-`fc9deb0b10eaae1d62caedb0710968b4e77e6e16`, network version 41. Published HaloPad
-0.3.14 still uses build 294/network 39. The new engine is necessary for current
+`fc9deb0b10eaae1d62caedb0710968b4e77e6e16`, network version 41. Previous HaloPad
+0.3.14 uses build 294/network 39. The new engine is necessary for current
 OpenCE multiplayer: network 40 adds server admission/account-pass messages and
 41 adds voting messages. A policy refresh cannot implement those changes.
 
@@ -14,7 +20,7 @@ failed at the renderer adapter's guarded sampler insertion. The failure cache
 then correctly suppressed unchanged retries; the later successful selector runs
 were not successful engine builds.
 
-The 0.3.15 source candidate pins the exact release and updates the native bridge,
+The 0.3.15 source pins the exact release and updates the native bridge,
 renderer/camera/shader review and network browser adaptation. Original/Sharper
 remain fixed at HaloPad's selected scale; upstream's GLES depth convention and
 compatibility rendering paths are preserved. Server-browser intake now uses the
@@ -106,8 +112,8 @@ folder was recognized without reimporting it. No gameplay session was started.
   from the earlier clean Xbox-only PadMint release-gate checks.
 
 **Owner direction, 2026-11-07:** Chris chose a quick validation on his hardware
-iPad for this candidate and deferred the wider gameplay checklist. Installation
-is authorized in place, with data preserved; release follows that quick check.
+iPad and deferred the wider gameplay checklist. He subsequently confirmed that
+the combined app runs and loads and authorized release without further testing.
 Campaign progression, both graphics modes, controller/touch feel, cross-device
 multiplayer, fresh map transfer and public-server account linking remain separate
 untested coverage. Follow [the release runbook](RELEASE-RUNBOOK.md) for final
