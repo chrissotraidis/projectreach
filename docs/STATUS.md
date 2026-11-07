@@ -1,5 +1,35 @@
 # HaloPad status
 
+## HaloPad 0.3.15 candidate: OpenCE 343
+
+**Upstream review, 2026-11-07:** the latest published OpenCE is
+[build 343](https://github.com/OpenCommunityEdition/OpenCE/releases/tag/build-343),
+`fc9deb0b10eaae1d62caedb0710968b4e77e6e16`, network version 41. Published HaloPad
+0.3.14 still uses build 294/network 39. The new engine is necessary for current
+OpenCE multiplayer: network 40 adds server admission/account-pass messages and
+41 adds voting messages. A policy refresh cannot implement those changes.
+
+The automatic [build-343 attempt](https://github.com/chrissotraidis/projectreach/actions/runs/42206656471)
+failed at the renderer adapter's guarded sampler insertion. The failure cache
+then correctly suppressed unchanged retries; the later successful selector runs
+were not successful engine builds.
+
+The 0.3.15 source candidate pins the exact release and updates the native bridge,
+renderer/camera/shader review and network browser adaptation. Original/Sharper
+remain fixed at HaloPad's selected scale; upstream's GLES depth convention and
+compatibility rendering paths are preserved. Server-browser intake now uses the
+same exact-version rule as sorting, labels and joining. Dedicated-server-only
+version references remain excluded by checked source hashes and compile guards.
+The separate Custom Edition 1.10 engine and the historical build-125 rollback pin
+are unchanged. The unrelated Service Record contribution is not included.
+
+Validation is in progress. This is not a published release or gameplay acceptance.
+Before release, check campaign load, Original/Sharper graphics, touch/controller
+input, matching Mac/iPad multiplayer, fresh map transfer and cached rejoin, public
+network-41 servers and account linking where required. Preserve/read back saves
+before any in-place device update. Clean PadMint checks and strict package audits
+remain required by [the release runbook](RELEASE-RUNBOOK.md).
+
 ## HaloPad 0.3.14: builds finish when actool crashes
 
 **Published 2026-11-05:** [HaloPad 0.3.14](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.14)

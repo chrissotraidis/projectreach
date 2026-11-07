@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 void xg_gl_load(void);
 
@@ -104,6 +105,34 @@ int xh_host_sdl_gl_swap_window(uint32_t window)
 	return SDL_GL_SwapWindow(handle_get(window));
 }
 int xh_host_sdl_poll_event(uint32_t event) { return SDL_PollEvent(G(SDL_Event *, event)); }
+
+int xh_host_sdl_text_input(uint32_t window, int type)
+{
+	SDL_Window *object = handle_get(window);
+	if (!object) return 0;
+	if (type < 0) {
+		SDL_StopTextInput(object);
+		return 0;
+	}
+	SDL_PropertiesID properties = SDL_CreateProperties();
+	if (!properties) return 0;
+	SDL_SetNumberProperty(properties, SDL_PROP_TEXTINPUT_TYPE_NUMBER, type);
+	SDL_SetBooleanProperty(properties, SDL_PROP_TEXTINPUT_MULTILINE_BOOLEAN, false);
+	SDL_SetBooleanProperty(properties, SDL_PROP_TEXTINPUT_AUTOCORRECT_BOOLEAN, false);
+	SDL_StartTextInputWithProperties(object, properties);
+	SDL_DestroyProperties(properties);
+	return SDL_TextInputActive(object) ? 1 : 0;
+}
+
+/* The player's explicit server-account link opens in their normal browser. */
+int xh_host_sdl_open_url(uint32_t address)
+{
+	if (!address) return 0;
+	const char *url = G(const char *, address);
+	if (strncasecmp(url, "https://", 8) && strncasecmp(url, "http://", 7)) return 0;
+	return SDL_OpenURL(url) ? 1 : 0;
+}
+
 /* the game puts its internet invite link on the clipboard at start-up and
  * joins any link it finds there; HaloPad keeps the player's clipboard out of
  * it until invites have a proper place in the app */
@@ -264,6 +293,7 @@ void xh_host_touch_look_read(uint32_t delta) { memset(G(float *, delta), 0, 4 * 
 void xh_host_touch_rumble(uint32_t low, uint32_t high) { (void)low; (void)high; }
 void xh_host_touch_scene(int32_t scene) { (void)scene; }
 void xh_host_touch_bindings(uint32_t controls) { (void)controls; }
+int xh_host_touch_devices(void) { return 0; }
 
 /* ---------- OpenGL ES functions for xg_gl.c and the generated wrappers */
 

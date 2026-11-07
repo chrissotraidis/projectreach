@@ -1,7 +1,7 @@
 # Xbox engine (second HaloPad engine)
 
-**Current build policy, 2026-10-27:** normal builds replay
-`config/xbox-release.json` (OpenCE 294, network version 39) with the
+**Current source candidate, 2026-11-07:** normal builds replay
+`config/xbox-release.json` (OpenCE 343, network version 41) with the
 `network-policy-v1` adaptation. Compatibility requires the engine's actual network
 version; the reader clamps stale policy rows that widened it. A policy cannot
 supply missing engine features ([UPDATE-STRATEGY.md](UPDATE-STRATEGY.md#network-compatibility-policy)).
@@ -10,6 +10,10 @@ workflow handles that selection separately. Public app delivery is not enabled.
 See [UPDATE-STRATEGY.md](UPDATE-STRATEGY.md) and [STATUS.md](STATUS.md) for current
 candidate and acceptance evidence. The dated engine investigations below are
 historical and do not change the current default.
+
+HaloPad 0.3.14 remains the published release, using OpenCE 294/network 39.
+The 0.3.15 candidate's package and gameplay evidence is recorded in [STATUS.md](STATUS.md);
+source review and successful compilation alone do not establish online acceptance.
 
 OpenCE 294's master-server GET uses Foundation with system TLS verification,
 bounded responses/timeouts and no redirects; the guest verifies the signed

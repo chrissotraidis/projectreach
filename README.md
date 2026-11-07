@@ -87,6 +87,8 @@ Pick the path for the computer you have. Both are free.
 
 The published release is [HaloPad 0.3.14](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.14),
 with OpenCE 294 (network version 39) and dedicated server browsing through native HTTPS.
+The next source candidate, **0.3.15**, builds OpenCE 343 (network version 41).
+It is awaiting gameplay validation; see the [status log](docs/STATUS.md).
 
 ### On an Apple silicon Mac
 
@@ -157,6 +159,9 @@ revision recorded in `config/xbox-release.json`. HaloPad 0.3.14 builds OpenCE
 294, network version 39. **Updates…** on the edition picker shows your installed
 engine and network version.
 
+The 0.3.15 source candidate uses network version 41, matching OpenCE build 343.
+It needs a rebuilt app; refreshing the signed network policy cannot upgrade 0.3.14's engine.
+
 HaloPad's corrected policy keeps each engine on its actual network version. A signed compatibility
 file cannot add features such as custom-map downloading or make an older engine understand a changed
 protocol. If another player uses a different network version, both players need builds with matching
@@ -165,6 +170,11 @@ Xbox checkpoints may need a level restart after an engine change.
 
 ## What's new
 
+- **0.3.15 candidate: OpenCE 343, network version 41.** Updates the Xbox engine
+  for current OpenCE multiplayer, including its newer server admission and voting
+  messages. Updates HaloPad's graphics and native host adapters while retaining
+  Original/Sharper rendering. Physical gameplay and current-server access still
+  need validation before release. The PC Custom Edition engine is unchanged.
 - **0.3.14: builds finish when Apple's icon tool crashes.** On some Macs, Xcode's
   `actool` crashed while compiling HaloPad's Mac app icon and stopped the build at
   its last step ([padmint#220](https://github.com/chrissotraidis/padmint/issues/220)).

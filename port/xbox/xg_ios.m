@@ -640,6 +640,38 @@ int xh_host_sdl_gl_swap_window(uint32_t window)
 int xh_host_sdl_set_clipboard_text(uint32_t text) { (void)text; return 1; }
 void xh_host_sdl_get_clipboard_text(uint32_t buffer, uint32_t size) { copy_out(buffer, size, ""); }
 
+/* This import controls OpenCE's Android keyboard. HaloPad supplies no Android
+ * overlay devices (below); names still use Halo's own keyboard or a physical
+ * keyboard. Report it unavailable instead of claiming a keyboard was shown. */
+int xh_host_sdl_text_input(uint32_t window, int type)
+{
+	(void)window; (void)type;
+	return 0;
+}
+
+/* The guest's server-account link is an explicit player action. Copy the URL
+ * before crossing to UIKit, and report the actual browser-open result back
+ * to the game thread. Never wait on UIKit's own thread. */
+int xh_host_sdl_open_url(uint32_t address)
+{
+	if (!address || NSThread.isMainThread) return 0;
+	NSString *text = [NSString stringWithUTF8String:G(const char *, address)];
+	NSURL *url = text ? [NSURL URLWithString:text] : nil;
+	NSString *scheme = url.scheme.lowercaseString;
+	if (!url.host.length || (![scheme isEqualToString:@"https"] && ![scheme isEqualToString:@"http"])) return 0;
+
+	dispatch_semaphore_t done = dispatch_semaphore_create(0);
+	__block BOOL opened = NO;
+	dispatch_async(dispatch_get_main_queue(), ^{
+		[UIApplication.sharedApplication openURL:url options:@{} completionHandler:^(BOOL success) {
+			opened = success;
+			dispatch_semaphore_signal(done);
+		}];
+	});
+	dispatch_semaphore_wait(done, DISPATCH_TIME_FOREVER);
+	return opened ? 1 : 0;
+}
+
 /* keyboard binding names (upstream build 85, xinput_sdl.c) */
 void xh_host_sdl_scancode_name(int scancode, uint32_t buffer, uint32_t size)
 {
@@ -1272,6 +1304,10 @@ void xh_host_touch_look_read(uint32_t delta)
 void xh_host_touch_rumble(uint32_t low, uint32_t high) { (void)low; (void)high; }
 void xh_host_touch_scene(int32_t scene) { (void)scene; }
 void xh_host_touch_bindings(uint32_t controls) { (void)controls; }
+/* These flags describe the Android overlay above, not HaloPad's gamepad-1
+ * touch bridge. Returning a touchscreen would enable upstream screen controls
+ * without their touch events and replace the game's controller keyboard. */
+int xh_host_touch_devices(void) { return 0; }
 
 /* ---------- start-up */
 
