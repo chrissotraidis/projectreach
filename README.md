@@ -173,8 +173,8 @@ Xbox checkpoints may need a level restart after an engine change.
 - **0.3.15 candidate: OpenCE 343, network version 41.** Updates the Xbox engine
   for current OpenCE multiplayer, including its newer server admission and voting
   messages. Updates HaloPad's graphics and native host adapters while retaining
-  Original/Sharper rendering. Physical gameplay and current-server access still
-  need validation before release. The PC Custom Edition engine is unchanged.
+  Original/Sharper rendering. The candidate is awaiting a quick iPad check before
+  release. The PC Custom Edition engine is unchanged.
 - **0.3.14: builds finish when Apple's icon tool crashes.** On some Macs, Xcode's
   `actool` crashed while compiling HaloPad's Mac app icon and stopped the build at
   its last step ([padmint#220](https://github.com/chrissotraidis/padmint/issues/220)).

@@ -49,19 +49,38 @@ Validation:
   The auditor ran from `4da90e5` with this status-document update uncommitted;
   all audited runtime inputs match the clean build source.
 - `prepare_release.py --version 0.3.15` passes. Independent code review found no
-  actionable issue. No device installation, gameplay, consumer signing, tag,
-  publication or post-publication check has been performed.
+  actionable issue. Device installation is recorded below; gameplay, consumer
+  sideloading, tagging, publication and post-publication checks remain unperformed.
 
 Private packages, test logs, audit receipt and retained clean-build checkout paths
 are under `generated/opence-343-review/` (`player-check-paths.json`). These are
 engineering candidate results; rerun the release gates on the final release source.
 
-This is not a published release or gameplay acceptance. Before release, check
-campaign load, Original/Sharper graphics, touch/controller
-input, matching Mac/iPad multiplayer, fresh map transfer and cached rejoin, public
-network-41 servers and account linking where required. Preserve/read back saves
-before any in-place device update. Follow [the release runbook](RELEASE-RUNBOOK.md)
-for final pre-tag and post-publication checks.
+**Installed on the physical iPad, 2026-11-07:** the audited 0.3.15/build 1 IPA
+was signed with the existing development identity/profile and installed over
+0.3.13 without uninstalling. The original IPA still matches its audited SHA-256.
+Installed-app readback reports 0.3.15/build 1. A normal launch reaches the edition
+picker, visibly showing **OpenCE build 343 · Metal**, **Ready to play**, Original
+graphics and **Play Xbox**. The app is left there for the owner's quick check;
+no game or multiplayer session has been started during this installation.
+
+- A full private backup of Documents and accessible Library contains 1,125 files
+  (22.37 GB), with a SHA-256 manifest and matching remote file sizes.
+- Independent readback of the 111 active save/config/Library files matches the
+  backup before installation and matches again after installation, before launch.
+- All 1,068 Documents files retain their paths, sizes and modification times.
+  Imported map files were inventoried; their contents were not copied a third time.
+- Evidence and the preserved backup are in
+  `generated/opence-343-review/ipad-install/installation-receipt.json` and its
+  adjacent files. Nothing from that private directory is committed or uploaded.
+
+**Owner direction, 2026-11-07:** Chris chose a quick validation on his hardware
+iPad for this candidate and deferred the wider gameplay checklist. Installation
+is authorized in place, with data preserved; release follows that quick check.
+Campaign progression, both graphics modes, controller/touch feel, cross-device
+multiplayer, fresh map transfer and public-server account linking remain separate
+untested coverage. Follow [the release runbook](RELEASE-RUNBOOK.md) for final
+pre-tag and post-publication checks.
 
 ## HaloPad 0.3.14: builds finish when actool crashes
 
