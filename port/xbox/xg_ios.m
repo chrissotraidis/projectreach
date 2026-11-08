@@ -758,6 +758,66 @@ static struct xg_profile_input touch_profile;
 static float touch_look_x, touch_look_y;
 #include "xg_scoreboard_input.h"
 static struct xg_scoreboard_input touch_scoreboard;
+#define HW_EVENTS 128
+static SDL_Event hw_events[HW_EVENTS];
+static unsigned hw_head, hw_tail;
+
+/* ---------- application focus, delivered before queued input */
+
+static struct { int active, reported, lost; } app_focus = { -1, -1, 0 };
+
+static void xg_ios_set_focus(int active)
+{
+	pthread_mutex_lock(&pad_lock);
+	active = !!active;
+	if (app_focus.active != active) {
+		app_focus.active = active;
+		/* Keep a loss even if the app resumes before the guest polls again. */
+		if (!active) {
+			app_focus.lost = 1;
+			/* Do not replay input queued before the app lost focus. */
+			hw_head = hw_tail;
+			touch_look_x = touch_look_y = 0;
+			xg_scoreboard_clear(&touch_scoreboard);
+		}
+	}
+	pthread_mutex_unlock(&pad_lock);
+}
+
+/* Called with pad_lock held. Focus cannot be dropped by a full input queue. */
+static int xg_ios_poll_focus_event(SDL_Event *out)
+{
+	if (app_focus.lost) {
+		app_focus.lost = 0;
+		app_focus.reported = 0;
+	} else if (app_focus.active >= 0 && app_focus.active != app_focus.reported) {
+		app_focus.reported = app_focus.active;
+	} else return 0;
+	memset(out, 0, sizeof(*out));
+	out->window.type = app_focus.reported ? SDL_EVENT_WINDOW_FOCUS_GAINED : SDL_EVENT_WINDOW_FOCUS_LOST;
+	out->window.timestamp = (Uint64)xh_host_sdl_ticks() * 1000000ull;
+	out->window.windowID = 1;
+	return 1;
+}
+
+static void xg_ios_observe_focus(void)
+{
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{
+		NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+		[center addObserverForName:UIApplicationWillResignActiveNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+				(void)note;
+				xg_ios_set_focus(0);
+			}];
+		[center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+				(void)note;
+				xg_ios_set_focus(1);
+			}];
+	});
+	xg_ios_set_focus(UIApplication.sharedApplication.applicationState == UIApplicationStateActive);
+}
 
 void xh_host_halopad_input_context_v1(uint32_t menu, uint32_t low, uint32_t high, uint32_t sticks)
 {
@@ -811,10 +871,6 @@ void xg_ios_add_touch_look(float dx, float dy)
 }
 
 /* ---------- a hardware keyboard and mouse, queued as SDL events for poll_event */
-
-#define HW_EVENTS 128
-static SDL_Event hw_events[HW_EVENTS];
-static unsigned hw_head, hw_tail;
 
 static void hw_push(const SDL_Event *e)
 {
@@ -1063,13 +1119,18 @@ int xh_host_sdl_rumble_gamepad(uint32_t pad, uint32_t low, uint32_t high, uint32
  * GameController slots, which pads_refresh keeps, so there is nothing to free. */
 void xh_host_sdl_close_gamepad(uint32_t pad) { (void)pad; }
 
-/* ---------- events: controllers that appeared since the last poll */
+/* ---------- events: focus, queued input and newly connected controllers */
 
 int xh_host_sdl_poll_event(uint32_t event)
 {
 	SDL_Event *out = G(SDL_Event *, event);
 	int index;
 	pthread_mutex_lock(&pad_lock);
+	if (xg_ios_poll_focus_event(out))
+	{
+		pthread_mutex_unlock(&pad_lock);
+		return 1;
+	}
 	if (hw_head != hw_tail)
 	{
 		*out = hw_events[hw_head++ % HW_EVENTS];
@@ -1354,6 +1415,7 @@ int xg_ios_start(const char *image_path, const char *data_root, const char *save
 		if (!strncmp(*entry, "HALO_", 5) && strncmp(*entry, "HALO_DATA_ROOT=", 15) && strncmp(*entry, "HALO_SAVE_ROOT=", 15))
 			environment[count++] = *entry;
 	boot = xg_make_boot(environment, count, 1, (char *[]){ "halo" });
+	xg_ios_observe_focus();
 	if (!boot || xg_start_game(boot))
 	{
 		xg_log("cannot start the game thread");

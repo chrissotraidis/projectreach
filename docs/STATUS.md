@@ -1,5 +1,28 @@
 # HaloPad status
 
+## Xbox input focus fix — 2026-11-09
+
+The [new reply on #31](https://github.com/chrissotraidis/projectreach/issues/31#issuecomment-6721244480)
+confirms the reporter built 0.3.15 successfully, but both touch and controller
+input stopped responding. OpenCE 343 now clears physical gamepad input while
+its window is unfocused. HaloPad did not send window-focus events, so that
+state remained false; HaloPad's touch controls use the same gamepad path.
+
+The source fix reports actual application focus before starting the guest and
+on UIKit activation changes. Focus events precede queued input, a brief loss
+is retained across rapid resume, and stale queued presses are discarded.
+
+- All **478 Xbox tests pass** with Apple Python 3.9.6. New sanitizer-backed
+  tests exercise the production observer/event poll and exact OpenCE 343
+  focus/remapping code. Removing focus delivery reproduces the input failure.
+- The changed native host compiles for iPhoneOS and Mac Catalyst with the
+  production ANGLE flags. These are component compilation checks, not complete
+  package or device gameplay validation.
+- Reporter-device confirmation remains pending. The original frame-rate and
+  crash report stays open; this fix does not establish a performance fix.
+- Published `v0.3.15` remains unchanged. No new tagged release or device install
+  is part of this follow-up.
+
 ## HaloPad 0.3.15: OpenCE 343
 
 **Published 2026-11-07:** [HaloPad 0.3.15](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.15)
