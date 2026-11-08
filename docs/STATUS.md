@@ -1,5 +1,43 @@
 # HaloPad status
 
+## Xbox input focus fix — 2026-11-09
+
+The [new reply on #31](https://github.com/chrissotraidis/projectreach/issues/31#issuecomment-6721244480)
+confirms the reporter built 0.3.15 successfully, but both touch and controller
+input stopped responding. OpenCE 343 now clears physical gamepad input while
+its window is unfocused. HaloPad did not send window-focus events, so that
+state remained false; HaloPad's touch controls use the same gamepad path.
+
+The [source fix in #43](https://github.com/chrissotraidis/projectreach/pull/43)
+reports actual application focus before starting the guest and
+on UIKit activation changes. Focus events precede queued input, a brief loss
+is retained across rapid resume, and stale queued presses are discarded.
+
+- All **478 Xbox tests pass** with Apple Python 3.9.6. New sanitizer-backed
+  tests exercise the production observer/event poll and exact OpenCE 343
+  focus/remapping code. Removing focus delivery reproduces the input failure.
+- The changed native host compiles for iPhoneOS and Mac Catalyst with the
+  production ANGLE flags. Fresh PadMint player checks also pass from clean
+  source `68853e3`: iOS in 1057.83 seconds and Mac in 949.72 seconds, including
+  source downloads. Both used current PadMint main `626f2b0` (0.6.0), Apple
+  Python 3.9.6, empty folders and the labeled Xbox-only placeholder disc.
+- Strict package audits pass for the Mac archive and reconstructed iOS archive
+  before PadMint's launch-link addition: all 50 runtime-source hashes and 37
+  notices match, and guest executable code is identical across platforms.
+  PadMint 0.6.0 changes the delivered IPA's Info.plist after temporary signing,
+  expecting the player's signing tool to sign it. All 12 delivered files were
+  compared against the retained builder app: only that plist differs, solely
+  by the `padmint-projectreach` URL registration. The original builder app's
+  signature passes; the delivered IPA still requires consumer signing.
+- Reporter-device confirmation remains pending. The original frame-rate and
+  crash report stays open; this fix does not establish a performance fix.
+- Published `v0.3.15` remains unchanged. No new tagged release or device install
+  is part of this follow-up.
+
+Private audit receipts, reconstruction evidence and build logs are in
+`generated/issue31-input-20261108/`. The receipts retain the two temporary
+player-check paths and their private packages; these are not public downloads.
+
 ## HaloPad 0.3.15: OpenCE 343
 
 **Published 2026-11-07:** [HaloPad 0.3.15](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.15)
