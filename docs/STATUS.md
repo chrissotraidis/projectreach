@@ -29,8 +29,11 @@ is retained across rapid resume, and stale queued presses are discarded.
   compared against the retained builder app: only that plist differs, solely
   by the `padmint-projectreach` URL registration. The original builder app's
   signature passes; the delivered IPA still requires consumer signing.
-- Reporter-device confirmation remains pending. The original frame-rate and
-  crash report stays open; this fix does not establish a performance fix.
+- **Reporter confirmation, 2026-11-09:** after their [successful fork build](https://github.com/ziegler117/projectreach/actions/runs/42508819805)
+  at `eab49aa`, the reporter [confirmed the game runs perfectly](https://github.com/chrissotraidis/projectreach/issues/31#issuecomment-6725773676).
+  [Issue #31 is closed](https://github.com/chrissotraidis/projectreach/issues/31#issuecomment-6729388797)
+  with an invitation to reopen if slowdown or crashes return. This is reporter
+  acceptance; no measured frame-rate or separate co-op stability result was supplied.
 - Published `v0.3.15` remains unchanged. No new tagged release or device install
   is part of this follow-up.
 
