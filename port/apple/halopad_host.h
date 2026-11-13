@@ -34,6 +34,10 @@ typedef struct hp_window {
 id<MTLDevice> halopad_metal_gpu(void);       /* halopad_metal.m: the device, created on first use */
 void halopad_host_app(void);                 /* the platform's application set-up (before any window) */
 void halopad_host_window_unref(hp_window *w);
-void halopad_host_screen_size(int32_t *w, int32_t *h);   /* the main display in pixels */
+void halopad_host_screen_size(int32_t *w, int32_t *h);   /* Halo's desktop in pixels */
+#if !TARGET_OS_OSX
+/* iOS app shell, main thread: the game window's desktop size (halopad_desktop_pixels). */
+void halopad_host_set_screen_size(int32_t w, int32_t h);
+#endif
 void halopad_host_pump(void);                /* pending host events, without blocking */
 #endif

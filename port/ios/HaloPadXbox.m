@@ -431,7 +431,7 @@ static BOOL xbox_backup_saves(NSError **error)
 	struct utsname machine;
 	NSDictionary *build = xbox_build();
 	NSMutableArray *pads = [NSMutableArray array];
-	CGSize screen = UIScreen.mainScreen.bounds.size;
+	CGSize screen = self.view.window ? self.view.window.bounds.size : self.view.bounds.size;	/* the game window */
 	uname(&machine);
 	for (GCController *controller in GCController.controllers) [pads addObject:controller.vendorName ?: @"controller"];
 	return [NSString stringWithFormat:@"HaloPad %@ (build %@), Xbox edition\nEngine: OpenCE %@ (%@), %@, renderer %@, graphics %@\n"

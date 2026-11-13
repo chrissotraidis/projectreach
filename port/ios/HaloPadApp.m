@@ -21,6 +21,7 @@
 #include <sys/utsname.h>
 
 #include "../runtime/halopad_input.h"
+#include "../apple/halopad_display_geometry.h"
 #import "HaloPadOverlay.h"
 #include "halopad_menu_touch.h"
 #include "../runtime/halopad_log.h"
@@ -182,6 +183,7 @@ __attribute__((weak, noinline)) int halopad_app_entry(void) { return halopad_cor
 __attribute__((weak, noinline)) int halopad_app_touch_move_ready(void) { return 0; }
 __attribute__((weak, noinline)) int halopad_app_touch_move_slot(void) { return -1; }
 void halopad_host_set_window_handler(void (*handler)(void *window));
+void halopad_host_set_screen_size(int32_t w, int32_t h);
 void halopad_host_attach_view(void *window, UIView *view);
 void halopad_host_window_size(void *window, uint32_t *w, uint32_t *h);
 extern uint64_t halopad_guest_base;
@@ -1253,6 +1255,7 @@ static void touch_selftest(void)
     void halopad_metal_warm_shaders(void);
     halopad_metal_async_shaders = getenv("HALOPAD_SYNC_SHADERS") == NULL;
     if (halopad_metal_async_shaders) halopad_metal_warm_shaders();
+    [self publishDesktopSize];
     NSThread *t = [[NSThread alloc] initWithBlock:^{
         int code = halopad_app_entry();
         fprintf(stderr, "HALOPAD: Halo returned %d\n", code);
@@ -1265,9 +1268,21 @@ static void touch_selftest(void)
 - (void)viewDidLayoutSubviews
 {
     [super viewDidLayoutSubviews];
+    [self publishDesktopSize];
     for (CALayer *l in game_view.layer.sublayers) l.frame = game_view.bounds;
     [self applyDisplay];
     [self.view bringSubviewToFront:overlay];
+}
+/* Halo's desktop is the game window on the screen showing it, not the device's main screen.
+   Halo reads it when it starts; the layers above keep following later layout changes. */
+- (void)publishDesktopSize
+{
+    UIWindow *window = self.view.window;
+    UIScreen *screen = window.windowScene.screen;
+    if (!screen || window.bounds.size.width <= 0 || window.bounds.size.height <= 0) return;
+    int32_t w, h;
+    halopad_desktop_pixels(window.bounds.size.width, window.bounds.size.height, screen.nativeScale, &w, &h);
+    halopad_host_set_screen_size(w, h);
 }
 /* ---- the overlay's requests ---- */
 - (void)applyDisplay
@@ -1303,7 +1318,7 @@ static void touch_selftest(void)
     NSString *build = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleVersion"] ?: @"?";
     NSMutableArray *pads = [NSMutableArray array];
     for (GCController *c in GCController.controllers) [pads addObject:c.vendorName ?: @"controller"];
-    CGSize screen = UIScreen.mainScreen.bounds.size;
+    CGSize screen = self.view.window ? self.view.window.bounds.size : self.view.bounds.size;   /* the game window */
     return [NSString stringWithFormat:@"HaloPad %@ (build %@)\nDevice: %s, %@ %@, %.0fx%.0f points\nHalo map: %@\n"
             "Frames presented: %d\nControllers: %@\nTouch controls: %@; display %@",
             ver, build, u.machine, UIDevice.currentDevice.systemName, UIDevice.currentDevice.systemVersion,

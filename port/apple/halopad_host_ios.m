@@ -10,20 +10,31 @@
 #if TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>
 #import "halopad_host.h"
+#include "halopad_display_geometry.h"
 #include "../runtime/halopad_input.h"
+#include <stdatomic.h>
 
 int halopad_host_input_off;                        /* tests drive input themselves */
 static int pointer_captured, cursor_visible = 1;
 
 void halopad_host_app(void) {}                     /* UIApplication belongs to the app shell */
 
-/* The device's main screen in pixels, landscape (Halo's desktop). */
+/* Halo's desktop: the game window in pixels, landscape, as the app shell measured it on the
+   main thread (Halo asks from its own thread). Before a shell has measured a window, as in the
+   headless host tests, fall back to the device's main screen. */
+static _Atomic int32_t desktop_w, desktop_h;
+void halopad_host_set_screen_size(int32_t w, int32_t h)
+{
+    if (w <= 0 || h <= 0) return;
+    atomic_store(&desktop_h, h);
+    atomic_store(&desktop_w, w);
+}
 void halopad_host_screen_size(int32_t *w, int32_t *h)
 {
+    int32_t width = atomic_load(&desktop_w), height = atomic_load(&desktop_h);
+    if (width > 0 && height > 0) { *w = width; *h = height; return; }
     CGRect b = UIScreen.mainScreen.nativeBounds;
-    int32_t a = (int32_t)b.size.width, c = (int32_t)b.size.height;
-    *w = a > c ? a : c;
-    *h = a > c ? c : a;
+    halopad_desktop_pixels(b.size.width, b.size.height, 1, w, h);
 }
 
 /* Events from the shell (UIKit's main thread) wait here until Halo's thread pumps. */
