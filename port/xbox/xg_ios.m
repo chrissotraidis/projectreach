@@ -96,6 +96,14 @@ UIView *xg_ios_make_view(CGRect frame)
 		kEAGLDrawablePropertyColorFormat: kEAGLColorFormatRGBA8 };
 #endif
 	xg_ios_view_resized();
+	/* A move to a screen of another density can keep the same point size, so no
+	 * layout follows: refresh the drawable's pixels when the display scale changes.
+	 * The guest's render width depends only on the window's shape. */
+	[game_view registerForTraitChanges:@[ UITraitDisplayScale.class ]
+		withHandler:^(__kindof id<UITraitEnvironment> view, UITraitCollection *previous) {
+		(void)view; (void)previous;
+		xg_ios_view_resized();
+	}];
 	return game_view;
 }
 
