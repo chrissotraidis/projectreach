@@ -37,6 +37,7 @@
 #include "xg_ios.h"
 #include "xg_lan.h"
 #include "xg_scancode_names.h"
+#include "../apple/halopad_display_geometry.h"
 #if TARGET_OS_SIMULATOR
 #include "xg_audio_capture.h"
 static void audio_capture_flush(void);
@@ -81,8 +82,9 @@ UIView *xg_ios_make_view(CGRect frame)
 {
 	game_view = [[XGGameView alloc] initWithFrame:frame];
 	/* Apple's software renderer on the Simulator needs only point resolution.
-	 * Physical devices retain their native pixel resolution. */
-	game_view.contentScaleFactor = TARGET_OS_SIMULATOR ? 1 : UIScreen.mainScreen.nativeScale;
+	 * Physical devices use the native pixels of the screen showing the game, set on
+	 * every layout (xg_ios_view_resized) once the view is in a window. */
+	if (TARGET_OS_SIMULATOR) game_view.contentScaleFactor = 1;
 	game_view.multipleTouchEnabled = YES;
 	game_view.backgroundColor = UIColor.blackColor;
 	game_layer = (id)game_view.layer;
@@ -101,6 +103,8 @@ UIView *xg_ios_make_view(CGRect frame)
 void xg_ios_view_resized(void)
 {
 	CGSize size = game_view.bounds.size;
+	UIScreen *screen = game_view.window.windowScene.screen;
+	if (screen && !TARGET_OS_SIMULATOR) game_view.contentScaleFactor = screen.nativeScale;
 	CGFloat scale = game_view.contentScaleFactor;
 	pthread_mutex_lock(&layer_lock);
 	layer_pixels = CGSizeMake(size.width * scale, size.height * scale);
@@ -1378,8 +1382,8 @@ int xg_ios_start(const char *image_path, const char *data_root, const char *save
 	char buffers[5][1100];
 	const char *environment[48];
 	int count = 5;
-	CGSize screen = UIScreen.mainScreen.bounds.size;
-	CGFloat longer = MAX(screen.width, screen.height), shorter = MIN(screen.width, screen.height);
+	/* The render's shape is the game window's, not the device's main screen. */
+	CGSize shape = game_view.window ? game_view.window.bounds.size : game_view.bounds.size;
 	uint32_t boot;
 	start_ticks = mach_absolute_time();
 	touch_trace = getenv("XG_TOUCH_TRACE") != NULL;
@@ -1402,7 +1406,7 @@ int xg_ios_start(const char *image_path, const char *data_root, const char *save
 	snprintf(buffers[1], sizeof(buffers[1]), "HALO_DATA_ROOT=%s", data_root);
 	snprintf(buffers[2], sizeof(buffers[2]), "HALO_SAVE_ROOT=%s", save_root);
 	/* the game draws 480 lines at the screen's shape (upstream's d3d8_gl.c) */
-	snprintf(buffers[3], sizeof(buffers[3]), "HALO_DISPLAY_WIDTH=%d", (int)(480.0 * longer / shorter) & ~1);
+	snprintf(buffers[3], sizeof(buffers[3]), "HALO_DISPLAY_WIDTH=%d", halopad_xbox_display_width(shape.width, shape.height));
 	{
 		NSInteger offset = -NSTimeZone.localTimeZone.secondsFromGMT;
 		snprintf(buffers[4], sizeof(buffers[4]), "TZ=<L>%s%ld:%02ld", offset < 0 ? "-" : "",
