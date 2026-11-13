@@ -128,6 +128,69 @@ static void check_xbox_adapter(void)
 - (void)selectedSizeChanged:(UISlider *)sender;
 @end
 
+static BOOL menu_has_title(UIMenu *menu, NSString *title)
+{
+    for (UIMenuElement *element in menu.children) {
+        if ([element.title isEqualToString:title]) return YES;
+        if ([element isKindOfClass:UIMenu.class] && menu_has_title((UIMenu *)element, title)) return YES;
+    }
+    return NO;
+}
+/* Show Touch Controls overrides both the manual hide and controller suppression, in both
+   editions (the Xbox host passes controllerConnected; the PC host uses the same overlay). */
+static void check_show_precedence(void)
+{
+    NSUserDefaults *defaults = NSUserDefaults.standardUserDefaults;
+    id savedAuto = [defaults objectForKey:@"HaloPad.hideWithController"];
+    id savedManual = [defaults objectForKey:@"HaloPad.hideTouchControls"];
+    [defaults removeObjectForKey:@"HaloPad.hideWithController"];
+    [defaults removeObjectForKey:@"HaloPad.hideTouchControls"];
+    check("auto-hide defaults on when no choice is saved", HPSettings.shared.hideWithController);
+    [defaults setObject:@NO forKey:@"HaloPad.hideWithController"];
+    check("a saved auto-hide choice is kept", !HPSettings.shared.hideWithController);
+    [defaults removeObjectForKey:@"HaloPad.hideWithController"];
+
+    __block BOOL connected = YES;
+    for (int edition = 0; edition < 2; edition++) {
+        HPOverlay *view = edition ? [[HPOverlay alloc] initWithFrame:CGRectMake(0, 0, 1024, 768)
+                                                        inputHandler:^(const hp_input *event) { (void)event; }]
+                                  : [[HPOverlay alloc] initWithFrame:CGRectMake(0, 0, 1024, 768)];
+        const char *name = edition ? "Xbox" : "PC";
+        view.inGame = YES;
+        view.controllerConnected = ^BOOL { return connected; };
+        UIButton *menu = [view valueForKey:@"menuButton"];
+        connected = YES; HPSettings.shared.hideWithController = YES; HPSettings.shared.hideTouchControls = YES;
+        [view refreshControllerVisibility];
+        BOOL hidden = [[view valueForKey:@"controlsHidden"] boolValue];
+        BOOL offered = menu_has_title(menu.menu, @"Show Touch Controls");
+        [view showTouchControls];
+        BOOL shown = ![[view valueForKey:@"controlsHidden"] boolValue];
+        BOOL prefs = !HPSettings.shared.hideTouchControls && !HPSettings.shared.hideWithController;
+        BOOL withdrawn = !menu_has_title(menu.menu, @"Show Touch Controls");
+        [view refreshControllerVisibility];   /* the controller reconnects or is polled again */
+        BOOL stays = ![[view valueForKey:@"controlsHidden"] boolValue];
+        HPSettings.shared.hideWithController = YES;
+        [view refreshControllerVisibility];
+        BOOL rehidden = [[view valueForKey:@"controlsHidden"] boolValue];
+        connected = NO; [view refreshControllerVisibility];
+        BOOL returns = ![[view valueForKey:@"controlsHidden"] boolValue];
+        view.softwareKeyboardVisible = YES;
+        BOOL keyboardHides = [[view valueForKey:@"controlsHidden"] boolValue];
+        view.softwareKeyboardVisible = NO;
+        fprintf(stderr, "OVERLAY SHOW %s: hidden=%d offered=%d shown=%d prefs=%d withdrawn=%d stays=%d rehidden=%d returns=%d keyboard=%d\n",
+                name, hidden, offered, shown, prefs, withdrawn, stays, rehidden, returns, keyboardHides);
+        check(edition ? "Xbox: Show overrides controller suppression and turns auto-hide off"
+                      : "PC: Show overrides controller suppression and turns auto-hide off",
+              hidden && offered && shown && prefs && withdrawn && stays);
+        check(edition ? "Xbox: re-enabled auto-hide applies at once; the keyboard still hides controls"
+                      : "PC: re-enabled auto-hide applies at once; the keyboard still hides controls",
+              rehidden && returns && keyboardHides);
+    }
+    if (savedAuto) [defaults setObject:savedAuto forKey:@"HaloPad.hideWithController"];
+    else [defaults removeObjectForKey:@"HaloPad.hideWithController"];
+    if (savedManual) [defaults setObject:savedManual forKey:@"HaloPad.hideTouchControls"];
+    else [defaults removeObjectForKey:@"HaloPad.hideTouchControls"];
+}
 static void check_editor_alignment(void)
 {
     HPTestOverlay *view = [[HPTestOverlay alloc] initWithFrame:CGRectMake(0, 0, 1024, 768)];
@@ -842,6 +905,7 @@ int main(void)
         check_editor_alignment();
         check_xbox_adapter();
         check_shared_settings();
+        check_show_precedence();
 
         fprintf(stderr, "OVERLAY INPUT: %s (%d failures)\n", failures ? "FAIL" : "PASS", failures);
         return failures ? 1 : 0;

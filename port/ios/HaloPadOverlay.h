@@ -86,6 +86,9 @@ typedef NS_ENUM(NSInteger, HPAspectMode) { HPAspectOriginal = 0, HPAspectFill = 
    its delivered keys. Regaining focus starts empty; it never replays a partial command. */
 + (void)setTextInputActive:(BOOL)active;
 - (void)refreshControllerVisibility;
+/* Show Touch Controls: clears the manual hide and turns Hide with a Controller off, so the
+   controls return at once even with a controller still connected. */
+- (void)showTouchControls;
 - (void)clearTouchInput;
 /* Development self-test (HALOPAD_TOUCH_SELFTEST): drive the controls through the same handlers
    their touches use. */

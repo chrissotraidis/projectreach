@@ -812,9 +812,24 @@ static const hp_control_def CONTROLS[] = {
     else if (halopad_app_controller_ready())
         for (GCController *c in GCController.controllers) if (c.extendedGamepad) connected = YES;
 #endif
-    _controllerHidden = connected && HPSettings.shared.hideWithController;
+    BOOL hidden = connected && HPSettings.shared.hideWithController;
+    BOOL changed = hidden != _controllerHidden;
+    _controllerHidden = hidden;
     if (connected) [self clearTouchInput];
     [self updateAppearance];
+    if (changed) [self rebuildMenu];    /* Show Touch Controls appears only while needed */
+}
+
+/* The reliable recovery from both kinds of hiding. A connected controller would otherwise keep
+   suppressing the controls the player just asked for, so auto-hide stays off until the player
+   turns it back on. The keyboard and Halo's menus still hide them temporarily. */
+- (void)showTouchControls
+{
+    HPSettings.shared.hideTouchControls = NO;
+    HPSettings.shared.hideWithController = NO;
+    _controllerHidden = NO;
+    [self updateAppearance];
+    [self rebuildMenu];
 }
 
 - (void)setFramesPerSecond:(int)fps
@@ -1019,6 +1034,9 @@ static NSString * const HPRepositoryURL = @"https://github.com/chrissotraidis/pr
         [UIAction actionWithTitle:@"Look Speed & Touch Settings…" image:icon(@"slider.horizontal.3") identifier:nil handler:^(__kindof UIAction *a) { [weak togglePanel]; }],
         [UIAction actionWithTitle:@"Edit Touch Layout" image:icon(@"hand.draw") identifier:nil handler:^(__kindof UIAction *a) { [weak beginEditing]; }],
         [self check:@"Hide Touch Controls" on:s.hideTouchControls handler:^{
+            /* Unhiding while a controller suppresses the controls must still show them. */
+            HPOverlay *strong = weak;
+            if (strong && HPSettings.shared.hideTouchControls && strong->_controllerHidden) { [strong showTouchControls]; return; }
             HPSettings.shared.hideTouchControls = !HPSettings.shared.hideTouchControls; [weak clearTouchInput]; [weak updateAppearance]; [weak rebuildMenu]; }],
         [self check:@"Hide Touch Controls with a Controller" on:s.hideWithController handler:^{
             HPSettings.shared.hideWithController = !HPSettings.shared.hideWithController; [weak refreshControllerVisibility]; [weak rebuildMenu]; }],
@@ -1062,6 +1080,12 @@ static NSString * const HPRepositoryURL = @"https://github.com/chrissotraidis/pr
                                           handler:^(__kindof UIAction *a) { [weak confirmEditionSwitch]; }]];
 
     NSMutableArray<UIMenuElement *> *groups = [NSMutableArray array];
+#if !TARGET_OS_MACCATALYST
+    if (s.hideTouchControls || _controllerHidden)
+        [groups addObject:[UIMenu menuWithTitle:@"" image:nil identifier:nil options:UIMenuOptionsDisplayInline children:@[
+            [UIAction actionWithTitle:@"Show Touch Controls" image:icon(@"hand.tap") identifier:nil
+                              handler:^(__kindof UIAction *a) { [weak showTouchControls]; }]]]];
+#endif
     for (NSArray<UIMenuElement *> *group in @[play, setup, last])
         if (group.count)
             [groups addObject:[UIMenu menuWithTitle:@"" image:nil identifier:nil options:UIMenuOptionsDisplayInline children:group]];
