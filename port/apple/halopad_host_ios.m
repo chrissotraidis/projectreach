@@ -21,17 +21,18 @@ void halopad_host_app(void) {}                     /* UIApplication belongs to t
 
 /* Halo's desktop: the game window in pixels, landscape, as the app shell measured it on the
    main thread (Halo asks from its own thread). Before a shell has measured a window, as in the
-   headless host tests, fall back to the device's main screen. */
-static _Atomic int32_t desktop_w, desktop_h;
+   headless host tests, fall back to the device's main screen. Width and height share one
+   atomic, so Halo never reads a width from one layout with a height from another. */
+static _Atomic uint64_t desktop_size;
 void halopad_host_set_screen_size(int32_t w, int32_t h)
 {
     if (w <= 0 || h <= 0) return;
-    atomic_store(&desktop_h, h);
-    atomic_store(&desktop_w, w);
+    atomic_store(&desktop_size, (uint64_t)(uint32_t)w << 32 | (uint32_t)h);
 }
 void halopad_host_screen_size(int32_t *w, int32_t *h)
 {
-    int32_t width = atomic_load(&desktop_w), height = atomic_load(&desktop_h);
+    uint64_t size = atomic_load(&desktop_size);
+    int32_t width = (int32_t)(size >> 32), height = (int32_t)(uint32_t)size;
     if (width > 0 && height > 0) { *w = width; *h = height; return; }
     CGRect b = UIScreen.mainScreen.nativeBounds;
     halopad_desktop_pixels(b.size.width, b.size.height, 1, w, h);
