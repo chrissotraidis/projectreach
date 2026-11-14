@@ -115,7 +115,7 @@ After choosing the next version and updating the recipe/workflow fields, run:
 
 ```sh
 # Example next version; this does not edit or bump any version for you.
-RELEASE_VERSION=0.3.15
+RELEASE_VERSION=0.3.16
 /usr/bin/python3 scripts/xbox/prepare_release.py --version "$RELEASE_VERSION"
 ```
 
