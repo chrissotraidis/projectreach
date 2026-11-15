@@ -2,14 +2,23 @@
 
 ## HaloPad 0.3.16: OpenCE 359
 
-**Prepared for publication, 2026-11-15:** the [v0.3.16 draft](https://github.com/chrissotraidis/projectreach/releases)
-targets `0474ed5`, merging [#51](https://github.com/chrissotraidis/projectreach/pull/51). It is not
-published; publication waits for the owner's TV and controller check on the iPad.
+**Published 2026-11-15:** [HaloPad 0.3.16](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.16)
+is released from `0474ed5`, merging [#51](https://github.com/chrissotraidis/projectreach/pull/51), after
+Chris confirmed the iPad build on a TV with a controller. The public latest release resolves to
+`v0.3.16`; anonymous recipe/checksum downloads match the staged files byte for byte, and
+PadMint's release gate passes for them.
 
 | Clean PadMint check | iPhone/iPad | Mac |
 | --- | --- | --- |
 | Before tagging, final clean checkout `0474ed5` | 270.09 s — pass | 266.18 s — pass |
-| After publication, no checkout supplied | not run yet | not run yet |
+| After publication, no checkout supplied | 431.27 s — pass | not run: insufficient free disk |
+
+- The public iOS check fetched `v0.3.16` at `0474ed5`, found no catalog problems and passes
+  the strict package audit (OpenCE 359/network 44, 50 runtime-source hashes, 38 notices); as
+  before, only PadMint's launch-link plist entry differs from the verified builder app.
+- The public Mac check stopped at PadMint's 35 GB free-space preflight twice while other
+  player checks shared the disk. It remains outstanding; the pre-tag Mac check passed from the
+  same commit.
 
 - Both used current PadMint main `de14bd3`, Apple Python 3.9.6, separate empty folders and
   the labeled Xbox-only placeholder disc. PadMint reported no catalog changes.
