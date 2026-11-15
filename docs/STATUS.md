@@ -11,14 +11,14 @@ PadMint's release gate passes for them.
 | Clean PadMint check | iPhone/iPad | Mac |
 | --- | --- | --- |
 | Before tagging, final clean checkout `0474ed5` | 270.09 s — pass | 266.18 s — pass |
-| After publication, no checkout supplied | 431.27 s — pass | not run: insufficient free disk |
+| After publication, no checkout supplied | 431.27 s — pass | 296.59 s — pass |
 
-- The public iOS check fetched `v0.3.16` at `0474ed5`, found no catalog problems and passes
-  the strict package audit (OpenCE 359/network 44, 50 runtime-source hashes, 38 notices); as
-  before, only PadMint's launch-link plist entry differs from the verified builder app.
-- The public Mac check stopped at PadMint's 35 GB free-space preflight twice while other
-  player checks shared the disk. It remains outstanding; the pre-tag Mac check passed from the
-  same commit.
+- Both public checks fetched `v0.3.16` at `0474ed5` and found no catalog problems. Strict
+  post-publication audits pass for both packages (OpenCE 359/network 44, 50 runtime-source
+  hashes, 38 notices); guest code differs only in the diagnostic timestamp. As before, the
+  delivered IPA differs from the verified builder app only by PadMint's launch-link entry.
+- The first public attempts stopped at PadMint's 35 GB free-space preflight while other
+  player checks shared the disk; both were rerun once space was available.
 
 - Both used current PadMint main `de14bd3`, Apple Python 3.9.6, separate empty folders and
   the labeled Xbox-only placeholder disc. PadMint reported no catalog changes.
