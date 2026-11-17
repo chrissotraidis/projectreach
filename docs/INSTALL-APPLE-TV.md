@@ -52,8 +52,20 @@ The first build fetches and translates OpenCE and takes a while; see
 
 ## Add your game
 
-Extract the maps from your disc on the Mac (the same script HaloPad's other builds use), then copy
-them into the app's data folder on the Apple TV:
+Open **HaloPad Xbox** on the Apple TV. Without game data it shows a web address, such as
+`http://192.168.1.20:8080`.
+
+1. Open that address in a browser on a computer or phone on the same network.
+2. Choose **Show a code on the TV**, then type the six-digit code the TV shows. This pairs that
+   browser; other devices on your network cannot use the page until they pair too.
+3. Choose your disc image. The page reads it in your browser and sends only the maps (about 1.9 GB
+   of a 3.5 GB disc) to the Apple TV, which checks every map and then starts the game. A failed or
+   interrupted upload leaves the maps already installed as they were.
+
+The page stays available while you play, for adding the maps again. It arrives over plain HTTP
+and is reachable from your local network only.
+
+Without the page, extract the maps on the Mac and copy them over with Xcode's tools:
 
 ```sh
 python3 scripts/xbox/extract-maps.py <your disc image> ref/xbox-build/data   # writes data/maps
@@ -62,12 +74,9 @@ xcrun devicectl device copy to --device <identifier> --domain-type appDataContai
     --destination Library/Caches/data/maps
 ```
 
-The bundle identifier is the one you chose under "Signing" (the build prints it after
-`signing:`). Then open **HaloPad Xbox** on the Apple TV.
-
 ## Limits
 
 - tvOS may delete an app's cached files when the Apple TV runs low on storage. The maps and saves
-  live there (tvOS apps may write nowhere else), so copy the maps again if that happens.
+  live there (tvOS apps may write nowhere else); the app then asks for your disc again.
 - Play with a controller: the Siri Remote does not navigate the menus.
 - Steam Workshop needs an OpenCE engine newer than HaloPad's pinned 359.

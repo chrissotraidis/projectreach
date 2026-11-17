@@ -164,8 +164,9 @@ done
 $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_gen.c" -o "$OBJ/xg_gl_gen.o"
 $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
 OBJC_SOURCES="xg_ios xg_lan xg_touch xg_draw_capture xg_draw_replay xg_depth_capture xg_https xg_app_ios"
-case "$SDK" in appletv*) OBJC_SOURCES=$(echo "$OBJC_SOURCES" | sed 's/ xg_touch//') ;; esac   # no touchscreen
-rm -f "$OBJ/xg_touch.o"
+# Apple TV: no touchscreen; the player adds their maps through a web page (xg_admin.m)
+case "$SDK" in appletv*) OBJC_SOURCES=$(echo "$OBJC_SOURCES" | sed 's/ xg_touch/ xg_admin/') ;; esac
+rm -f "$OBJ/xg_touch.o" "$OBJ/xg_admin.o"
 for f in $OBJC_SOURCES; do
 	$CC $CFLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
 done
@@ -245,9 +246,11 @@ esac
 $CC $LINKER -o "$APP/HaloPadXbox" "$OBJ"/*.o $ANGLE_LIB -framework UIKit -framework QuartzCore $GL_LINK \
 	-framework GameController -framework AudioToolbox -framework AVFoundation -framework Foundation -framework CoreFoundation -framework CoreGraphics
 cp "$OUT/halo_guest.elf" "$APP/halo_guest.elf"
+case "$SDK" in appletv*) cp "$ROOT/port/xbox/admin/admin.html" "$APP/admin.html" ;; esac
 PLATFORM=iPhoneSimulator
 [ "$SDK" = iphoneos ] && PLATFORM=iPhoneOS
 BUNDLE_ID=dev.halopad.HaloPad.xbox-test
+BONJOUR='<string>_halopad._udp</string>'
 DEVICE_KEYS='<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
 <key>UIRequiresFullScreen</key><true/>
 <key>UILaunchScreen</key><dict/>
@@ -259,6 +262,7 @@ appletvos|appletvsimulator)
 	PLATFORM=AppleTVSimulator
 	[ "$SDK" = appletvos ] && PLATFORM=AppleTVOS
 	# Apple TV: the game is played with a controller (an extended gamepad).
+	BONJOUR='<string>_halopad._udp</string><string>_http._tcp</string>'     # and the web page (xg_admin.m)
 	DEVICE_KEYS='<key>UIDeviceFamily</key><array><integer>3</integer></array>
 <key>GCSupportedGameControllers</key><array><dict><key>ProfileName</key><string>ExtendedGamepad</string></dict></array>'
 	if [ "$SDK" = appletvos ]; then
@@ -291,7 +295,7 @@ $DEVICE_KEYS
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleDisplayName</key><string>HaloPad Xbox</string>
 <key>NSLocalNetworkUsageDescription</key><string>HaloPad finds and joins Halo games on your local network.</string>
-<key>NSBonjourServices</key><array><string>_halopad._udp</string></array>
+<key>NSBonjourServices</key><array>$BONJOUR</array>
 </dict></plist>
 EOF
 [ "$SDK" = appletvos ] || cat > "$OUT/xbox.entitlements" <<EOF

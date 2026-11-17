@@ -1,5 +1,25 @@
 # HaloPad status
 
+## Apple TV: adding the maps from a browser (experimental, not in a release)
+
+On Apple TV the app serves a page on the local network (`port/xbox/xg_admin.m`, `admin/admin.html`).
+The player pairs a browser with a six-digit code the TV shows; the page reads their disc in the
+browser and sends only `maps/`, and the TV checks every map before swapping them in.
+
+- tvOS Simulator (Apple TV 4K), OpenCE 359, no game data: the app showed the first-run screen with
+  its address; a code requested from the Mac appeared on the TV, paired, and the 24 maps of a
+  01.10.12.2276 disc (1.86 GB) were sent, checked and installed. The game then started by itself
+  and reached the main menu.
+- Apple TV 4K (3rd gen, tvOS 27.2.1), OpenCE 387, with the maps already installed: an earlier
+  version of the page (before pairing) sent the same maps from a browser on a Mac while the game
+  ran, and asked for a restart. After the app spent time in the background, the page answered
+  again once it returned.
+- `tests/test_xbox_admin.py` builds the server for the Mac and drives it over HTTP: pairing and
+  its limits, installing maps, refusing maps of another build or without a header or `ui.map`
+  while keeping the installed ones, unsafe names, superseded imports, and reopening the socket.
+  `tests/test_xbox_admin_disc_reader.py` runs the page's disc reader (Node) on synthetic disc
+  images. Neither uses game data.
+
 ## Xbox edition on Apple TV (experimental, not in a release)
 
 `scripts/xbox/build-ios.sh --tvos` builds the Xbox test app for Apple TV; `docs/INSTALL-APPLE-TV.md`
