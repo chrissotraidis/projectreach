@@ -23,6 +23,12 @@ covers signing, installing and adding the maps.
 - Data and saves live in `Library/Caches`, the only folders tvOS apps may write. A 1.5 GiB test
   set there survived a relaunch and two Apple TV restarts; tvOS may still purge it when storage
   runs low.
+- Siri Remote, menus only: its arrows (clicked or swiped) move, a middle click chooses, Back goes
+  back, Play/Pause is Start; in a game it does nothing (the game reports when a menu is up). With
+  OpenCE 387 on the Apple TV: main menu, pause menu and QUIT driven with the remote; remote presses
+  during a level ignored; one step per click; a controller's stick no longer opens chat while
+  walking, and does not double-step in menus. With OpenCE 359 (this branch's build): the main menu
+  driven with the remote, about 300 presses at 59.6 fps; a level was not loaded in that run.
 
 ## HaloPad 0.3.16: OpenCE 359
 

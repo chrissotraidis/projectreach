@@ -69,5 +69,7 @@ The bundle identifier is the one you chose under "Signing" (the build prints it 
 
 - tvOS may delete an app's cached files when the Apple TV runs low on storage. The maps and saves
   live there (tvOS apps may write nowhere else), so copy the maps again if that happens.
-- Play with a controller: the Siri Remote does not navigate the menus.
+- Play with a controller. The Siri Remote works only in menus (the main menu, the pause menu,
+  settings): swipe or click its edges to move, click the middle to choose, Back to go back. In a
+  game it does nothing.
 - Steam Workshop needs an OpenCE engine newer than HaloPad's pinned 359.

@@ -10,10 +10,11 @@
 #if TARGET_OS_TV
 #import <GameController/GameController.h>
 
-/* On tvOS a controller's B button is also the system's Menu press, which
- * leaves the app when nothing handles it. A GCEventViewController with
- * controller user interaction off keeps controllers' input for the game
- * (GameController, xg_ios.m) and away from UIKit. */
+/* On tvOS a controller's B button and the Siri Remote's Back are the system
+ * Menu press, which quits an app when nothing handles it. This controller
+ * handles every press itself (pressesBegan below) and passes none on.
+ * Controller UI interaction stays on: with it off, tvOS 27 kept the Siri
+ * Remote's presses from both UIKit and GameController. */
 @interface XGViewController : GCEventViewController
 @end
 #else
@@ -26,10 +27,25 @@
 {
 	self.view = xg_ios_make_view(UIScreen.mainScreen.bounds);
 #if TARGET_OS_TV
-	self.controllerUserInteractionEnabled = NO;
+	/* tvOS hands the Siri Remote's presses to the app through UIKit
+	 * (pressesBegan below), and controllers' too */
+	self.controllerUserInteractionEnabled = YES;
 #endif
 }
 - (void)viewDidLayoutSubviews { [super viewDidLayoutSubviews]; xg_ios_view_resized(); }
+#if TARGET_OS_TV
+/* The Siri Remote's arrows, click, Back and Play/Pause as UIKit delivers them:
+ * player 1's menu buttons (xg_ios.m). Not passed on, so Back does not leave
+ * the app. */
+- (void)remotePresses:(NSSet<UIPress *> *)presses down:(int)down
+{
+	for (UIPress *press in presses)
+		xg_ios_remote_press((int)press.type, press.key ? (long)press.key.keyCode : 0, down);
+}
+- (void)pressesBegan:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event { [self remotePresses:presses down:1]; }
+- (void)pressesEnded:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event { [self remotePresses:presses down:0]; }
+- (void)pressesCancelled:(NSSet<UIPress *> *)presses withEvent:(UIPressesEvent *)event { [self remotePresses:presses down:0]; }
+#endif
 - (BOOL)prefersStatusBarHidden { return YES; }
 - (BOOL)prefersHomeIndicatorAutoHidden { return YES; }
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIInterfaceOrientationMaskLandscape; }

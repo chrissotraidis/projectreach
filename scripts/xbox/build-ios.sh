@@ -260,7 +260,7 @@ appletvos|appletvsimulator)
 	[ "$SDK" = appletvos ] && PLATFORM=AppleTVOS
 	# Apple TV: the game is played with a controller (an extended gamepad).
 	DEVICE_KEYS='<key>UIDeviceFamily</key><array><integer>3</integer></array>
-<key>GCSupportedGameControllers</key><array><dict><key>ProfileName</key><string>ExtendedGamepad</string></dict></array>'
+<key>GCSupportedGameControllers</key><array><dict><key>ProfileName</key><string>ExtendedGamepad</string></dict><dict><key>ProfileName</key><string>MicroGamepad</string></dict></array>'
 	if [ "$SDK" = appletvos ]; then
 		# A development profile Xcode made, and the keychain identity it names
 		# (tvos-signing.py); it also writes the entitlements.

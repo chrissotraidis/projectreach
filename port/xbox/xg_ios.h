@@ -27,6 +27,14 @@ void xg_ios_scroll_scoreboard(float points);
 void xg_ios_key(int scancode, int down);
 void xg_ios_mouse_button(int button, int down);
 void xg_ios_mouse_wheel(float steps);
+#if TARGET_OS_TV
+/* a Siri Remote press (UIPressType, and its UIKeyboardHIDUsage or 0) from the
+ * view controller's pressesBegan/pressesEnded, merged into player 1 as a
+ * gamepad button */
+void xg_ios_remote_press(int type, long key, int down);
+/* a line in the log when XG_REMOTE_TRACE is set, with the time */
+void xg_ios_remote_trace(const char *format, ...) __attribute__((format(printf, 1, 2)));
+#endif
 /* nonzero while a game controller is player 1's */
 int xg_ios_controller_connected(void);
 /* frames presented since the game started (any thread) */

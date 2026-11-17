@@ -29,6 +29,7 @@
 #include <mach/mach_time.h>
 #include <pthread.h>
 #include <math.h>
+#include <stdarg.h>
 #include <stdatomic.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -842,6 +843,9 @@ int xh_host_sdl_show_message_box(uint32_t flags, uint32_t title, uint32_t messag
 
 #define PADS 8
 static __strong GCController *pads[PADS + 1];
+#if TARGET_OS_TV
+static __strong GCController *remote;   /* the Siri Remote, merged into player 1 (pads_refresh) */
+#endif
 static uint8_t pad_announced[PADS + 1];
 static pthread_mutex_t pad_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct xg_touch_input touch_input;
@@ -1072,9 +1076,23 @@ static void pads_refresh(void)
 			if (index > 1)
 				pad_announced[index] = 0;
 		}
+#if TARGET_OS_TV
+	if (remote && ![controllers containsObject:remote])
+		remote = nil;
+#endif
 	for (GCController *controller in controllers)
 	{
 		int free_slot = 0, known = 0;
+#if TARGET_OS_TV
+		/* the Siri Remote (a micro gamepad only): logged; its presses come
+		 * through UIKit (remote_button) */
+		if (!controller.extendedGamepad && controller.microGamepad && !remote)
+		{
+			remote = controller;
+			xg_log("Siri Remote: %s (%s), player 1's menu navigation",
+				controller.vendorName.UTF8String ?: "unnamed", controller.productCategory.UTF8String ?: "?");
+		}
+#endif
 		if (!controller.extendedGamepad)
 			continue;
 		for (index = 1; index <= PADS; index++)
@@ -1186,6 +1204,145 @@ static int hardware_button(GCExtendedGamepad *g, int button)
 	}
 }
 
+#if TARGET_OS_TV
+/* The Siri Remote's presses as UIKit delivers them (the view controller's
+ * pressesBegan/Ended: xg_ios_remote_press), as SDL gamepad button bits: held
+ * while down, and each for at least REMOTE_PRESS_MS, as tvOS reports a swipe
+ * on the clickpad as an arrow pressed and let go within a millisecond, between
+ * two of the game's reads.
+ *
+ * Only UIKit's presses: GameController's micro gamepad reports every click of
+ * the clickpad as A, its edges' too (a click down in a menu chose the
+ * highlighted item), and the finger resting on it as the D-pad. */
+enum { REMOTE_PRESS_MS = 60, CONTROLLER_QUIET_MS = 300 };
+static _Atomic unsigned remote_held, remote_latched;
+static _Atomic unsigned remote_generation[32];
+
+static long long now_milliseconds(void) { return (long long)(CFAbsoluteTimeGetCurrent() * 1000.0); }
+
+static long long remote_trace_ms(void)
+{
+	static long long start;
+	long long now = now_milliseconds();
+	if (!start) start = now;
+	return now - start;
+}
+
+void xg_ios_remote_trace(const char *format, ...)
+{
+	char line[256];
+	va_list arguments;
+	if (!getenv("XG_REMOTE_TRACE"))
+		return;
+	va_start(arguments, format);
+	vsnprintf(line, sizeof(line), format, arguments);
+	va_end(arguments);
+	xg_log("Siri Remote at %lld ms: %s", remote_trace_ms(), line);
+}
+
+/* a UIPressType (and its UIKeyboardHIDUsage or 0) as an SDL gamepad button, or -1 */
+static int press_button(int type, long key)
+{
+	int button = -1;
+	switch (type)
+	{
+	case UIPressTypeUpArrow: button = SDL_GAMEPAD_BUTTON_DPAD_UP; break;
+	case UIPressTypeDownArrow: button = SDL_GAMEPAD_BUTTON_DPAD_DOWN; break;
+	case UIPressTypeLeftArrow: button = SDL_GAMEPAD_BUTTON_DPAD_LEFT; break;
+	case UIPressTypeRightArrow: button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT; break;
+	case UIPressTypeSelect: button = SDL_GAMEPAD_BUTTON_SOUTH; break;
+	case UIPressTypeMenu: button = SDL_GAMEPAD_BUTTON_EAST; break;
+	case UIPressTypePlayPause: button = SDL_GAMEPAD_BUTTON_START; break;
+	default:
+		/* presses tvOS reports with a keyboard usage instead (UIKeyboardHIDUsage) */
+		switch (key)
+		{
+		case 0x52: button = SDL_GAMEPAD_BUTTON_DPAD_UP; break;
+		case 0x51: button = SDL_GAMEPAD_BUTTON_DPAD_DOWN; break;
+		case 0x50: button = SDL_GAMEPAD_BUTTON_DPAD_LEFT; break;
+		case 0x4F: button = SDL_GAMEPAD_BUTTON_DPAD_RIGHT; break;
+		case 0x28: case 0x58: button = SDL_GAMEPAD_BUTTON_SOUTH; break;   /* Return, keypad Enter */
+		case 0x29: button = SDL_GAMEPAD_BUTTON_EAST; break;               /* Escape */
+		default: break;
+		}
+		break;
+	}
+	return button;
+}
+
+void xg_ios_remote_press(int type, long key, int down)
+{
+	int button = press_button(type, key);
+	unsigned bit, generation;
+	xg_ios_remote_trace("press type %d key 0x%lx %s -> button %d", type, key, down ? "down" : "up", button);
+	if (button < 0 || button >= 32)
+		return;
+	bit = 1u << button;
+	if (!down)
+	{
+		remote_held &= ~bit;
+		return;
+	}
+	remote_held |= bit;
+	remote_latched |= bit;
+	generation = ++remote_generation[button];
+	dispatch_after(dispatch_time(DISPATCH_TIME_NOW, REMOTE_PRESS_MS * NSEC_PER_MSEC), dispatch_get_main_queue(), ^{
+		if (remote_generation[button] == generation)
+			remote_latched &= ~bit;
+	});
+}
+
+/* a controller's buttons pressed or sticks or triggers moved */
+static int controller_in_use(GCExtendedGamepad *g)
+{
+	const float stick = 0.3f, trigger = 0.2f;
+	if (!g)
+		return 0;
+	return g.buttonA.pressed || g.buttonB.pressed || g.buttonX.pressed || g.buttonY.pressed ||
+		g.leftShoulder.pressed || g.rightShoulder.pressed || g.buttonMenu.pressed || g.buttonOptions.pressed ||
+		g.leftTrigger.value > trigger || g.rightTrigger.value > trigger ||
+		g.dpad.up.pressed || g.dpad.down.pressed || g.dpad.left.pressed || g.dpad.right.pressed ||
+		fabsf(g.leftThumbstick.xAxis.value) > stick || fabsf(g.leftThumbstick.yAxis.value) > stick ||
+		fabsf(g.rightThumbstick.xAxis.value) > stick || fabsf(g.rightThumbstick.yAxis.value) > stick;
+}
+
+/* With controller UI interaction on, tvOS also turns a controller's stick,
+ * D-pad and A into UIKit presses, which the remote's cannot be told apart
+ * from. The controller's own input is read directly, so UIKit's presses are
+ * left out while any controller is in use and CONTROLLER_QUIET_MS after.
+ * (game thread only) */
+static int controller_recently_used(void)
+{
+	static long long checked_at, used_at;
+	long long now = now_milliseconds();
+	int index, used = 0;
+	if (now - checked_at < 8)
+		return now - used_at < CONTROLLER_QUIET_MS;
+	checked_at = now;
+	pthread_mutex_lock(&pad_lock);
+	for (index = 1; index <= PADS && !used; index++)
+		used = controller_in_use(pads[index].extendedGamepad);
+	pthread_mutex_unlock(&pad_lock);
+	if (used)
+		used_at = now;
+	return used_at && now - used_at < CONTROLLER_QUIET_MS;
+}
+
+static int scene_menus(void);
+
+/* The Siri Remote for the menus only: its arrows (clicked or swiped) are the
+ * D-pad, a click in the middle is A, Back is B and Play/Pause is Start. In a
+ * game (the scene upstream reports, xh_host_touch_scene) it does nothing. */
+static int remote_button(int button)
+{
+	if (button < 0 || button >= 32 || !scene_menus())
+		return 0;
+	if (!((remote_held | remote_latched) & (1u << button)))
+		return 0;
+	return !controller_recently_used();
+}
+#endif
+
 int xh_host_sdl_gamepad_button(uint32_t pad, int button)
 {
 	int pressed = hardware_button(hardware_pad(pad).extendedGamepad, button);
@@ -1194,6 +1351,9 @@ int xh_host_sdl_gamepad_button(uint32_t pad, int button)
 		pthread_mutex_lock(&pad_lock);
 		pressed |= xg_touch_button(&touch_input, button);
 		pthread_mutex_unlock(&pad_lock);
+#if TARGET_OS_TV
+		pressed |= remote_button(button);
+#endif
 	}
 	return pressed;
 }
@@ -1455,7 +1615,28 @@ void xh_host_touch_look_read(uint32_t delta)
 }
 
 void xh_host_touch_rumble(uint32_t low, uint32_t high) { (void)low; (void)high; }
+#if TARGET_OS_TV
+/* Upstream's touch controls learn the scene from this, at every read of
+ * player 1's controller (port/linux/src/touch_input.c): bit 0 known, bit 1
+ * menus (a menu, the main menu, no game playing, a cinematic or the chat
+ * keyboard). HaloPad has no Android overlay; on Apple TV the Siri Remote
+ * acts only in menus (remote_button). */
+static atomic_int touch_scene;
+void xh_host_touch_scene(int32_t scene)
+{
+	int before = atomic_exchange(&touch_scene, scene);
+	if ((before & 3) != (scene & 3))
+		xg_log("scene: %s", (scene & 1) ? ((scene & 2) ? "menus" : "playing") : "unknown");
+}
+/* nonzero while the game says a menu (not gameplay) has the controller */
+static int scene_menus(void)
+{
+	int scene = atomic_load(&touch_scene);
+	return (scene & 1) && (scene & 2);
+}
+#else
 void xh_host_touch_scene(int32_t scene) { (void)scene; }
+#endif
 void xh_host_touch_bindings(uint32_t controls) { (void)controls; }
 /* These flags describe the Android overlay above, not HaloPad's gamepad-1
  * touch bridge. Returning a touchscreen would enable upstream screen controls
