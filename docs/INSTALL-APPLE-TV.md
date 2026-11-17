@@ -42,13 +42,17 @@ The build finds that profile and its signing identity by itself
 ## Build and install
 
 ```sh
+# OpenCE 359, HaloPad 0.3.16's engine (config/xbox-release.json)
+export XBOX_REV=$(python3 -c "import json; print(json.load(open('config/xbox-release.json'))['revision'])")
 scripts/xbox/build-ios.sh --tvos
 xcrun devicectl list devices                       # your Apple TV's identifier
 xcrun devicectl device install app --device <identifier> ref/xbox-build/out/appletvos/HaloPadXbox.app
 ```
 
 The first build fetches and translates OpenCE and takes a while; see
-[XBOX-ENGINE.md](XBOX-ENGINE.md) for the engine checkout it uses.
+[XBOX-ENGINE.md](XBOX-ENGINE.md) for the engine checkout it uses. Set `XBOX_REV` for every build:
+without it, the build uses `config/xbox-engine.lock.json`, an older experimental engine that has
+not been tried on Apple TV.
 
 ## Add your game
 

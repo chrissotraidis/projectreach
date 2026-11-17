@@ -2,7 +2,8 @@
 
 ## Xbox edition on Apple TV (experimental, not in a release)
 
-`scripts/xbox/build-ios.sh --tvos` builds the Xbox test app for Apple TV; `docs/INSTALL-APPLE-TV.md`
+`scripts/xbox/build-ios.sh --tvos` builds the Xbox test app for Apple TV (with `XBOX_REV` set to
+the engine: without it, the experimental pin's older engine); `docs/INSTALL-APPLE-TV.md`
 covers signing, installing and adding the maps.
 
 - Apple TV 4K (3rd gen, A15, tvOS 27.2.1), OpenCE 359 (`1519c65f`), Apple OpenGL ES 3.0 on Metal:
