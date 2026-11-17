@@ -43,6 +43,24 @@ covers signing, installing and adding the maps.
 - Data and saves live in `Library/Caches`, the only folders tvOS apps may write. A 1.5 GiB test
   set there survived a relaunch and two Apple TV restarts; tvOS may still purge it when storage
   runs low.
+## Steam Workshop host for OpenCE 387 and later (not in a release)
+
+OpenCE builds after 359 import 30 more host functions: the Steam Workshop screen (24) and MCC
+and SHA-256 hashing (6). `build-ios.sh` now compiles upstream's Android host for them when the
+engine has it (`scripts/xbox/gen-host-steam.py`, `port/xbox/xg_steam_host.m`); the pinned 359
+has no such files, so its builds are unchanged.
+
+- Workshop installs on Apple platforms failed at their last step ("The item could not be put in
+  mcc_maps/<id>"): upstream moves the finished download with Linux's `renameat2` and refuses
+  elsewhere. The generated copy now uses Darwin's `RENAME_EXCL`, as `xg_posix.c` already does
+  for the game's own calls.
+- Checked on an Apple TV 4K (3rd gen, tvOS 27.2.1) with OpenCE 387 (`307a42ee`) from a tvOS
+  build of this host: Steam sign-in with Steam Guard, browsing, the shared MCC files (3 of 3)
+  and one Workshop map (144 MB) installed.
+- iPhone and Mac Catalyst: every Steam host file compiles against the iOS 27.2 SDKs; not run.
+  OpenCE 387 guests also stop Apple's linker ("too many large addends"), so an iPhone or Mac
+  build of 387 needs a linker change that is not part of this.
+- `tests/test_xbox_gen_host_steam.py` covers the generator's substitutions and its refusals.
 
 ## HaloPad 0.3.16: OpenCE 359
 

@@ -193,6 +193,35 @@ if [ -f "$ENGINE/port/linux/src/posix_dtls.c" ]; then
             -c "$source" -o "$OBJ/mbedtls_$(basename "$source" .c).o"
     done
 fi
+# Upstream's Steam Workshop and MCC hashing host (OpenCE after 359:
+# port/android/host), when the engine has it. Upstream's files compile as
+# they are, except two copies that convert guest addresses HaloPad's way
+# (scripts/xbox/gen-host-steam.py); xg_steam_host.m supplies the logging,
+# HTTPS, sign-in storage and download publishing they ask of a host.
+rm -f "$OBJ"/steam_*.o "$OBJ"/zlib_*.o "$OBJ"/upstream_workshop_*.o "$OBJ"/upstream_server_json.o \
+    "$OBJ/xg_steam_downloads.o" "$OBJ/xg_mcc_hash.o" "$OBJ/xg_steam_host.o"
+SECURITY_LINK=""
+if [ -f "$ENGINE/port/android/host/steam_downloads.c" ]; then
+    python3 "$ROOT/scripts/xbox/gen-host-steam.py" "$ENGINE" "$OUT"
+    STEAM_FLAGS="-O2 -w -include $ROOT/port/xbox/xg_darwin_compat.h -include $OUT/xg_steam_names.h -I$ROOT/port/xbox -I$ENGINE/port/android/host \
+        -I$ENGINE/port/android/include -I$ENGINE/port/linux/src -I$ENGINE/port/third_party/zlib \
+        -I$ENGINE/port/third_party/mbedtls/include -I$ENGINE/port/third_party/mbedtls/library"
+    for f in steam_cm steam_crypto steam_depot steam_net steam_unpack; do
+        $CC $STEAM_FLAGS -c "$ENGINE/port/android/host/$f.c" -o "$OBJ/$f.o"
+    done
+    # Workshop authors' names (the desktop path: Steam's public web API over HTTPS)
+    for f in workshop_authors server_json; do
+        $CC $STEAM_FLAGS -c "$ENGINE/port/linux/src/$f.c" -o "$OBJ/upstream_$f.o"
+    done
+    $CC $STEAM_FLAGS -c "$OUT/xg_steam_downloads.c" -o "$OBJ/xg_steam_downloads.o"
+    $CC $STEAM_FLAGS -c "$OUT/xg_mcc_hash.c" -o "$OBJ/xg_mcc_hash.o"
+    $CC $STEAM_FLAGS -fobjc-arc -c "$ROOT/port/xbox/xg_steam_host.m" -o "$OBJ/xg_steam_host.o"
+    # upstream's own zlib (inflate only, z_ names: zlib_prefixed.h)
+    for source in "$ENGINE"/port/third_party/zlib/*.c; do
+        $CC -O2 -w -DZ_PREFIX -c "$source" -o "$OBJ/zlib_$(basename "$source" .c).o"
+    done
+    SECURITY_LINK="-framework Security"
+fi
 $CC -c "$ROOT/port/xbox/xg_runtime.s" -o "$OBJ/xg_runtime.o"
 [ "$OBJ/guest.o" -nt "$OUT/guest.s" ] || $CC -c "$OUT/guest.s" -o "$OBJ/guest.o"
 # the engine as a library for HaloPad's own app (scripts/build-ios-app.py links
@@ -244,7 +273,7 @@ case "$SDK" in appletv*)
 	if LLD=$(command -v ld64.lld); then LINKER="-fuse-ld=$LLD"; fi ;;
 esac
 $CC $LINKER -o "$APP/HaloPadXbox" "$OBJ"/*.o $ANGLE_LIB -framework UIKit -framework QuartzCore $GL_LINK \
-	-framework GameController -framework AudioToolbox -framework AVFoundation -framework Foundation -framework CoreFoundation -framework CoreGraphics
+	-framework GameController -framework AudioToolbox -framework AVFoundation -framework Foundation -framework CoreFoundation -framework CoreGraphics $SECURITY_LINK
 cp "$OUT/halo_guest.elf" "$APP/halo_guest.elf"
 case "$SDK" in appletv*) cp "$ROOT/port/xbox/admin/admin.html" "$APP/admin.html" ;; esac
 PLATFORM=iPhoneSimulator
