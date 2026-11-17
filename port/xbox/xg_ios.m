@@ -85,7 +85,9 @@ UIView *xg_ios_make_view(CGRect frame)
 	 * Physical devices use the native pixels of the screen showing the game, set on
 	 * every layout (xg_ios_view_resized) once the view is in a window. */
 	if (TARGET_OS_SIMULATOR) game_view.contentScaleFactor = 1;
-	game_view.multipleTouchEnabled = YES;
+#if !TARGET_OS_TV
+	game_view.multipleTouchEnabled = YES;             /* tvOS has no touchscreen */
+#endif
 	game_view.backgroundColor = UIColor.blackColor;
 	game_layer = (id)game_view.layer;
 	game_layer.opaque = YES;
@@ -607,10 +609,88 @@ static void render_health(int frame)
 	}
 }
 
+/* ---------- the background: no GPU work
+ *
+ * iOS and tvOS refuse GPU work from an app in the background ("Insufficient
+ * Permission (to submit GPU work from background)"), and on tvOS the game
+ * drawing on after the app left the screen came just before the Apple TV
+ * stopped responding. When the app enters the background, the main thread
+ * asks the game thread to stop at its next swap, a point between frames, and
+ * waits (at most a second) until it has finished its GPU work. The game
+ * thread stays there until the app is in the foreground again. Mac Catalyst
+ * may draw in the background and keeps running. */
+
+static pthread_mutex_t park_lock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t park_changed = PTHREAD_COND_INITIALIZER;
+static int park_wanted, parked;
+
+/* (game thread, at the swap) */
+static void park_if_backgrounded(void)
+{
+	pthread_mutex_lock(&park_lock);
+	if (park_wanted)
+	{
+		pthread_mutex_unlock(&park_lock);
+		glFinish();                       /* nothing left in flight */
+		pthread_mutex_lock(&park_lock);
+		parked = 1;
+		pthread_cond_broadcast(&park_changed);
+		xg_log("app: in the background; the game waits");
+		while (park_wanted)
+			pthread_cond_wait(&park_changed, &park_lock);
+		parked = 0;
+		xg_log("app: in the foreground; the game goes on");
+	}
+	pthread_mutex_unlock(&park_lock);
+}
+
+#if !TARGET_OS_MACCATALYST
+/* (main thread) */
+static void park_game(int wanted)
+{
+	pthread_mutex_lock(&park_lock);
+	park_wanted = wanted;
+	pthread_cond_broadcast(&park_changed);
+	if (wanted && atomic_load(&presented_frames) > 0)
+	{
+		struct timespec until;
+		clock_gettime(CLOCK_REALTIME, &until);
+		until.tv_sec += 1;
+		while (!parked && pthread_cond_timedwait(&park_changed, &park_lock, &until) == 0)
+			;
+		if (!parked)
+			xg_log("app: the game did not reach a frame's end within a second of entering the background");
+	}
+	pthread_mutex_unlock(&park_lock);
+}
+#endif
+
+/* (main thread, once) the app's background and foreground */
+static void xg_ios_observe_background(void)
+{
+#if !TARGET_OS_MACCATALYST
+	static dispatch_once_t once;
+	dispatch_once(&once, ^{
+		NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
+		[center addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+				(void)note;
+				park_game(1);
+			}];
+		[center addObserverForName:UIApplicationWillEnterForegroundNotification object:nil
+			queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+				(void)note;
+				park_game(0);
+			}];
+	});
+#endif
+}
+
 int xh_host_sdl_gl_swap_window(uint32_t window)
 {
 	static int frames;
 	(void)window;
+	park_if_backgrounded();
 	if (frames == 0)
 		xg_log("renderer: %s | %s | %s", (const char *)glGetString(GL_VENDOR), (const char *)glGetString(GL_RENDERER),
 			(const char *)glGetString(GL_VERSION));
@@ -1428,6 +1508,7 @@ int xg_ios_start(const char *image_path, const char *data_root, const char *save
 			environment[count++] = *entry;
 	boot = xg_make_boot(environment, count, 1, (char *[]){ "halo" });
 	xg_ios_observe_focus();
+	xg_ios_observe_background();
 	if (!boot || xg_start_game(boot))
 	{
 		xg_log("cannot start the game thread");
