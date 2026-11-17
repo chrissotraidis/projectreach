@@ -74,9 +74,18 @@ xcrun devicectl device copy to --device <identifier> --domain-type appDataContai
     --destination Library/Caches/data/maps
 ```
 
+## Steam Workshop
+
+With an OpenCE engine newer than HaloPad's pinned 359, the game has a Steam Workshop screen
+(Settings › Network Setup › Steam Workshop) for MCC maps. Sign in to Steam from the page's
+**Steam Workshop** section: your password is encrypted in the browser so that only your Apple TV
+can read it, and the Apple TV keeps only Steam's sign-in, in its Keychain. Steam Guard approval or
+a code works as on other devices. The page itself arrives over plain HTTP, so someone who could
+change your network's traffic could change the page; on a network you don't trust, sign in from
+the game's own Steam screen instead.
+
 ## Limits
 
 - tvOS may delete an app's cached files when the Apple TV runs low on storage. The maps and saves
   live there (tvOS apps may write nowhere else); the app then asks for your disc again.
 - Play with a controller: the Siri Remote does not navigate the menus.
-- Steam Workshop needs an OpenCE engine newer than HaloPad's pinned 359.

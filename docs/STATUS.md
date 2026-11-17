@@ -1,5 +1,23 @@
 # HaloPad status
 
+## Apple TV: Steam sign-in from the page (experimental, not in a release)
+
+With OpenCE 387 or later, the Apple TV page signs in to Steam for the game's Steam Workshop
+screen. The page seals the account name and password with TweetNaCl's `nacl.box` to a key the TV
+makes at each launch, together with a one-use challenge; the TV opens them into a buffer it wipes
+and starts the game's own sign-in (`port/xbox/xg_steam_admin.inc`, appended to the generated
+`steam_downloads.c`).
+
+- Apple TV 4K (3rd gen, tvOS 27.2.1), OpenCE 387 (`307a42ee`): a browser paired with the code the
+  TV showed; the saved sign-in resumed; logging out revoked it with Steam; signing in again from
+  the page reached Steam Guard (app approval or code) and was approved.
+- `tests/test_xbox_admin_steam.py` builds the server with a stand-in Steam session and seals with
+  the page's `nacl.min.js` in Node: a password with accents, spaces, quotes and a backslash
+  arrives exactly; a replayed, a tampered and a plain-text sign-in are refused; unpaired browsers
+  get no key; a Steam Guard code arrives trimmed and upper-cased.
+- The page itself still arrives over plain HTTP: it protects the password from someone reading
+  the network's traffic, not from someone able to change the page.
+
 ## Apple TV: adding the maps from a browser (experimental, not in a release)
 
 On Apple TV the app serves a page on the local network (`port/xbox/xg_admin.m`, `admin/admin.html`).

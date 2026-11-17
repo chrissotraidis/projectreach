@@ -11,6 +11,9 @@
  *   POST /api/import/finish?id=     check every map, then install them
  *   POST /api/import/cancel?id=     drop the import
  *
+ * Steam sign-in, when the engine has upstream's Steam host (XG_ADMIN_STEAM):
+ * the /api/steam routes below the pairing section.
+ *
  * Pairing: every /api/ request but the pairing ones carries a token
  * (X-Homecoming-Token) that a browser gets by typing a six-digit code the TV
  * shows (POST /api/pair/request, then POST /api/pair). Five wrong codes end
@@ -28,6 +31,7 @@
 #include "xg_admin.h"
 #include "xg_host.h"
 #include <CommonCrypto/CommonDigest.h>
+#include "third_party/tweetnacl/tweetnacl.h"
 #include <arpa/inet.h>
 #include <dns_sd.h>
 #include <errno.h>
@@ -490,6 +494,9 @@ static NSString *json_text(NSDictionary *object, NSString *key)
 #define PAIR_ATTEMPTS 5
 #define MAX_TOKENS 8
 
+/* TweetNaCl's randomness (the Steam sign-in's key pair, below) */
+void randombytes(unsigned char *bytes, unsigned long long size) { arc4random_buf(bytes, (size_t)size); }
+
 static void (^pairing_display)(NSString *code);
 static pthread_mutex_t pair_lock = PTHREAD_MUTEX_INITIALIZER;
 static char pair_code[7];
@@ -602,6 +609,167 @@ static void pair_confirm(int socket, NSDictionary *body)
 }
 
 
+/* ---------- Steam sign-in (the game's Steam Workshop session, xg_steam_admin.h)
+ *
+ *   GET  /api/steam             JSON: state, account, what Steam Guard asks for
+ *   GET  /api/steam/key         {"key", "challenge"}: the TV's public key for
+ *                               this launch, and a one-use challenge
+ *   POST /api/steam/sign-in     {"key", "nonce", "box"} (base64): nacl.box of
+ *                               "challenge\0account\0password" from the
+ *                               page's own key pair to the TV's
+ *   POST /api/steam/code        {"code"}: a Steam Guard code
+ *   POST /api/steam/cancel      stop a sign-in under way
+ *   POST /api/steam/sign-out
+ *
+ * The password crosses the network only encrypted (X25519, XSalsa20-Poly1305;
+ * TweetNaCl on both sides). It is opened here into a buffer that is wiped,
+ * then goes straight to the session thread, which wipes it once Steam has
+ * it; only Steam's refresh token is kept (in the Keychain). */
+
+#if XG_ADMIN_STEAM
+#include "xg_steam_admin.h"
+
+static unsigned char box_public[crypto_box_PUBLICKEYBYTES], box_secret[crypto_box_SECRETKEYBYTES];
+static char challenge[33];
+static time_t challenge_expires;
+
+static NSData *base64(NSDictionary *object, NSString *key)
+{
+	NSString *text = json_text(object, key);
+	return text ? [[NSData alloc] initWithBase64EncodedString:text options:0] : nil;
+}
+
+/* Opens the page's box into account and password (each wiped by the caller).
+ * 0 with a message when it cannot. */
+static int open_sign_in(NSDictionary *body, char *account, size_t account_size, char *password, size_t password_size,
+	NSString **message)
+{
+	NSData *peer = base64(body, @"key"), *nonce = base64(body, @"nonce"), *box = base64(body, @"box");
+	unsigned char *cipher, *plain;
+	size_t size;
+	char const *text, *end, *name, *secret;
+	int opened, fresh;
+
+	*message = @"The sign-in did not arrive whole. Reload the page and try again.";
+	if (peer.length != crypto_box_PUBLICKEYBYTES || nonce.length != crypto_box_NONCEBYTES ||
+		box.length < crypto_box_ZEROBYTES - crypto_box_BOXZEROBYTES || box.length > 2048)
+		return 0;
+	size = crypto_box_BOXZEROBYTES + box.length;
+	cipher = calloc(1, size);
+	plain = calloc(1, size + 1);
+	if (!cipher || !plain) {
+		free(cipher);
+		free(plain);
+		return 0;
+	}
+	memcpy(cipher + crypto_box_BOXZEROBYTES, box.bytes, box.length);
+	opened = !crypto_box_open(plain, cipher, size, nonce.bytes, peer.bytes, box_secret);
+	free(cipher);
+	text = (char const *)plain + crypto_box_ZEROBYTES;
+	end = (char const *)plain + size;
+	name = opened ? memchr(text, 0, (size_t)(end - text)) : NULL;
+	secret = name ? memchr(name + 1, 0, (size_t)(end - name - 1)) : NULL;
+	pthread_mutex_lock(&pair_lock);
+	fresh = name && challenge[0] && time(NULL) < challenge_expires && !strcmp(text, challenge);
+	challenge[0] = 0;                 /* one use, whatever came */
+	pthread_mutex_unlock(&pair_lock);
+	if (opened && !fresh)
+		*message = @"The sign-in was not for this page's request. Reload the page and try again.";
+	else if (!secret || (size_t)(secret - name - 1) >= account_size || (size_t)(end - secret - 1) >= password_size)
+		opened = 0;
+	if (opened && fresh && secret) {
+		memcpy(account, name + 1, (size_t)(secret - name));            /* with its NUL */
+		memcpy(password, secret + 1, (size_t)(end - secret - 1));
+		password[end - secret - 1] = 0;
+	}
+	memset_s(plain, size + 1, 0, size + 1);
+	free(plain);
+	return opened && fresh && secret;
+}
+
+static NSDictionary *steam_status_object(void)
+{
+	static char const *const names[] = { "out", "connecting", "guard", "signing_in", "in", "unavailable" };
+	struct xg_steam_admin_status status;
+	unsigned c;
+	xg_steam_admin_status(data_root.fileSystemRepresentation, &status);
+	c = status.confirmations;
+	return @{ @"available": @YES,
+		@"state": @(status.state >= 0 && status.state <= 5 ? names[status.state] : "unavailable"),
+		@"account": @(status.account), @"message": @(status.message),
+		@"guard": @{ @"app_approval": @((c & XG_STEAM_GUARD_DEVICE_CONFIRMATION) != 0),
+			@"email_approval": @((c & XG_STEAM_GUARD_EMAIL_CONFIRMATION) != 0),
+			@"app_code": @((c & XG_STEAM_GUARD_DEVICE_CODE) != 0),
+			@"email_code": @((c & XG_STEAM_GUARD_EMAIL_CODE) != 0) } };
+}
+
+static void steam_request(int socket, const char *method, const char *path, unsigned long long length,
+	const char *body_start, size_t body_size)
+{
+	if (!strcmp(method, "GET") && !strcmp(path, "/api/steam")) {
+		respond_json(socket, 200, "OK", steam_status_object());
+	} else if (!strcmp(method, "GET") && !strcmp(path, "/api/steam/key")) {
+		unsigned char random[16];
+		char key[64];
+		arc4random_buf(random, sizeof(random));
+		pthread_mutex_lock(&pair_lock);
+		hex_text(random, sizeof(random), challenge);
+		challenge_expires = time(NULL) + 300;
+		snprintf(key, sizeof(key), "%s", challenge);
+		pthread_mutex_unlock(&pair_lock);
+		respond_json(socket, 200, "OK", @{ @"key": [[NSData dataWithBytes:box_public length:sizeof(box_public)]
+			base64EncodedStringWithOptions:0], @"challenge": @(key) });
+	} else if (!strcmp(method, "POST") && !strcmp(path, "/api/steam/sign-in")) {
+		NSDictionary *body = read_json(socket, length, body_start, body_size);
+		char account[128], secret[128];
+		NSString *message;
+		int started;
+		if (!body || !open_sign_in(body, account, sizeof(account), secret, sizeof(secret), &message)) {
+			respond_error(socket, 400, "Bad Request", body ? message : @"Type your Steam account name and password.");
+			return;
+		}
+		started = account[0] && secret[0] && xg_steam_admin_sign_in(data_root.fileSystemRepresentation, account, secret);
+		memset_s(secret, sizeof(secret), 0, sizeof(secret));
+		memset_s(account, sizeof(account), 0, sizeof(account));
+		if (!started) {
+			respond_error(socket, 409, "Conflict", @"Steam is already signed in or signing in.");
+			return;
+		}
+		xg_log("admin: Steam sign-in started");
+		respond_json(socket, 200, "OK", steam_status_object());
+	} else if (!strcmp(method, "POST") && !strcmp(path, "/api/steam/code")) {
+		NSString *code = json_text(read_json(socket, length, body_start, body_size), @"code");
+		code = [code stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
+		if (!code.length || code.length > 16) {
+			respond_error(socket, 400, "Bad Request", @"Type the Steam Guard code.");
+			return;
+		}
+		if (!xg_steam_admin_code(code.uppercaseString.UTF8String)) {
+			respond_error(socket, 409, "Conflict", @"Steam is not waiting for a code.");
+			return;
+		}
+		respond_json(socket, 200, "OK", steam_status_object());
+	} else if (!strcmp(method, "POST") && !strcmp(path, "/api/steam/cancel")) {
+		xg_steam_admin_cancel();
+		respond_json(socket, 200, "OK", steam_status_object());
+	} else if (!strcmp(method, "POST") && !strcmp(path, "/api/steam/sign-out")) {
+		if (!xg_steam_admin_sign_out()) {
+			respond_error(socket, 409, "Conflict", @"Steam is not signed in.");
+			return;
+		}
+		respond_json(socket, 200, "OK", steam_status_object());
+	} else
+		respond_error(socket, 404, "Not Found", @"Nothing here.");
+}
+#else
+static void steam_request(int socket, const char *method, const char *path, unsigned long long length,
+	const char *body_start, size_t body_size)
+{
+	(void)method; (void)path; (void)length; (void)body_start; (void)body_size;
+	respond_json(socket, 200, "OK", @{ @"available": @NO });
+}
+#endif
+
 /* ---------- requests */
 
 /* Reads one request and answers it. */
@@ -651,6 +819,9 @@ static void serve(int socket)
 			respond(socket, 200, "OK", @"text/html; charset=utf-8", page);
 		else
 			respond_error(socket, 500, "Internal Server Error", @"admin.html is missing from the app.");
+	} else if (!strcmp(method, "GET") && !strcmp(path, "/nacl.min.js")) {
+		NSData *script = [NSData dataWithContentsOfFile:[NSBundle.mainBundle pathForResource:@"nacl.min" ofType:@"js"]];
+		respond(socket, script ? 200 : 404, script ? "OK" : "Not Found", @"application/javascript", script);
 	} else if (!strcmp(method, "GET") && !strcmp(path, "/favicon.ico"))
 		respond(socket, 204, "No Content", @"text/plain", nil);
 	else if (!strcmp(method, "GET") && !strcmp(path, "/api/pair"))
@@ -671,7 +842,10 @@ static void serve(int socket)
 		import_finish(socket, query);
 	else if (!strcmp(method, "POST") && !strcmp(path, "/api/import/cancel"))
 		import_cancel(socket, query);
-	else
+	else if (!strncmp(path, "/api/steam", 10) && (!path[10] || path[10] == '/')) {
+		steam_request(socket, method, path, length, end, size - (size_t)(end - header));
+		memset_s(header, sizeof(header), 0, sizeof(header));   /* may hold a password that came with the headers */
+	} else
 		respond_error(socket, 404, "Not Found", @"Nothing here.");
 }
 
@@ -778,6 +952,9 @@ int xg_admin_start(NSString *data, NSString *work, int port, void (^maps_ready)(
 	work_root = [work copy];
 	ready_handler = [maps_ready copy];
 	pairing_display = [pairing copy];
+#if XG_ADMIN_STEAM
+	crypto_box_keypair(box_public, box_secret);   /* this launch's: the page encrypts the Steam password to it */
+#endif
 	connection_slots = dispatch_semaphore_create(4);
 	[NSFileManager.defaultManager removeItemAtPath:[work_root stringByAppendingPathComponent:@"import"] error:nil];
 	port = port ? port : 8080;

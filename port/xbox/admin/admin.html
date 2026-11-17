@@ -89,6 +89,27 @@ footer { color: var(--muted); font-size: 13px; text-align: center; }
 		</dl>
 	</section>
 
+	<section id="steam" hidden>
+		<h2>Steam Workshop</h2>
+		<div class="status"><span class="dot" id="steamDot"></span><span id="steamSummary">Checking…</span></div>
+		<form id="steamSignIn" hidden autocomplete="on">
+			<input type="text" id="steamAccount" name="username" autocomplete="username" placeholder="Steam account name" autocapitalize="off" spellcheck="false" required>
+			<input type="password" id="steamPassword" name="password" autocomplete="current-password" placeholder="Password" required>
+			<button type="submit" id="steamSubmit">Sign in to Steam</button>
+			<p class="small">Your password is encrypted in this browser so only this Apple TV can read it; the Apple TV passes it to Steam and forgets it, keeping only Steam's sign-in in its Keychain. Your account needs Halo: The Master Chief Collection for Workshop downloads.</p>
+		</form>
+		<div id="steamGuard" hidden>
+			<p id="steamGuardText"></p>
+			<form id="steamCodeForm" hidden>
+				<input type="text" id="steamCode" placeholder="Steam Guard code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="16">
+				<button type="submit">Send code</button>
+			</form>
+		</div>
+		<div class="row" id="steamCancelRow" hidden><button class="secondary" id="steamCancel">Cancel</button></div>
+		<div class="row" id="steamSignOutRow" hidden><button class="secondary" id="steamSignOut">Log out of Steam</button></div>
+		<div class="message" id="steamMessage"></div>
+	</section>
+
 	<section>
 		<h2>Import a disc image</h2>
 		<label class="drop" id="drop">
@@ -108,6 +129,7 @@ footer { color: var(--muted); font-size: 13px; text-align: center; }
 
 	<footer>This page is served by the Homecoming app on your Apple TV and is only reachable on your local network.</footer>
 </main>
+<script src="/nacl.min.js"></script>
 <script>
 "use strict";
 const $ = (id) => document.getElementById(id);
@@ -241,6 +263,7 @@ function showApp() {
 	$("pairing").hidden = true;
 	$("app").hidden = false;
 	refresh();
+	refreshSteam();
 }
 function pairMessage(text, kind) {
 	$("pairMessage").textContent = text || "";
@@ -356,10 +379,102 @@ async function refresh() {
 		if (!uploading) { $("dot").className = "dot bad"; $("summary").textContent = "The Apple TV is not answering"; }
 	}
 }
+/* ---- Steam sign-in */
+
+let steamState = null;
+function steamMessage(text, kind) {
+	$("steamMessage").textContent = text || "";
+	$("steamMessage").className = "message" + (kind ? " " + kind : "");
+}
+
+const steamPost = (path, body) =>
+	api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+
+/* The password is sealed here with nacl.box (TweetNaCl) to the TV's key for
+ * this launch, together with a one-use challenge, as "challenge\0account\0password". */
+const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const fromBase64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+async function signInSealed(account, password) {
+	if (!window.nacl) throw new Error("The page's encryption did not load. Reload the page.");
+	const { key, challenge } = await api("/api/steam/key");
+	const encoder = new TextEncoder();
+	const parts = [encoder.encode(challenge), encoder.encode(account), encoder.encode(password)];
+	const plain = new Uint8Array(parts[0].length + parts[1].length + parts[2].length + 2);
+	plain.set(parts[0], 0);
+	plain.set(parts[1], parts[0].length + 1);
+	plain.set(parts[2], parts[0].length + parts[1].length + 2);
+	const mine = nacl.box.keyPair(), nonce = nacl.randomBytes(nacl.box.nonceLength);
+	const box = nacl.box(plain, nonce, fromBase64(key), mine.secretKey);
+	plain.fill(0);
+	parts[2].fill(0);
+	mine.secretKey.fill(0);
+	return steamPost("/api/steam/sign-in", { key: toBase64(mine.publicKey), nonce: toBase64(nonce), box: toBase64(box) });
+}
+
+function renderSteam(steam) {
+	$("steam").hidden = !steam.available;
+	if (!steam.available) return;
+	const state = steam.state, guard = steam.guard || {};
+	const summaries = {
+		out: "Not signed in", connecting: "Checking your name and password…", guard: "Waiting for Steam Guard",
+		signing_in: "Signing in…", in: "Signed in as " + steam.account, unavailable: "Steam is unavailable",
+	};
+	$("steamDot").className = "dot " + (state === "in" ? "good" : state === "out" || state === "unavailable" ? "bad" : "");
+	$("steamSummary").textContent = summaries[state] || state;
+	$("steamSignIn").hidden = state !== "out";
+	$("steamGuard").hidden = state !== "guard";
+	$("steamCancelRow").hidden = !(state === "connecting" || state === "guard");
+	$("steamSignOutRow").hidden = state !== "in";
+	if (state === "guard") {
+		const ways = [];
+		if (guard.app_approval) ways.push("approve this sign-in in the Steam Mobile app");
+		if (guard.email_approval) ways.push("approve it from the email Steam sent you");
+		if (guard.app_code) ways.push("type the code from the Steam Mobile app");
+		if (guard.email_code) ways.push("type the code Steam emailed you");
+		$("steamGuardText").textContent = ways.length ? "Steam Guard: " + ways.join(", or ") + "." : "Waiting for Steam…";
+		const wantsCode = guard.app_code || guard.email_code;
+		if ($("steamCodeForm").hidden && wantsCode) setTimeout(() => $("steamCode").focus(), 0);
+		$("steamCodeForm").hidden = !wantsCode;
+	} else {
+		$("steamCode").value = "";
+	}
+	if (state !== steamState || steam.message) {
+		const bad = /refused|wrong|failed|error|timed out|cancel|could not|denied|invalid/i.test(steam.message || "");
+		steamMessage(steam.message, steam.message ? (bad ? "bad" : state === "in" ? "good" : "") : "");
+	}
+	steamState = state;
+}
+
+async function refreshSteam() {
+	if ($("app").hidden) return;
+	try { renderSteam(await api("/api/steam")); } catch (_) {}
+}
+
+$("steamSignIn").addEventListener("submit", async (e) => {
+	e.preventDefault();
+	$("steamSubmit").disabled = true;
+	steamMessage("");
+	try {
+		renderSteam(await signInSealed($("steamAccount").value.trim(), $("steamPassword").value));
+	} catch (error) { steamMessage(error.message, "bad"); }
+	$("steamPassword").value = "";
+	$("steamSubmit").disabled = false;
+});
+$("steamCodeForm").addEventListener("submit", async (e) => {
+	e.preventDefault();
+	try { renderSteam(await steamPost("/api/steam/code", { code: $("steamCode").value })); $("steamCode").value = ""; }
+	catch (error) { steamMessage(error.message, "bad"); }
+});
+$("steamCancel").addEventListener("click", async () => { try { renderSteam(await steamPost("/api/steam/cancel")); } catch (_) {} });
+$("steamSignOut").addEventListener("click", async () => {
+	try { renderSteam(await steamPost("/api/steam/sign-out")); } catch (error) { steamMessage(error.message, "bad"); }
+});
+
 fetch("/api/pair", { headers: withToken(), cache: "no-store" }).then((r) => r.json())
 	.then((answer) => (answer.paired ? showApp() : needPairing()))
 	.catch(() => { needPairing(); pairMessage("The Apple TV is not answering.", "bad"); });
 setInterval(refresh, 1000);
+setInterval(refreshSteam, 1000);
 </script>
 </body>
 </html>

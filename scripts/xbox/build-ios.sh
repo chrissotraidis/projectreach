@@ -166,9 +166,15 @@ $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
 OBJC_SOURCES="xg_ios xg_lan xg_touch xg_draw_capture xg_draw_replay xg_depth_capture xg_https xg_app_ios"
 # Apple TV: no touchscreen; the player adds their maps through a web page (xg_admin.m)
 case "$SDK" in appletv*) OBJC_SOURCES=$(echo "$OBJC_SOURCES" | sed 's/ xg_touch/ xg_admin/') ;; esac
-rm -f "$OBJ/xg_touch.o" "$OBJ/xg_admin.o"
+rm -f "$OBJ/xg_touch.o" "$OBJ/xg_admin.o" "$OBJ/tweetnacl.o"
+case "$SDK" in appletv*)       # the page encrypts the Steam password with TweetNaCl
+	$CC -O2 -w -c "$ROOT/port/xbox/third_party/tweetnacl/tweetnacl.c" -o "$OBJ/tweetnacl.o" ;;
+esac
+# the page offers Steam sign-in when the engine has upstream's Steam host
+ADMIN_FLAGS=""
+[ ! -f "$ENGINE/port/android/host/steam_downloads.c" ] || ADMIN_FLAGS="-DXG_ADMIN_STEAM=1"
 for f in $OBJC_SOURCES; do
-	$CC $CFLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
+	$CC $CFLAGS $ADMIN_FLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
 done
 for f in posix_files posix_net; do
 	$CC -O2 -w -include "$ROOT/port/xbox/xg_darwin_compat.h" -I"$ROOT/port/xbox/compat" -I"$ENGINE/port/linux/src" \
@@ -275,7 +281,10 @@ esac
 $CC $LINKER -o "$APP/HaloPadXbox" "$OBJ"/*.o $ANGLE_LIB -framework UIKit -framework QuartzCore $GL_LINK \
 	-framework GameController -framework AudioToolbox -framework AVFoundation -framework Foundation -framework CoreFoundation -framework CoreGraphics $SECURITY_LINK
 cp "$OUT/halo_guest.elf" "$APP/halo_guest.elf"
-case "$SDK" in appletv*) cp "$ROOT/port/xbox/admin/admin.html" "$APP/admin.html" ;; esac
+case "$SDK" in appletv*)
+	cp "$ROOT/port/xbox/admin/admin.html" "$APP/admin.html"
+	cp "$ROOT/port/xbox/third_party/tweetnacl/nacl.min.js" "$APP/nacl.min.js" ;;
+esac
 PLATFORM=iPhoneSimulator
 [ "$SDK" = iphoneos ] && PLATFORM=iPhoneOS
 BUNDLE_ID=dev.halopad.HaloPad.xbox-test

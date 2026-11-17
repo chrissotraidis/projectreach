@@ -19,6 +19,7 @@ static int move_folder(char const *from, char const *to)
 	return posix_mcc_share_publish(from, to);
 }
 int host_steam_open(unsigned int root) { return open_at((char const *)GUEST_POINTER(root)); }
+static int waiting(void) { int cancelled; cancelled = steam.cancel_sign_in || !steam.open; return cancelled; }
 '''
 
 HASH = ''.join('void *p%d = (void *)(uintptr_t)%s;\n' % (i, name) for i, name in enumerate([
@@ -41,6 +42,16 @@ class GenHostSteamTests(unittest.TestCase):
         self.assertIn('return xg_mcc_share_publish(from, to);', out)
         self.assertNotIn('posix_mcc_share_publish(from, to)', out)
         self.assertIn('int xg_mcc_share_publish(const char *from, const char *to);', out)
+
+    def test_web_page_sign_in_is_appended_and_not_cancelled_by_a_closed_screen(self):
+        out = gen.steam_downloads(DOWNLOADS)
+        self.assertIn('cancelled = steam.cancel_sign_in || (!steam.open && !xg_admin_sign_in_open);', out)
+        self.assertIn('static int xg_admin_sign_in_open;', out.split('#line 1 "steam_downloads.c"')[0])
+        self.assertIn('int xg_steam_admin_sign_in(', out.split('#line 1 "xg_steam_admin.inc"')[1])
+
+    def test_changed_sign_in_wait_stops_generation(self):
+        with self.assertRaises(SystemExit):
+            gen.steam_downloads(DOWNLOADS.replace('|| !steam.open;', '|| !steam.visible;'))
 
     def test_moved_publish_call_stops_generation(self):
         with self.assertRaises(SystemExit):
