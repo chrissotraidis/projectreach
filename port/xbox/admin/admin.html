@@ -1,0 +1,480 @@
+<!doctype html>
+<!-- admin.html: the page xg_admin.m serves on the local network. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homecoming</title>
+<style>
+:root {
+	--bg: #f4f5f7; --card: #ffffff; --text: #16181d; --muted: #5d6470; --line: #dde0e6;
+	--accent: #2f6fde; --accent-text: #ffffff; --good: #1d8a4e; --bad: #c4372f; --track: #e6e9ef;
+}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--bg: #0f1115; --card: #181b21; --text: #e9ecf1; --muted: #9aa2ae; --line: #2a2f38;
+		--accent: #5b92f0; --accent-text: #0f1115; --good: #4cc387; --bad: #ef6b62; --track: #262b34;
+	}
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; background: var(--bg); color: var(--text);
+	font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+main { max-width: 640px; margin: 0 auto; padding: 32px 16px 64px; }
+h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+.lead { color: var(--muted); margin: 0 0 24px; }
+section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 12px; }
+.status { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 18px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+.dot.good { background: var(--good); } .dot.bad { background: var(--bad); }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; margin: 14px 0 0; font-size: 14px; }
+dt { color: var(--muted); } dd { margin: 0; overflow-wrap: anywhere; }
+.drop {
+	display: block; border: 2px dashed var(--line); border-radius: 12px; padding: 28px 16px; text-align: center;
+	cursor: pointer; transition: border-color .15s, background .15s;
+}
+.drop:hover, .drop.over { border-color: var(--accent); }
+.drop input { display: none; }
+.drop strong { display: block; font-size: 17px; }
+.drop span { color: var(--muted); font-size: 14px; }
+button {
+	margin-top: 14px; width: 100%; padding: 12px; font: inherit; font-weight: 600; border: 0; border-radius: 10px;
+	background: var(--accent); color: var(--accent-text); cursor: pointer;
+}
+button:disabled { opacity: .45; cursor: default; }
+.bar { height: 8px; background: var(--track); border-radius: 4px; overflow: hidden; margin: 12px 0 6px; }
+.bar div { height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+.small { font-size: 14px; color: var(--muted); }
+.message { margin-top: 10px; font-size: 15px; }
+.message.bad { color: var(--bad); } .message.good { color: var(--good); }
+[hidden] { display: none !important; }
+form { margin: 0; }
+input[type=text], input[type=password] {
+	display: block; width: 100%; margin-top: 10px; padding: 11px 12px; font: inherit; color: var(--text);
+	background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+}
+input[type=text]:focus, input[type=password]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--line); }
+.row { display: flex; gap: 10px; } .row button { flex: 1; }
+footer { color: var(--muted); font-size: 13px; text-align: center; }
+</style>
+</head>
+<body>
+<main>
+	<h1>Homecoming</h1>
+	<p class="lead">Add your Halo: Combat Evolved game data to the Apple TV.</p>
+
+	<section id="pairing" hidden>
+		<h2>Pair this browser</h2>
+		<p>To keep other devices on your network out, this browser needs a code from the Apple TV once.</p>
+		<button id="pairShow">Show a code on the TV</button>
+		<form id="pairForm" hidden>
+			<input type="text" id="pairCode" inputmode="numeric" autocomplete="one-time-code" placeholder="Six-digit code from the TV" maxlength="7">
+			<button type="submit">Pair</button>
+		</form>
+		<div class="message" id="pairMessage"></div>
+	</section>
+
+	<div id="app" hidden>
+	<section>
+		<h2>Game data</h2>
+		<div class="status"><span class="dot" id="dot"></span><span id="summary">Checking…</span></div>
+		<dl id="details" hidden>
+			<dt>Maps</dt><dd id="maps"></dd>
+			<dt>Build</dt><dd id="build"></dd>
+			<dt>Size</dt><dd id="size"></dd>
+			<dt>Free space</dt><dd id="free"></dd>
+		</dl>
+	</section>
+
+	<section id="steam" hidden>
+		<h2>Steam Workshop</h2>
+		<div class="status"><span class="dot" id="steamDot"></span><span id="steamSummary">Checking…</span></div>
+		<form id="steamSignIn" hidden autocomplete="on">
+			<input type="text" id="steamAccount" name="username" autocomplete="username" placeholder="Steam account name" autocapitalize="off" spellcheck="false" required>
+			<input type="password" id="steamPassword" name="password" autocomplete="current-password" placeholder="Password" required>
+			<button type="submit" id="steamSubmit">Sign in to Steam</button>
+			<p class="small">Your password is encrypted in this browser so only this Apple TV can read it; the Apple TV passes it to Steam and forgets it, keeping only Steam's sign-in in its Keychain. Your account needs Halo: The Master Chief Collection for Workshop downloads.</p>
+		</form>
+		<div id="steamGuard" hidden>
+			<p id="steamGuardText"></p>
+			<form id="steamCodeForm" hidden>
+				<input type="text" id="steamCode" placeholder="Steam Guard code" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" maxlength="16">
+				<button type="submit">Send code</button>
+			</form>
+		</div>
+		<div class="row" id="steamCancelRow" hidden><button class="secondary" id="steamCancel">Cancel</button></div>
+		<div class="row" id="steamSignOutRow" hidden><button class="secondary" id="steamSignOut">Log out of Steam</button></div>
+		<div class="message" id="steamMessage"></div>
+	</section>
+
+	<section>
+		<h2>Import a disc image</h2>
+		<label class="drop" id="drop">
+			<input type="file" id="file" accept=".iso,.xiso">
+			<strong id="chosen">Choose your Halo Xbox disc image</strong>
+			<span id="chosenInfo">An .iso or .xiso file of your own disc. This page reads it here and sends only the maps.</span>
+		</label>
+		<button id="upload" disabled>Send maps to Apple TV</button>
+		<div id="progress" hidden>
+			<div class="bar"><div id="fill"></div></div>
+			<div class="small" id="progressText"></div>
+		</div>
+		<div class="message" id="message"></div>
+	</section>
+
+	</div>
+
+	<footer>This page is served by the Homecoming app on your Apple TV and is only reachable on your local network.</footer>
+</main>
+<script src="/nacl.min.js"></script>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const GB = (n) => (n / 1e9).toFixed(n >= 1e10 ? 0 : 1) + " GB";
+let disc = null, uploading = false, lastState = null;
+
+/* ---- reading the disc here (the same reading as xg_xiso.c): XDVDFS, 2048-byte
+ * sectors, "MICROSOFT*XBOX*MEDIA" 64 KiB into the game partition, directories
+ * stored as binary trees of entries. */
+const SECTOR = 2048;
+const PARTITIONS = [0, 0x18300000, 0x2080000, 0xfd90000, 0x89d80000];
+const MAX_MAP_SIZE = 512 * 1024 * 1024, MAX_MAP_TOTAL = 3 * 1024 ** 3;
+
+async function bytes(file, offset, size) {
+	if (offset < 0 || offset + size > file.size) throw new Error("This disc image is cut short.");
+	return new Uint8Array(await file.slice(offset, offset + size).arrayBuffer());
+}
+const text = (b) => String.fromCharCode(...b);
+const u16 = (b, i) => b[i] | b[i + 1] << 8;
+const u32 = (b, i) => (b[i] | b[i + 1] << 8 | b[i + 2] << 16 | b[i + 3] << 24) >>> 0;
+
+async function listDirectory(file, base, sector, size) {
+	if (size < 14 || size > 1 << 20) throw new Error("This disc image's folders are damaged.");
+	const data = await bytes(file, base + sector * SECTOR, size);
+	const entries = [], stack = [0], seen = new Set();
+	while (stack.length) {
+		const at = stack.pop();
+		if (at + 14 > size || seen.has(at) || entries.length >= 256) throw new Error("This disc image's folders are damaged.");
+		seen.add(at);
+		const left = u16(data, at), right = u16(data, at + 2);
+		if (left === 0xffff) continue;
+		const length = data[at + 13];
+		entries.push({
+			name: text(data.subarray(at + 14, at + 14 + length)),
+			sector: u32(data, at + 4), size: u32(data, at + 8), directory: (data[at + 12] & 0x10) !== 0,
+		});
+		if (left) stack.push(left * 4);
+		if (right) stack.push(right * 4);
+	}
+	return entries;
+}
+
+/* -> { maps: [{name, offset, size}], total, build } or throws a player-facing Error */
+async function readDisc(file) {
+	let base = -1;
+	for (const p of PARTITIONS)
+		if (p + 0x10000 + 28 <= file.size && text(await bytes(file, p + 0x10000, 20)) === "MICROSOFT*XBOX*MEDIA") { base = p; break; }
+	if (base < 0) throw new Error("This file is not an Xbox disc image.");
+	const volume = await bytes(file, base + 0x10000 + 20, 8);
+	const root = await listDirectory(file, base, u32(volume, 0), u32(volume, 4));
+	const folder = root.find((e) => e.directory && e.name.toLowerCase() === "maps");
+	if (!folder) throw new Error("This disc image has no maps folder: it is not Halo: Combat Evolved.");
+	const maps = [];
+	let total = 0, build = null;
+	for (const entry of await listDirectory(file, base, folder.sector, folder.size)) {
+		const name = entry.name.toLowerCase();
+		if (entry.directory || !/^[a-z0-9_-][a-z0-9._-]*\.map$/.test(name) || name.length > 60) continue;
+		const offset = base + entry.sector * SECTOR;
+		if (entry.size < 0x800 || entry.size > MAX_MAP_SIZE) throw new Error(name + " is damaged.");
+		const header = await bytes(file, offset, 0x800);
+		if (text(header.subarray(0, 4)) !== "daeh" || u32(header, 4) !== 5 || text(header.subarray(0x7fc, 0x800)) !== "toof")
+			throw new Error(name + " is not a Halo Xbox map.");
+		const mapBuild = text(header.subarray(0x40, 0x60)).replace(/\0.*$/s, "");
+		if (build && mapBuild !== build) throw new Error("The maps on this disc are from different builds.");
+		build = mapBuild;
+		maps.push({ name, offset, size: entry.size });
+		total += entry.size;
+	}
+	if (!maps.some((m) => m.name === "ui.map")) throw new Error("This disc image has no ui.map: it is not Halo: Combat Evolved.");
+	if (total > MAX_MAP_TOTAL) throw new Error("The maps are larger than a Halo disc's.");
+	maps.sort((a, b) => (a.name === "ui.map" ? -1 : b.name === "ui.map" ? 1 : a.name.localeCompare(b.name)));
+	return { file, maps, total, build };
+}
+
+/* ---- the page */
+
+function setMessage(message, kind) {
+	$("message").textContent = message || "";
+	$("message").className = "message" + (kind ? " " + kind : "");
+}
+
+function showProgress(fraction, line) {
+	$("progress").hidden = false;
+	$("fill").style.width = Math.max(0, Math.min(1, fraction)) * 100 + "%";
+	$("progressText").textContent = line;
+}
+
+async function choose(file) {
+	disc = null;
+	$("upload").disabled = true;
+	setMessage("");
+	if (!file) return;
+	$("chosen").textContent = file.name;
+	$("chosenInfo").textContent = "Reading the disc…";
+	try {
+		disc = await readDisc(file);
+		$("chosenInfo").textContent = `${disc.maps.length} maps, build ${disc.build}: ${GB(disc.total)} to send (the disc image is ${GB(file.size)})`;
+		$("upload").disabled = uploading;
+	} catch (error) {
+		$("chosenInfo").textContent = GB(file.size);
+		setMessage(error.message, "bad");
+	}
+}
+
+$("file").addEventListener("change", (e) => choose(e.target.files[0]));
+const drop = $("drop");
+drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
+drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+drop.addEventListener("drop", (e) => { e.preventDefault(); drop.classList.remove("over"); choose(e.dataTransfer.files[0]); });
+
+/* ---- pairing: every /api/ request carries this browser's token */
+let token = "";
+try { token = localStorage.getItem("homecoming-token") || ""; } catch (_) {}
+const withToken = (headers) => Object.assign({ "X-Homecoming-Token": token }, headers || {});
+
+async function api(path, options) {
+	options = options || {};
+	const response = await fetch(path, Object.assign({ cache: "no-store" }, options, { headers: withToken(options.headers) }));
+	const body = await response.json().catch(() => ({}));
+	if (response.status === 401 && body.pair) needPairing();
+	if (!response.ok) throw new Error(body.error || "The Apple TV refused the request.");
+	return body;
+}
+const post = (path) => api(path, { method: "POST" });
+
+function needPairing() {
+	$("pairing").hidden = false;
+	$("app").hidden = true;
+}
+function showApp() {
+	$("pairing").hidden = true;
+	$("app").hidden = false;
+	refresh();
+	refreshSteam();
+}
+function pairMessage(text, kind) {
+	$("pairMessage").textContent = text || "";
+	$("pairMessage").className = "message" + (kind ? " " + kind : "");
+}
+$("pairShow").addEventListener("click", async () => {
+	try {
+		const answer = await (await fetch("/api/pair/request", { method: "POST" })).json();
+		$("pairForm").hidden = false;
+		$("pairCode").focus();
+		pairMessage(`Type the code shown on the TV. It lasts ${Math.round(answer.seconds / 60)} minutes.`);
+	} catch (_) { pairMessage("The Apple TV is not answering.", "bad"); }
+});
+$("pairForm").addEventListener("submit", async (e) => {
+	e.preventDefault();
+	const response = await fetch("/api/pair", { method: "POST", headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ code: $("pairCode").value.replace(/\s/g, "") }) });
+	const answer = await response.json().catch(() => ({}));
+	$("pairCode").value = "";
+	if (!response.ok) { pairMessage(answer.error || "Pairing failed.", "bad"); return; }
+	token = answer.token;
+	try { localStorage.setItem("homecoming-token", token); } catch (_) {}
+	pairMessage("");
+	$("pairForm").hidden = true;
+	showApp();
+});
+
+function putMap(id, map, onProgress) {
+	return new Promise((resolve, reject) => {
+		const xhr = new XMLHttpRequest();
+		xhr.open("PUT", `/api/import/map?id=${id}&name=${encodeURIComponent(map.name)}`);
+		xhr.setRequestHeader("X-Homecoming-Token", token);
+		xhr.upload.onprogress = (e) => onProgress(e.loaded);
+		xhr.onload = () => {
+			if (xhr.status === 200) return resolve();
+			let message = map.name + " did not arrive.";
+			try { message = JSON.parse(xhr.responseText).error || message; } catch (_) {}
+			if (xhr.status === 401) needPairing();
+			reject(Object.assign(new Error(message), { fatal: xhr.status === 409 || xhr.status === 401 }));
+		};
+		xhr.onerror = () => reject(new Error("The connection to the Apple TV was lost."));
+		xhr.send(disc.file.slice(map.offset, map.offset + map.size));
+	});
+}
+
+async function send() {
+	if (!disc || uploading) return;
+	uploading = true;
+	$("upload").disabled = true;
+	setMessage("Keep this page open until the maps are installed.");
+	const started = performance.now();
+	let done = 0, id = null;
+	const progress = (current, name) => {
+		const sent = done + current, seconds = (performance.now() - started) / 1000;
+		const rate = sent / Math.max(seconds, 0.1), left = rate > 0 ? Math.round((disc.total - sent) / rate) : 0;
+		showProgress(sent / disc.total, `Sending ${name}: ${GB(sent)} of ${GB(disc.total)} · ${(rate / 1e6).toFixed(0)} MB/s · ` +
+			(left > 90 ? Math.round(left / 60) + " min left" : left + " s left"));
+	};
+	try {
+		id = (await post(`/api/import/begin?total=${disc.total}`)).id;
+		for (const map of disc.maps) {
+			for (let attempt = 1; ; attempt++) {
+				try { await putMap(id, map, (loaded) => progress(loaded, map.name)); break; }
+				catch (error) { if (error.fatal || attempt === 3) throw error; }
+			}
+			done += map.size;
+		}
+		showProgress(1, "Checking the maps on the Apple TV…");
+		const result = await post(`/api/import/finish?id=${id}`);
+		id = null;
+		const seconds = Math.round((performance.now() - started) / 1000);
+		showProgress(1, `${result.maps} maps sent in ${seconds} s`);
+	} catch (error) {
+		if (id) post(`/api/import/cancel?id=${id}`).catch(() => {});
+		setMessage(error.message + " Your installed maps were kept.", "bad");
+		$("progress").hidden = true;
+	}
+	uploading = false;
+	$("upload").disabled = !disc;
+	refresh();
+}
+$("upload").addEventListener("click", send);
+
+function render(status) {
+	const installed = status.installed;
+	$("dot").className = "dot " + (installed.present ? "good" : "bad");
+	$("summary").textContent = installed.present ? "Installed" : "Not installed yet";
+	$("details").hidden = false;
+	$("maps").textContent = installed.present ? installed.maps.length + " (" + installed.maps.join(", ") + ")" : "none";
+	$("build").textContent = installed.present ? installed.build || "unknown" : "—";
+	$("size").textContent = installed.present ? GB(installed.bytes) : "—";
+	$("free").textContent = GB(status.free);
+
+	const job = status.import;
+	if (uploading) return;
+	if (job.state === "receiving") {
+		showProgress(job.expected ? job.received / job.expected : 0, `Another device is sending maps: ${GB(job.received)} of ${GB(job.expected)}`);
+		$("upload").disabled = true;
+	} else if (job.state !== lastState) {
+		if (job.state === "done") setMessage(job.message, "good");
+		else if (job.state === "failed") setMessage(job.message, "bad");
+		$("upload").disabled = !disc;
+	}
+	lastState = job.state;
+}
+
+async function refresh() {
+	if ($("app").hidden) return;
+	try {
+		render(await api("/api/status"));
+	} catch (_) {
+		if ($("app").hidden) return;
+		if (!uploading) { $("dot").className = "dot bad"; $("summary").textContent = "The Apple TV is not answering"; }
+	}
+}
+/* ---- Steam sign-in */
+
+let steamState = null;
+function steamMessage(text, kind) {
+	$("steamMessage").textContent = text || "";
+	$("steamMessage").className = "message" + (kind ? " " + kind : "");
+}
+
+const steamPost = (path, body) =>
+	api(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+
+/* The password is sealed here with nacl.box (TweetNaCl) to the TV's key for
+ * this launch, together with a one-use challenge, as "challenge\0account\0password". */
+const toBase64 = (bytes) => btoa(String.fromCharCode(...bytes));
+const fromBase64 = (text) => Uint8Array.from(atob(text), (c) => c.charCodeAt(0));
+async function signInSealed(account, password) {
+	if (!window.nacl) throw new Error("The page's encryption did not load. Reload the page.");
+	const { key, challenge } = await api("/api/steam/key");
+	const encoder = new TextEncoder();
+	const parts = [encoder.encode(challenge), encoder.encode(account), encoder.encode(password)];
+	const plain = new Uint8Array(parts[0].length + parts[1].length + parts[2].length + 2);
+	plain.set(parts[0], 0);
+	plain.set(parts[1], parts[0].length + 1);
+	plain.set(parts[2], parts[0].length + parts[1].length + 2);
+	const mine = nacl.box.keyPair(), nonce = nacl.randomBytes(nacl.box.nonceLength);
+	const box = nacl.box(plain, nonce, fromBase64(key), mine.secretKey);
+	plain.fill(0);
+	parts[2].fill(0);
+	mine.secretKey.fill(0);
+	return steamPost("/api/steam/sign-in", { key: toBase64(mine.publicKey), nonce: toBase64(nonce), box: toBase64(box) });
+}
+
+function renderSteam(steam) {
+	$("steam").hidden = !steam.available;
+	if (!steam.available) return;
+	const state = steam.state, guard = steam.guard || {};
+	const summaries = {
+		out: "Not signed in", connecting: "Checking your name and password…", guard: "Waiting for Steam Guard",
+		signing_in: "Signing in…", in: "Signed in as " + steam.account, unavailable: "Steam is unavailable",
+	};
+	$("steamDot").className = "dot " + (state === "in" ? "good" : state === "out" || state === "unavailable" ? "bad" : "");
+	$("steamSummary").textContent = summaries[state] || state;
+	$("steamSignIn").hidden = state !== "out";
+	$("steamGuard").hidden = state !== "guard";
+	$("steamCancelRow").hidden = !(state === "connecting" || state === "guard");
+	$("steamSignOutRow").hidden = state !== "in";
+	if (state === "guard") {
+		const ways = [];
+		if (guard.app_approval) ways.push("approve this sign-in in the Steam Mobile app");
+		if (guard.email_approval) ways.push("approve it from the email Steam sent you");
+		if (guard.app_code) ways.push("type the code from the Steam Mobile app");
+		if (guard.email_code) ways.push("type the code Steam emailed you");
+		$("steamGuardText").textContent = ways.length ? "Steam Guard: " + ways.join(", or ") + "." : "Waiting for Steam…";
+		const wantsCode = guard.app_code || guard.email_code;
+		if ($("steamCodeForm").hidden && wantsCode) setTimeout(() => $("steamCode").focus(), 0);
+		$("steamCodeForm").hidden = !wantsCode;
+	} else {
+		$("steamCode").value = "";
+	}
+	if (state !== steamState || steam.message) {
+		const bad = /refused|wrong|failed|error|timed out|cancel|could not|denied|invalid/i.test(steam.message || "");
+		steamMessage(steam.message, steam.message ? (bad ? "bad" : state === "in" ? "good" : "") : "");
+	}
+	steamState = state;
+}
+
+async function refreshSteam() {
+	if ($("app").hidden) return;
+	try { renderSteam(await api("/api/steam")); } catch (_) {}
+}
+
+$("steamSignIn").addEventListener("submit", async (e) => {
+	e.preventDefault();
+	$("steamSubmit").disabled = true;
+	steamMessage("");
+	try {
+		renderSteam(await signInSealed($("steamAccount").value.trim(), $("steamPassword").value));
+	} catch (error) { steamMessage(error.message, "bad"); }
+	$("steamPassword").value = "";
+	$("steamSubmit").disabled = false;
+});
+$("steamCodeForm").addEventListener("submit", async (e) => {
+	e.preventDefault();
+	try { renderSteam(await steamPost("/api/steam/code", { code: $("steamCode").value })); $("steamCode").value = ""; }
+	catch (error) { steamMessage(error.message, "bad"); }
+});
+$("steamCancel").addEventListener("click", async () => { try { renderSteam(await steamPost("/api/steam/cancel")); } catch (_) {} });
+$("steamSignOut").addEventListener("click", async () => {
+	try { renderSteam(await steamPost("/api/steam/sign-out")); } catch (error) { steamMessage(error.message, "bad"); }
+});
+
+fetch("/api/pair", { headers: withToken(), cache: "no-store" }).then((r) => r.json())
+	.then((answer) => (answer.paired ? showApp() : needPairing()))
+	.catch(() => { needPairing(); pairMessage("The Apple TV is not answering.", "bad"); });
+setInterval(refresh, 1000);
+setInterval(refreshSteam, 1000);
+</script>
+</body>
+</html>

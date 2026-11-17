@@ -2,9 +2,15 @@
 # Builds the Xbox engine's iOS test app (port/xbox/xg_app_ios.m) and, for the
 # Simulator, installs and launches it with the Mac's extracted game data.
 #
-#   scripts/xbox/build-ios.sh [--device | --mac] [--launch UDID] [--identity NAME --profile FILE]
+#   scripts/xbox/build-ios.sh [--device | --mac | --tvos | --tvos-simulator] [--launch UDID] [--identity NAME --profile FILE]
+#                             [--team TEAM --bundle-id ID]
 #
 # --mac builds the engine library for HaloPad on Apple silicon Macs (Mac Catalyst).
+# --tvos and --tvos-simulator build for Apple TV (experimental; Apple OpenGL ES
+# only, no touch gamepad; docs/INSTALL-APPLE-TV.md). A --tvos device build is
+# signed with a tvOS development profile Xcode already made
+# (scripts/xbox/tvos-signing.py finds it and its identity; --profile,
+# --identity, --team and --bundle-id choose).
 #
 # A personal build: the app bundles the translated engine and must never be
 # shared (docs/XBOX-ENGINE.md).
@@ -15,14 +21,20 @@ SDK=iphonesimulator
 LAUNCH=""
 IDENTITY="-"
 PROFILE=""
+TEAM=""
+BUNDLE_ARG=""
 parse_options() {
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--device) TARGET=arm64-apple-ios17.4; SDK=iphoneos ;;
 	--mac) TARGET=arm64-apple-ios17.4-macabi; SDK=maccatalyst ;;
+	--tvos) TARGET=arm64-apple-tvos17.4; SDK=appletvos ;;
+	--tvos-simulator) TARGET=arm64-apple-tvos17.4-simulator; SDK=appletvsimulator ;;
 	--launch) LAUNCH=$2; shift ;;
 	--identity) IDENTITY=$2; shift ;;
 	--profile) PROFILE=$2; shift ;;
+	--team) TEAM=$2; shift ;;
+	--bundle-id) BUNDLE_ARG=$2; shift ;;
 	*) echo "unknown option $1" >&2; exit 2 ;;
 	esac
 	shift
@@ -48,6 +60,9 @@ ANGLE_NAME=simulator                              # the ANGLE build folders: ang
 [ "$SDK" != iphoneos ] || ANGLE_NAME=iphoneos
 [ "$SDK" != maccatalyst ] || ANGLE_NAME=maccatalyst
 RENDERER=${HALOPAD_XBOX_RENDERER:-apple-gles}
+case "$SDK" in appletv*)
+    [ "$RENDERER" = apple-gles ] || { echo "tvOS builds support only the apple-gles renderer" >&2; exit 2; } ;;
+esac
 COUNTED=OFF
 case "${HALOPAD_XBOX_GUEST_ADAPTATION:-none}" in
 render-visibility-v1|render-water-v1|render-border-v1|shared-input-v1|render-present-v1|render-camera-v1|network-policy-v1)
@@ -148,8 +163,18 @@ for f in xg_memory xg_thread xg_syscall xg_gl xg_posix xg_xiso; do
 done
 $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_gen.c" -o "$OBJ/xg_gl_gen.o"
 $CC $CFLAGS -I"$INC" -c "$OUT/xg_gl_helpers.c" -o "$OBJ/xg_gl_helpers.o"
-for f in xg_ios xg_lan xg_touch xg_draw_capture xg_draw_replay xg_depth_capture xg_https xg_app_ios; do
-	$CC $CFLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
+OBJC_SOURCES="xg_ios xg_lan xg_touch xg_draw_capture xg_draw_replay xg_depth_capture xg_https xg_app_ios"
+# Apple TV: no touchscreen; the player adds their maps through a web page (xg_admin.m)
+case "$SDK" in appletv*) OBJC_SOURCES=$(echo "$OBJC_SOURCES" | sed 's/ xg_touch/ xg_admin/') ;; esac
+rm -f "$OBJ/xg_touch.o" "$OBJ/xg_admin.o" "$OBJ/tweetnacl.o"
+case "$SDK" in appletv*)       # the page encrypts the Steam password with TweetNaCl
+	$CC -O2 -w -c "$ROOT/port/xbox/third_party/tweetnacl/tweetnacl.c" -o "$OBJ/tweetnacl.o" ;;
+esac
+# the page offers Steam sign-in when the engine has upstream's Steam host
+ADMIN_FLAGS=""
+[ ! -f "$ENGINE/port/android/host/steam_downloads.c" ] || ADMIN_FLAGS="-DXG_ADMIN_STEAM=1"
+for f in $OBJC_SOURCES; do
+	$CC $CFLAGS $ADMIN_FLAGS -c "$ROOT/port/xbox/$f.m" -o "$OBJ/$f.o"
 done
 for f in posix_files posix_net; do
 	$CC -O2 -w -include "$ROOT/port/xbox/xg_darwin_compat.h" -I"$ROOT/port/xbox/compat" -I"$ENGINE/port/linux/src" \
@@ -173,6 +198,35 @@ if [ -f "$ENGINE/port/linux/src/posix_dtls.c" ]; then
         $CC -O2 -w -I"$MBEDTLS/include" -I"$MBEDTLS/library" \
             -c "$source" -o "$OBJ/mbedtls_$(basename "$source" .c).o"
     done
+fi
+# Upstream's Steam Workshop and MCC hashing host (OpenCE after 359:
+# port/android/host), when the engine has it. Upstream's files compile as
+# they are, except two copies that convert guest addresses HaloPad's way
+# (scripts/xbox/gen-host-steam.py); xg_steam_host.m supplies the logging,
+# HTTPS, sign-in storage and download publishing they ask of a host.
+rm -f "$OBJ"/steam_*.o "$OBJ"/zlib_*.o "$OBJ"/upstream_workshop_*.o "$OBJ"/upstream_server_json.o \
+    "$OBJ/xg_steam_downloads.o" "$OBJ/xg_mcc_hash.o" "$OBJ/xg_steam_host.o"
+SECURITY_LINK=""
+if [ -f "$ENGINE/port/android/host/steam_downloads.c" ]; then
+    python3 "$ROOT/scripts/xbox/gen-host-steam.py" "$ENGINE" "$OUT"
+    STEAM_FLAGS="-O2 -w -include $ROOT/port/xbox/xg_darwin_compat.h -include $OUT/xg_steam_names.h -I$ROOT/port/xbox -I$ENGINE/port/android/host \
+        -I$ENGINE/port/android/include -I$ENGINE/port/linux/src -I$ENGINE/port/third_party/zlib \
+        -I$ENGINE/port/third_party/mbedtls/include -I$ENGINE/port/third_party/mbedtls/library"
+    for f in steam_cm steam_crypto steam_depot steam_net steam_unpack; do
+        $CC $STEAM_FLAGS -c "$ENGINE/port/android/host/$f.c" -o "$OBJ/$f.o"
+    done
+    # Workshop authors' names (the desktop path: Steam's public web API over HTTPS)
+    for f in workshop_authors server_json; do
+        $CC $STEAM_FLAGS -c "$ENGINE/port/linux/src/$f.c" -o "$OBJ/upstream_$f.o"
+    done
+    $CC $STEAM_FLAGS -c "$OUT/xg_steam_downloads.c" -o "$OBJ/xg_steam_downloads.o"
+    $CC $STEAM_FLAGS -c "$OUT/xg_mcc_hash.c" -o "$OBJ/xg_mcc_hash.o"
+    $CC $STEAM_FLAGS -fobjc-arc -c "$ROOT/port/xbox/xg_steam_host.m" -o "$OBJ/xg_steam_host.o"
+    # upstream's own zlib (inflate only, z_ names: zlib_prefixed.h)
+    for source in "$ENGINE"/port/third_party/zlib/*.c; do
+        $CC -O2 -w -DZ_PREFIX -c "$source" -o "$OBJ/zlib_$(basename "$source" .c).o"
+    done
+    SECURITY_LINK="-framework Security"
 fi
 $CC -c "$ROOT/port/xbox/xg_runtime.s" -o "$OBJ/xg_runtime.o"
 [ "$OBJ/guest.o" -nt "$OUT/guest.s" ] || $CC -c "$OUT/guest.s" -o "$OBJ/guest.o"
@@ -217,16 +271,55 @@ if [ "$SDK" = maccatalyst ]; then                 # the Mac has no standalone te
 fi
 GL_LINK="-framework OpenGLES"
 [ "$RENDERER" != angle-metal ] || GL_LINK="-lc++ -lz -framework Metal -framework IOSurface"
-$CC -o "$APP/HaloPadXbox" "$OBJ"/*.o $ANGLE_LIB -framework UIKit -framework QuartzCore $GL_LINK \
-	-framework GameController -framework AudioToolbox -framework AVFoundation -framework Foundation -framework CoreFoundation -framework CoreGraphics
+# Newer guests (OpenCE 387) carry more distinct large addends than Apple's
+# linker can hold ("too many large addends"); tvOS builds link with LLVM's lld
+# when it is installed (Homebrew lld).
+LINKER=""
+case "$SDK" in appletv*)
+	if LLD=$(command -v ld64.lld); then LINKER="-fuse-ld=$LLD"; fi ;;
+esac
+$CC $LINKER -o "$APP/HaloPadXbox" "$OBJ"/*.o $ANGLE_LIB -framework UIKit -framework QuartzCore $GL_LINK \
+	-framework GameController -framework AudioToolbox -framework AVFoundation -framework Foundation -framework CoreFoundation -framework CoreGraphics $SECURITY_LINK
 cp "$OUT/halo_guest.elf" "$APP/halo_guest.elf"
+case "$SDK" in appletv*)
+	cp "$ROOT/port/xbox/admin/admin.html" "$APP/admin.html"
+	cp "$ROOT/port/xbox/third_party/tweetnacl/nacl.min.js" "$APP/nacl.min.js" ;;
+esac
 PLATFORM=iPhoneSimulator
 [ "$SDK" = iphoneos ] && PLATFORM=iPhoneOS
+BUNDLE_ID=dev.halopad.HaloPad.xbox-test
+BONJOUR='<string>_halopad._udp</string>'
+DEVICE_KEYS='<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
+<key>UIRequiresFullScreen</key><true/>
+<key>UILaunchScreen</key><dict/>
+<key>UIStatusBarHidden</key><true/>
+<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>'
+case "$SDK" in
+appletvos|appletvsimulator)
+	PLATFORM=AppleTVSimulator
+	[ "$SDK" = appletvos ] && PLATFORM=AppleTVOS
+	# Apple TV: the game is played with a controller (an extended gamepad).
+	BONJOUR='<string>_halopad._udp</string><string>_http._tcp</string>'     # and the web page (xg_admin.m)
+	DEVICE_KEYS='<key>UIDeviceFamily</key><array><integer>3</integer></array>
+<key>GCSupportedGameControllers</key><array><dict><key>ProfileName</key><string>ExtendedGamepad</string></dict></array>'
+	if [ "$SDK" = appletvos ]; then
+		# A development profile Xcode made, and the keychain identity it names
+		# (tvos-signing.py); it also writes the entitlements.
+		SIGNING=$(python3 "$ROOT/scripts/xbox/tvos-signing.py" --entitlements "$OUT/xbox.entitlements" \
+			${PROFILE:+--profile "$PROFILE"} ${TEAM:+--team "$TEAM"} ${BUNDLE_ARG:+--bundle-id "$BUNDLE_ARG"}) || exit 1
+		BUNDLE_ID=$(printf '%s' "$SIGNING" | cut -f1)
+		[ "$IDENTITY" != "-" ] || IDENTITY=$(printf '%s' "$SIGNING" | cut -f2)
+		PROFILE=$(printf '%s' "$SIGNING" | cut -f3)
+		echo "signing: $BUNDLE_ID with $PROFILE"
+	fi
+;;
+esac
 cat > "$APP/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>dev.halopad.HaloPad.xbox-test</string>
+<key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
 <key>CFBundleName</key><string>HaloPad Xbox</string>
 <key>CFBundleExecutable</key><string>HaloPadXbox</string>
 <key>CFBundlePackageType</key><string>APPL</string>
@@ -234,21 +327,16 @@ cat > "$APP/Info.plist" <<EOF
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleSupportedPlatforms</key><array><string>$PLATFORM</string></array>
 <key>MinimumOSVersion</key><string>17.4</string>
-<key>UIDeviceFamily</key><array><integer>1</integer><integer>2</integer></array>
-<key>UIRequiresFullScreen</key><true/>
-<key>UILaunchScreen</key><dict/>
-<key>UIStatusBarHidden</key><true/>
-<key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
-<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+$DEVICE_KEYS
 <key>GCSupportsControllerUserInteraction</key><true/>
 <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 <key>CFBundleDisplayName</key><string>HaloPad Xbox</string>
 <key>NSLocalNetworkUsageDescription</key><string>HaloPad finds and joins Halo games on your local network.</string>
-<key>NSBonjourServices</key><array><string>_halopad._udp</string></array>
+<key>NSBonjourServices</key><array>$BONJOUR</array>
 </dict></plist>
 EOF
-cat > "$OUT/xbox.entitlements" <<EOF
+[ "$SDK" = appletvos ] || cat > "$OUT/xbox.entitlements" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
@@ -257,7 +345,7 @@ cat > "$OUT/xbox.entitlements" <<EOF
 </dict></plist>
 EOF
 [ -z "$PROFILE" ] || cp "$PROFILE" "$APP/embedded.mobileprovision"
-if [ "$SDK" = iphoneos ]; then
+if [ "$SDK" = iphoneos ] || [ "$SDK" = appletvos ]; then
 	codesign --force --sign "$IDENTITY" --entitlements "$OUT/xbox.entitlements" --timestamp=none "$APP"
 else
 	# the Simulator refuses ad-hoc apps that claim restricted entitlements (and

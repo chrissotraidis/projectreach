@@ -1,5 +1,85 @@
 # HaloPad status
 
+## Apple TV: Steam sign-in from the page (experimental, not in a release)
+
+With OpenCE 387 or later, the Apple TV page signs in to Steam for the game's Steam Workshop
+screen. The page seals the account name and password with TweetNaCl's `nacl.box` to a key the TV
+makes at each launch, together with a one-use challenge; the TV opens them into a buffer it wipes
+and starts the game's own sign-in (`port/xbox/xg_steam_admin.inc`, appended to the generated
+`steam_downloads.c`).
+
+- Apple TV 4K (3rd gen, tvOS 27.2.1), OpenCE 387 (`307a42ee`): a browser paired with the code the
+  TV showed; the saved sign-in resumed; logging out revoked it with Steam; signing in again from
+  the page reached Steam Guard (app approval or code) and was approved.
+- `tests/test_xbox_admin_steam.py` builds the server with a stand-in Steam session and seals with
+  the page's `nacl.min.js` in Node: a password with accents, spaces, quotes and a backslash
+  arrives exactly; a replayed, a tampered and a plain-text sign-in are refused; unpaired browsers
+  get no key; a Steam Guard code arrives trimmed and upper-cased.
+- The page itself still arrives over plain HTTP: it protects the password from someone reading
+  the network's traffic, not from someone able to change the page.
+
+## Apple TV: adding the maps from a browser (experimental, not in a release)
+
+On Apple TV the app serves a page on the local network (`port/xbox/xg_admin.m`, `admin/admin.html`).
+The player pairs a browser with a six-digit code the TV shows; the page reads their disc in the
+browser and sends only `maps/`, and the TV checks every map before swapping them in.
+
+- tvOS Simulator (Apple TV 4K), OpenCE 359, no game data: the app showed the first-run screen with
+  its address; a code requested from the Mac appeared on the TV, paired, and the 24 maps of a
+  01.10.12.2276 disc (1.86 GB) were sent, checked and installed. The game then started by itself
+  and reached the main menu.
+- Apple TV 4K (3rd gen, tvOS 27.2.1), OpenCE 387, with the maps already installed: an earlier
+  version of the page (before pairing) sent the same maps from a browser on a Mac while the game
+  ran, and asked for a restart. After the app spent time in the background, the page answered
+  again once it returned.
+- `tests/test_xbox_admin.py` builds the server for the Mac and drives it over HTTP: pairing and
+  its limits, installing maps, refusing maps of another build or without a header or `ui.map`
+  while keeping the installed ones, unsafe names, superseded imports, and reopening the socket.
+  `tests/test_xbox_admin_disc_reader.py` runs the page's disc reader (Node) on synthetic disc
+  images. Neither uses game data.
+
+## Xbox edition on Apple TV (experimental, not in a release)
+
+`scripts/xbox/build-ios.sh --tvos` builds the Xbox test app for Apple TV; `docs/INSTALL-APPLE-TV.md`
+covers signing, installing and adding the maps.
+
+- Apple TV 4K (3rd gen, A15, tvOS 27.2.1), OpenCE 359 (`1519c65f`), Apple OpenGL ES 3.0 on Metal:
+  the menu at 59.6 fps, 0 GL errors, 1920×1080, 48 kHz stereo. The 4 GiB guest reservation
+  succeeds with no entitlements (tvOS grants extended virtual addressing but never the increased
+  memory limit; the limit is about 2 GB). Not played with a controller on this build.
+- The same port with OpenCE 387 (`307a42ee`, with the Steam Workshop host and the Siri Remote
+  experiments added) was played with a controller: menus, a level, walking.
+- In the background the game now stops at its next frame's end and does no GPU work until it
+  returns. Before, tvOS refused its drawing ("Insufficient Permission (to submit GPU work from
+  background)") and the Apple TV once stopped responding just after. Checked on the Apple TV by
+  opening Settings and returning: stopped, resumed at 60 fps, no GPU errors. Mac Catalyst is
+  unchanged.
+- Signing: `scripts/xbox/tvos-signing.py` finds an Xcode-made tvOS development profile and its
+  keychain identity; checked with a paid team. A free Apple account is untested.
+- iPhone Simulator: the test app builds with OpenCE 359 with these changes. Mac Catalyst: the
+  changed files compile with ANGLE's headers; ANGLE itself was not built, and neither was run.
+- Data and saves live in `Library/Caches`, the only folders tvOS apps may write. A 1.5 GiB test
+  set there survived a relaunch and two Apple TV restarts; tvOS may still purge it when storage
+  runs low.
+## Steam Workshop host for OpenCE 387 and later (not in a release)
+
+OpenCE builds after 359 import 30 more host functions: the Steam Workshop screen (24) and MCC
+and SHA-256 hashing (6). `build-ios.sh` now compiles upstream's Android host for them when the
+engine has it (`scripts/xbox/gen-host-steam.py`, `port/xbox/xg_steam_host.m`); the pinned 359
+has no such files, so its builds are unchanged.
+
+- Workshop installs on Apple platforms failed at their last step ("The item could not be put in
+  mcc_maps/<id>"): upstream moves the finished download with Linux's `renameat2` and refuses
+  elsewhere. The generated copy now uses Darwin's `RENAME_EXCL`, as `xg_posix.c` already does
+  for the game's own calls.
+- Checked on an Apple TV 4K (3rd gen, tvOS 27.2.1) with OpenCE 387 (`307a42ee`) from a tvOS
+  build of this host: Steam sign-in with Steam Guard, browsing, the shared MCC files (3 of 3)
+  and one Workshop map (144 MB) installed.
+- iPhone and Mac Catalyst: every Steam host file compiles against the iOS 27.2 SDKs; not run.
+  OpenCE 387 guests also stop Apple's linker ("too many large addends"), so an iPhone or Mac
+  build of 387 needs a linker change that is not part of this.
+- `tests/test_xbox_gen_host_steam.py` covers the generator's substitutions and its refusals.
+
 ## HaloPad 0.3.16: OpenCE 359
 
 **Published 2026-11-15:** [HaloPad 0.3.16](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.16)
