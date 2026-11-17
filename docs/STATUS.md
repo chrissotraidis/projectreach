@@ -1,5 +1,49 @@
 # HaloPad status
 
+## Apple TV: adding the maps from a browser (experimental, not in a release)
+
+On Apple TV the app serves a page on the local network (`port/xbox/xg_admin.m`, `admin/admin.html`).
+The player pairs a browser with a six-digit code the TV shows; the page reads their disc in the
+browser and sends only `maps/`, and the TV checks every map before swapping them in.
+
+- tvOS Simulator (Apple TV 4K), OpenCE 359, no game data: the app showed the first-run screen with
+  its address; a code requested from the Mac appeared on the TV, paired, and the 24 maps of a
+  01.10.12.2276 disc (1.86 GB) were sent, checked and installed. The game then started by itself
+  and reached the main menu.
+- Apple TV 4K (3rd gen, tvOS 27.2.1), OpenCE 387, with the maps already installed: an earlier
+  version of the page (before pairing) sent the same maps from a browser on a Mac while the game
+  ran, and asked for a restart. After the app spent time in the background, the page answered
+  again once it returned.
+- `tests/test_xbox_admin.py` builds the server for the Mac and drives it over HTTP: pairing and
+  its limits, installing maps, refusing maps of another build or without a header or `ui.map`
+  while keeping the installed ones, unsafe names, superseded imports, and reopening the socket.
+  `tests/test_xbox_admin_disc_reader.py` runs the page's disc reader (Node) on synthetic disc
+  images. Neither uses game data.
+
+## Xbox edition on Apple TV (experimental, not in a release)
+
+`scripts/xbox/build-ios.sh --tvos` builds the Xbox test app for Apple TV; `docs/INSTALL-APPLE-TV.md`
+covers signing, installing and adding the maps.
+
+- Apple TV 4K (3rd gen, A15, tvOS 27.2.1), OpenCE 359 (`1519c65f`), Apple OpenGL ES 3.0 on Metal:
+  the menu at 59.6 fps, 0 GL errors, 1920×1080, 48 kHz stereo. The 4 GiB guest reservation
+  succeeds with no entitlements (tvOS grants extended virtual addressing but never the increased
+  memory limit; the limit is about 2 GB). Not played with a controller on this build.
+- The same port with OpenCE 387 (`307a42ee`, with the Steam Workshop host and the Siri Remote
+  experiments added) was played with a controller: menus, a level, walking.
+- In the background the game now stops at its next frame's end and does no GPU work until it
+  returns. Before, tvOS refused its drawing ("Insufficient Permission (to submit GPU work from
+  background)") and the Apple TV once stopped responding just after. Checked on the Apple TV by
+  opening Settings and returning: stopped, resumed at 60 fps, no GPU errors. Mac Catalyst is
+  unchanged.
+- Signing: `scripts/xbox/tvos-signing.py` finds an Xcode-made tvOS development profile and its
+  keychain identity; checked with a paid team. A free Apple account is untested.
+- iPhone Simulator: the test app builds with OpenCE 359 with these changes. Mac Catalyst: the
+  changed files compile with ANGLE's headers; ANGLE itself was not built, and neither was run.
+- Data and saves live in `Library/Caches`, the only folders tvOS apps may write. A 1.5 GiB test
+  set there survived a relaunch and two Apple TV restarts; tvOS may still purge it when storage
+  runs low.
+
 ## HaloPad 0.3.16: OpenCE 359
 
 **Published 2026-11-15:** [HaloPad 0.3.16](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.16)
