@@ -269,10 +269,11 @@ def package(exe, out, work, target=TARGET, identity=None, provisioning=None, pro
         'CFBundleDisplayName': 'HaloPad', 'CFBundlePackageType': 'APPL', 'CFBundleVersion': app_build,
         'CFBundleShortVersionString': app_version, 'CFBundleSupportedPlatforms': ['iPhoneSimulator' if 'simulator' in target else 'iPhoneOS'],
         'DTPlatformName': 'macosx' if mac else ('iphonesimulator' if 'simulator' in target else 'iphoneos'),
-        'MinimumOSVersion': minimum, 'UIDeviceFamily': [1, 2], 'UIRequiresFullScreen': True, 'UILaunchScreen': {},
+        'MinimumOSVersion': minimum, 'UIDeviceFamily': [1, 2], 'UIRequiresFullScreen': True, 'UIRequiresFullScreenIgnoredStartingWithVersion': '26', 'UILaunchScreen': {},
         'UIStatusBarHidden': True,
         'UISupportedInterfaceOrientations': ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
-        'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
+        'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown',
+                                             'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'],
         'UIApplicationSceneManifest': {'UIApplicationSupportsMultipleScenes': False},
         # the player's Halo folder is copied into Documents (Files app, Finder) or picked from a folder
         'UIFileSharingEnabled': True, 'LSSupportsOpeningDocumentsInPlace': True,

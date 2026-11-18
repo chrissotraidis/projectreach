@@ -239,7 +239,8 @@ cat > "$APP/Info.plist" <<EOF
 <key>UILaunchScreen</key><dict/>
 <key>UIStatusBarHidden</key><true/>
 <key>UISupportedInterfaceOrientations</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
-<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
+<key>UIRequiresFullScreenIgnoredStartingWithVersion</key><string>26</string>
+<key>UISupportedInterfaceOrientations~ipad</key><array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationPortraitUpsideDown</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>
 <key>GCSupportsControllerUserInteraction</key><true/>
 <key>UIApplicationSceneManifest</key><dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
 <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
