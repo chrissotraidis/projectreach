@@ -1,5 +1,34 @@
 # HaloPad status
 
+## Stale level geometry after a map change — 2026-11-18 (unreleased)
+
+[#45](https://github.com/chrissotraidis/projectreach/issues/45): after joining another match,
+the level's geometry can be missing while players, weapons and the HUD draw; a restart
+clears it. HaloPad's host reports no Android chip family (`xh_host_android_chip_family`
+returns unknown), so the OpenCE 359 guest takes the Android geometry path: each map's
+vertex and index ranges get a GL buffer, filled at the first draw and found again by
+address. When the next map loads into the same memory, 359 keeps the earlier map's range
+if the new one starts inside it or overlaps it, and draws read the old map's bytes.
+
+The fix is the `d3d8_gl.c` part of upstream's unmerged
+[OpenCE #564](https://github.com/OpenCommunityEdition/OpenCE/pull/564) (commit `8466202e96`),
+stored as `port/patches/opence-564-static-geometry.patch` and applied by
+`scripts/xbox/static_geometry.py` to build 359's `network-policy-v1` recipe only. Each of
+its 10 hunks must match the reviewed renderer exactly once. Older builds' recipes are
+unchanged; build 359's becomes `e47c9b3e…`.
+
+- Upstream's own static geometry cases, compiled against exact 359: unfixed fails
+  stale overlap, stale cover, partial overwrite and changed bytes; fixed passes all 11.
+- New `tests/test_xbox_static_geometry.py` replays two matches in the same memory against
+  the adapted renderer (passes) and the unfixed one (draws the last map's geometry).
+  The full suite passes with Apple Python 3.9.6 apart from the two `pefile` import
+  errors this Mac already had.
+- PadMint's iPhone/iPad player check passes from `512c122` (3 m 34 s, PadMint main
+  `415dd33`, labeled placeholder disc). The strict package audit passes for the builder's
+  app; its guest carries the new recipe.
+- Not yet played: no map change was tested on a device. Confirmation is pending from
+  the reporter.
+
 ## HaloPad 0.3.16: OpenCE 359
 
 **Published 2026-11-15:** [HaloPad 0.3.16](https://github.com/chrissotraidis/projectreach/releases/tag/v0.3.16)
