@@ -25,6 +25,9 @@ _input_spec.loader.exec_module(profile_input)
 _network_spec = importlib.util.spec_from_file_location('network_bridge', pathlib.Path(__file__).with_name('network_bridge.py'))
 network_bridge = importlib.util.module_from_spec(_network_spec)
 _network_spec.loader.exec_module(network_bridge)
+_geometry_spec = importlib.util.spec_from_file_location('static_geometry', pathlib.Path(__file__).with_name('static_geometry.py'))
+static_geometry = importlib.util.module_from_spec(_geometry_spec)
+_geometry_spec.loader.exec_module(static_geometry)
 
 RENDERER = pathlib.Path('port/linux/src/d3d8_gl.c')
 SOURCE_SHA256 = '5c8c132048b1efaa57d322b9c8a0ef65df07c1755df653c0f1a178ce96831cc6'
@@ -346,6 +349,12 @@ COUNTED_ADAPTATIONS = ('render-visibility-v1', 'render-water-v1', *BORDER_ADAPTA
 WATER_ADAPTATIONS = ('render-water-v1', *BORDER_ADAPTATIONS)
 
 
+def static_geometry_fixed(name, renderer):
+    """Build 359's renderer takes upstream's stale static geometry fix (#45) with the
+    network policy; earlier builds keep their recorded recipes."""
+    return name in NETWORK_ADAPTATIONS and renderer == border_sampling.GLES_359_RENDERER_SHA256
+
+
 def identity(name=None, revision=None):
     name = os.environ.get('HALOPAD_XBOX_GUEST_ADAPTATION', 'none') if name is None else name
     if name == 'none':
@@ -382,6 +391,8 @@ def identity(name=None, revision=None):
                                                              border_sampling.GLES_359_RENDERER_SHA256),
                                         queued=border_sampling.is_gles_343_family(renderer),
                                         joined=renderer == border_sampling.GLES_359_RENDERER_SHA256)
+    if static_geometry_fixed(name, renderer):
+        recipe += static_geometry.recipe()
     if revision not in REVIEWED_RENDERERS and latest_mode():
         result['reviewed'] = False
     result['recipe_sha256'] = hashlib.sha256(recipe).hexdigest()
@@ -430,6 +441,8 @@ def adapted_source(original, name='render-scale-v1'):
         if original.count(present_anchor) != 1:
             raise ValueError('Renderer presentation input changed; review upstream first')
         modified = modified.replace(present_anchor, present_replace)
+    if static_geometry_fixed(name, expected):
+        modified = static_geometry.adapt(modified)
     return modified
 
 
