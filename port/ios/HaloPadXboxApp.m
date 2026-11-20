@@ -27,7 +27,7 @@ int halopad_app_controller_ready(void) { return 0; }
     self.window.rootViewController = HPEngineChooserMake(nil);
     [self.window makeKeyAndVisible];
     UIWindowSceneGeometryPreferencesIOS *land = [[UIWindowSceneGeometryPreferencesIOS alloc]
-        initWithInterfaceOrientations:UIInterfaceOrientationMaskLandscape];
+        initWithInterfaceOrientations:(UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? UIInterfaceOrientationMaskAll : UIInterfaceOrientationMaskLandscape)];
     [(UIWindowScene *)scene requestGeometryUpdateWithPreferences:land errorHandler:^(NSError *e) {
         halopad_log("App: landscape request: %s", e.localizedDescription.UTF8String);
     }];

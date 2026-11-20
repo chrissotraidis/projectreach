@@ -1298,7 +1298,7 @@ static void touch_selftest(void)
             fprintf(stderr, "HALOPAD APP:   layer %s %s hidden %d opaque %d frame %.0fx%.0f z %.0f\n", l.class.description.UTF8String,
                     l == overlay.layer ? "(overlay)" : "", l.hidden, l.opaque, l.frame.size.width, l.frame.size.height, l.zPosition);
 }
-- (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIInterfaceOrientationMaskLandscape; }
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations { return UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? UIInterfaceOrientationMaskAll : UIInterfaceOrientationMaskLandscape; }
 - (void)overlayDisplayChanged:(HPOverlay *)o { [self applyDisplay]; }
 - (void)overlayRequestsKeyboard:(HPOverlay *)o
 {
@@ -1796,7 +1796,7 @@ extern UIViewController *HPEngineChooserMake(UIViewController *(^makePC)(void)) 
         self.window.rootViewController = game_vc = [HPGameViewController new];
     [self.window makeKeyAndVisible];
     /* landscape, as Halo's desktop is (iPadOS 26 no longer holds apps to Info.plist's list) */
-    UIWindowSceneGeometryPreferencesIOS *land = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:UIInterfaceOrientationMaskLandscape];
+    UIWindowSceneGeometryPreferencesIOS *land = [[UIWindowSceneGeometryPreferencesIOS alloc] initWithInterfaceOrientations:(UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad ? UIInterfaceOrientationMaskAll : UIInterfaceOrientationMaskLandscape)];
     [(UIWindowScene *)scene requestGeometryUpdateWithPreferences:land errorHandler:^(NSError *e) { fprintf(stderr, "HALOPAD APP: landscape request: %s\n", e.localizedDescription.UTF8String); }];
 }
 /* iPadOS 26 opens apps in resizable windows when the iPad uses Windowed Apps
